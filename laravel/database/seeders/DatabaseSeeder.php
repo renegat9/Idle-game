@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             ItemTemplateSeeder::class,
             QuestSeeder::class,
             RecipeSeeder::class,
+            TalentSeeder::class,
         ]);
     }
 }

@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('hero_talents', function (Blueprint $table) {
             $table->id();
             $table->foreignId('hero_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('talent_id')->constrained();
+            $table->foreignId('talent_id')->constrained('talents');
             $table->timestamp('unlocked_at')->useCurrent();
 
             $table->unique(['hero_id', 'talent_id'], 'uk_hero_talent');
