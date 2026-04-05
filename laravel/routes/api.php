@@ -7,6 +7,9 @@ use App\Http\Controllers\Game\ExplorationController;
 use App\Http\Controllers\Game\InventoryController;
 use App\Http\Controllers\Game\DashboardController;
 use App\Http\Controllers\Game\ZoneController;
+use App\Http\Controllers\Game\QuestController;
+use App\Http\Controllers\Game\CraftingController;
+use App\Http\Controllers\Game\TavernController;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -14,23 +17,44 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
 
+    // Dashboard & polling
     Route::get('/game/dashboard', [DashboardController::class, 'index']);
     Route::get('/game/poll', [DashboardController::class, 'poll']);
 
+    // Heroes
     Route::get('/heroes', [HeroController::class, 'index']);
     Route::post('/heroes', [HeroController::class, 'store']);
     Route::post('/heroes/{hero}/equip', [HeroController::class, 'equip']);
 
+    // Exploration
     Route::get('/exploration/status', [ExplorationController::class, 'status']);
     Route::post('/exploration/start', [ExplorationController::class, 'start']);
     Route::post('/exploration/collect', [ExplorationController::class, 'collect']);
 
+    // Inventory
     Route::get('/inventory', [InventoryController::class, 'index']);
     Route::post('/inventory/sell', [InventoryController::class, 'sell']);
 
+    // Zones
     Route::get('/zones', [ZoneController::class, 'index']);
 
-    // Données de référence (races, classes, traits)
+    // Quests
+    Route::get('/quests', [QuestController::class, 'index']);
+    Route::post('/quests/{questId}/start', [QuestController::class, 'start']);
+    Route::post('/user-quests/{userQuestId}/choose', [QuestController::class, 'choose']);
+
+    // Crafting — Forge de Gérard
+    Route::get('/crafting', [CraftingController::class, 'index']);
+    Route::post('/crafting/fuse', [CraftingController::class, 'fuse']);
+    Route::post('/crafting/dismantle', [CraftingController::class, 'dismantle']);
+    Route::post('/crafting/craft', [CraftingController::class, 'craft']);
+
+    // Taverne
+    Route::get('/tavern', [TavernController::class, 'index']);
+    Route::post('/tavern/hire/{recruitId}', [TavernController::class, 'hire']);
+    Route::post('/tavern/remove-debuff', [TavernController::class, 'removeDebuff']);
+
+    // Reference data
     Route::prefix('reference')->group(function () {
         Route::get('/races', fn() => response()->json(['races' => \App\Models\Race::all()]));
         Route::get('/classes', fn() => response()->json(['classes' => \App\Models\GameClass::all()]));

@@ -122,9 +122,27 @@ class NarratorService
         return $text;
     }
 
+    private array $extraTemplates = [
+        'tavern_visited' => [
+            'La taverne. Lieu de repos, de bière et de mauvaises décisions. Le Narrateur attendait votre arrivée.',
+            'Vous entrez dans la taverne. L\'ambiance est chaleureuse. Les recrues vous regardent avec espoir. Ne les décevez pas... trop.',
+            'Une taverne. Enfin un endroit où votre réputation ne vous a pas encore précédé.',
+        ],
+        'quest_completed' => [
+            'Quête terminée. Contre toute attente.',
+            '{quest_title} — accomplie. Le Narrateur met à jour ses archives avec un soupir résigné.',
+            'Mission accomplie ! Le Narrateur est surpris. Il prend ça en note.',
+        ],
+        'craft_failure' => [
+            'Fusion ratée. La forge fume encore. Gérard est embarrassé.',
+            'Raté. Même Gérard n\'a pas vu ça venir. Enfin si, un peu.',
+            'La fusion a échoué. Le Narrateur n\'est pas surpris. Vous devriez l\'être.',
+        ],
+    ];
+
     private function getStaticTemplate(string $eventType, array $context): string
     {
-        $templates = $this->templates[$eventType] ?? $this->templates['default'];
+        $templates = $this->templates[$eventType] ?? $this->extraTemplates[$eventType] ?? $this->templates['default'];
 
         $selected = $templates[array_rand($templates)];
 

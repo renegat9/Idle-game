@@ -61,6 +61,9 @@ export function AppShell() {
               </span>
             )}
           </Link>
+          <Link to="/quests" style={linkStyle}>Quêtes</Link>
+          <Link to="/forge" style={linkStyle}>Forge</Link>
+          <Link to="/tavern" style={linkStyle}>Taverne</Link>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

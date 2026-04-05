@@ -1,0 +1,168 @@
+import { useEffect, useState } from 'react'
+import { tavernApi } from '../api/game'
+import { useGameStore } from '../store/gameStore'
+import { NarratorBubble } from '../components/narrator/NarratorBubble'
+
+type Recruit = {
+  id: number
+  name: string
+  hire_cost: number
+  expires_at: string
+  race: { id: number; name: string; slug: string }
+  class: { id: number; name: string; role: string }
+  trait: { id: number; name: string; description: string }
+}
+
+type HeroDebuffs = {
+  hero_id: number
+  hero_name: string
+  removal_cost: number
+  debuffs: Array<{ id: number; source: string; stat_affected: string; modifier_percent: number; remaining_combats: number }>
+}
+
+export function TavernPage() {
+  useGameStore()
+  const [recruits, setRecruits] = useState<Recruit[]>([])
+  const [heroDebuffs, setHeroDebuffs] = useState<HeroDebuffs[]>([])
+  const [narratorComment, setNarratorComment] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [acting, setActing] = useState(false)
+  const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
+
+  useEffect(() => { loadTavern() }, [])
+
+  async function loadTavern() {
+    try {
+      const { data } = await tavernApi.get()
+      setRecruits(data.recruits ?? [])
+      setHeroDebuffs(data.hero_debuffs ?? [])
+      setNarratorComment(data.narrator_comment ?? '')
+    } catch { /* ok */ }
+    setLoading(false)
+  }
+
+  async function hire(recruitId: number) {
+    if (acting) return
+    setActing(true)
+    setMessage(null)
+    try {
+      const { data } = await tavernApi.hire(recruitId)
+      setMessage({ text: data.message, ok: true })
+      await loadTavern()
+    } catch (e: any) {
+      setMessage({ text: e.response?.data?.message ?? 'Erreur', ok: false })
+    }
+    setActing(false)
+  }
+
+  async function removeDebuff(heroId: number, buffId: number) {
+    if (acting) return
+    setActing(true)
+    setMessage(null)
+    try {
+      const { data } = await tavernApi.removeDebuff(heroId, buffId)
+      setMessage({ text: data.message, ok: true })
+      await loadTavern()
+    } catch (e: any) {
+      setMessage({ text: e.response?.data?.message ?? 'Erreur', ok: false })
+    }
+    setActing(false)
+  }
+
+  const roleColor = (role: string) =>
+    ({ tank: '#3b82f6', dps: '#ef4444', support: '#22c55e', hybrid: '#f59e0b', summoner: '#a855f7' }[role] ?? '#6b7280')
+
+  if (loading) return <div style={{ color: '#94a3b8' }}>Chargement de la taverne...</div>
+
+  return (
+    <div>
+      <h1 style={{ color: '#f1f5f9', marginBottom: 4, fontSize: 24 }}>🍺 La Taverne</h1>
+      <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 14 }}>Recruter de nouveaux héros ou purifier les afflictions de votre équipe.</p>
+
+      {narratorComment && <NarratorBubble comment={narratorComment} />}
+
+      {message && (
+        <div style={{ background: message.ok ? '#052e16' : '#1c0505', border: `1px solid ${message.ok ? '#16a34a' : '#991b1b'}`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
+          <span style={{ color: message.ok ? '#22c55e' : '#ef4444' }}>{message.text}</span>
+        </div>
+      )}
+
+      {/* Recruits */}
+      <h2 style={{ color: '#e2e8f0', fontSize: 18, marginBottom: 14 }}>Héros disponibles</h2>
+      {recruits.length === 0 && (
+        <div style={{ color: '#6b7280', background: '#1e293b', borderRadius: 10, padding: 20, marginBottom: 24, textAlign: 'center' }}>
+          Aucun héros disponible pour le moment. Revenez plus tard.
+        </div>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
+        {recruits.map(r => (
+          <div key={r.id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+              <h3 style={{ color: '#f1f5f9', margin: 0, fontSize: 16 }}>{r.name}</h3>
+              <span style={{ color: '#fbbf24', fontSize: 14, fontWeight: 'bold' }}>{r.hire_cost} 💰</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              <span style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#94a3b8' }}>
+                {r.race.name}
+              </span>
+              <span style={{ background: '#0f172a', border: `1px solid ${roleColor(r.class.role)}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, color: roleColor(r.class.role) }}>
+                {r.class.name}
+              </span>
+              <span style={{ background: '#0f172a', border: '1px solid #7c3aed', borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#a78bfa' }}>
+                {r.trait.name}
+              </span>
+            </div>
+            <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 12px', fontStyle: 'italic' }}>{r.trait.description}</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#475569', fontSize: 11 }}>
+                Expire {new Date(r.expires_at).toLocaleDateString('fr-FR')}
+              </span>
+              <button
+                onClick={() => hire(r.id)}
+                disabled={acting}
+                style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: acting ? 'not-allowed' : 'pointer', fontSize: 13, opacity: acting ? 0.6 : 1 }}
+              >
+                Recruter
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Debuff removal */}
+      {heroDebuffs.length > 0 && (
+        <>
+          <h2 style={{ color: '#e2e8f0', fontSize: 18, marginBottom: 14 }}>🧪 Purification des afflictions</h2>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {heroDebuffs.map(hd => (
+              <div key={hd.hero_id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <h3 style={{ color: '#f1f5f9', margin: 0, fontSize: 15 }}>{hd.hero_name}</h3>
+                  <span style={{ color: '#94a3b8', fontSize: 12 }}>Coût de purification : {hd.removal_cost} 💰 / debuff</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {hd.debuffs.map(b => (
+                    <div key={b.id} style={{ background: '#1c0505', border: '1px solid #7f1d1d', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div>
+                        <span style={{ color: '#fca5a5', fontSize: 12 }}>{b.source.replace('quest_debuff_', '')}</span>
+                        <span style={{ color: '#ef4444', fontSize: 11, marginLeft: 6 }}>{b.modifier_percent}% {b.stat_affected}</span>
+                        <span style={{ color: '#6b7280', fontSize: 11, marginLeft: 6 }}>{b.remaining_combats} combats</span>
+                      </div>
+                      <button
+                        onClick={() => removeDebuff(hd.hero_id, b.id)}
+                        disabled={acting}
+                        style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: acting ? 'not-allowed' : 'pointer', fontSize: 12 }}
+                      >
+                        Purifier
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}

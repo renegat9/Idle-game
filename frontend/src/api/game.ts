@@ -39,3 +39,24 @@ export const referenceApi = {
   classes: () => apiClient.get<{ classes: GameClass[] }>('/reference/classes'),
   traits: () => apiClient.get<{ traits: Trait[] }>('/reference/traits'),
 }
+
+export const questApi = {
+  list: () => apiClient.get<{ quests: any[] }>('/quests'),
+  start: (questId: number) => apiClient.post<any>(`/quests/${questId}/start`),
+  choose: (userQuestId: number, choiceId: string, heroId?: number) =>
+    apiClient.post<any>(`/user-quests/${userQuestId}/choose`, { choice_id: choiceId, hero_id: heroId }),
+}
+
+export const craftingApi = {
+  get: () => apiClient.get<{ materials: any[]; recipes: any[] }>('/crafting'),
+  fuse: (itemIds: number[]) => apiClient.post<any>('/crafting/fuse', { item_ids: itemIds }),
+  dismantle: (itemId: number) => apiClient.post<any>('/crafting/dismantle', { item_id: itemId }),
+  craft: (recipeId: number) => apiClient.post<any>('/crafting/craft', { recipe_id: recipeId }),
+}
+
+export const tavernApi = {
+  get: () => apiClient.get<any>('/tavern'),
+  hire: (recruitId: number) => apiClient.post<any>(`/tavern/hire/${recruitId}`),
+  removeDebuff: (heroId: number, buffId: number) =>
+    apiClient.post<any>('/tavern/remove-debuff', { hero_id: heroId, buff_id: buffId }),
+}

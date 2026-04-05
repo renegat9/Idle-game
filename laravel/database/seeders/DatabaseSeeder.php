@@ -19,6 +19,8 @@ class DatabaseSeeder extends Seeder
             EncounterGroupSeeder::class,
             MaterialSeeder::class,
             ItemTemplateSeeder::class,
+            QuestSeeder::class,
+            RecipeSeeder::class,
         ]);
     }
 }

@@ -9,13 +9,15 @@ class HeroBuff extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'hero_id', 'buff_key', 'name', 'is_buff', 'value',
-        'stat_affected', 'remaining_combats', 'source',
+        'hero_id', 'buff_key', 'name', 'is_buff', 'is_debuff',
+        'value', 'modifier_percent', 'stat_affected', 'remaining_combats', 'source',
     ];
 
     protected $casts = [
-        'is_buff' => 'boolean',
-        'value' => 'integer',
+        'is_buff'           => 'boolean',
+        'is_debuff'         => 'boolean',
+        'value'             => 'integer',
+        'modifier_percent'  => 'integer',
         'remaining_combats' => 'integer',
     ];
 

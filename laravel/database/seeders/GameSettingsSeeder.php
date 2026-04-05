@@ -143,6 +143,51 @@ class GameSettingsSeeder extends Seeder
             // Économie
             ['GOLD_SELL_RATIO', 30, 'Ratio de vente d\'objets vs valeur (%)'],
             ['DUNGEON_TIMER_HOURS', 8, 'Délai entre les donjons spéciaux (heures)'],
+
+            // Quêtes
+            ['QUEST_DAILY_COUNT', 3, 'Quêtes quotidiennes par jour'],
+            ['QUEST_DAILY_STEPS_MIN', 3, 'Étapes minimum d\'une quête quotidienne'],
+            ['QUEST_DAILY_STEPS_MAX', 5, 'Étapes maximum d\'une quête quotidienne'],
+            ['QUEST_ZONE_STEPS_MIN', 5, 'Étapes minimum d\'une quête de zone'],
+            ['QUEST_ZONE_STEPS_MAX', 7, 'Étapes maximum d\'une quête de zone'],
+            ['QUEST_BUFF_DURATION_SHORT', 10, 'Durée buff court (combats)'],
+            ['QUEST_BUFF_DURATION_MEDIUM', 30, 'Durée buff moyen (combats)'],
+            ['QUEST_BUFF_DURATION_LONG', 100, 'Durée buff long (combats)'],
+            ['QUEST_DEBUFF_DURATION_MAX', 20, 'Durée maximum d\'un debuff (combats)'],
+            ['QUEST_HERO_ABSENCE_MAX', 60, 'Absence maximum d\'un héros perdu (minutes)'],
+            ['QUEST_SURPRISE_CHANCE', 15, '% de chance d\'événement surprise par étape'],
+            ['QUEST_REPUTATION_PER_QUEST', 10, 'Points de réputation par quête réussie'],
+            ['QUEST_REPUTATION_ZONE_UNLOCK', 100, 'Réputation pour débloquer le contenu bonus'],
+            ['QUEST_WTF_DAILY_CHANCE', 5, '% de chance d\'apparition d\'une quête WTF'],
+            ['QUEST_VOICE_HEROIC_XP_BONUS', 25, '% bonus XP voie héroïque'],
+            ['QUEST_VOICE_CUNNING_GOLD_BONUS', 25, '% bonus or voie maligne'],
+            ['QUEST_VOICE_COMIC_ALL_BONUS', 10, '% bonus toutes récompenses voie comique'],
+            ['QUEST_DEBUFF_REMOVE_COST', 100, 'Or × niveau du héros pour retirer un debuff'],
+            ['QUEST_POOL_SIZE_TARGET', 50, 'Quêtes à maintenir dans le pool par zone'],
+            ['QUEST_POOL_REFILL_THRESHOLD', 20, 'Seuil pour déclencher la régénération du pool'],
+            ['REPUTATION_MAX', 200, 'Score de réputation maximum par zone'],
+            ['NPC_RELATION_MAX', 100, 'Score de relation maximum par PNJ'],
+            ['IDLE_EVENT_INTERVAL', 30, 'Minutes entre chaque micro-événement idle'],
+
+            // Crafting
+            ['CRAFT_FUSION_COUNT', 3, 'Nombre d\'objets requis pour une fusion'],
+            ['CRAFT_FUSION_SUCCESS', 85, '% de chance de succès de fusion'],
+            ['CRAFT_FUSION_CRIT', 10, '% de chance de critique de fusion (+1 rareté bonus)'],
+            ['CRAFT_DISMANTLE_MATERIAL_MIN', 1, 'Matériaux minimum par démontage'],
+            ['CRAFT_DISMANTLE_MATERIAL_MAX', 5, 'Matériaux maximum par démontage'],
+            ['CRAFT_RECIPE_DISCOVER_CHANCE', 5, '% de chance de découvrir une recette en craftant'],
+            ['CRAFT_GERARD_HUMOR_CHANCE', 30, '% de chance que Gérard fasse un commentaire'],
+
+            // Inventaire
+            ['INVENTORY_MAX_ITEMS', 100, 'Limite d\'objets en inventaire'],
+            ['INVENTORY_EXPAND_COST', 500, 'Coût d\'expansion par tranche de 20 slots'],
+            ['INVENTORY_MAX_EXPANDED', 200, 'Limite maximale après expansion'],
+
+            // Durabilité
+            ['LOOT_DURABILITY_BASE', 100, 'Durabilité de base des objets'],
+            ['LOOT_DURABILITY_WTF', 30, 'Durabilité des objets WTF'],
+            ['LOOT_DURABILITY_LOSS_PER_COMBAT', 1, 'Durabilité perdue par combat'],
+            ['LOOT_REPAIR_COST_MULTIPLIER', 2, 'Multiplicateur du coût de réparation'],
         ];
 
         foreach ($settings as [$key, $value, $description]) {
