@@ -14,6 +14,7 @@ use App\Http\Controllers\Game\ShopController;
 use App\Http\Controllers\Game\WorldBossController;
 use App\Http\Controllers\Game\DungeonController;
 use App\Http\Controllers\Game\TalentController;
+use App\Http\Controllers\Game\ProfileController;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -77,6 +78,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/world-boss', [WorldBossController::class, 'status']);
     Route::post('/world-boss/attack', [WorldBossController::class, 'attack']);
     Route::get('/world-boss/leaderboard', [WorldBossController::class, 'leaderboard']);
+
+    // Profile
+    Route::get('/profile', [ProfileController::class, 'index']);
+    Route::patch('/profile', [ProfileController::class, 'update']);
 
     // Reference data
     Route::prefix('reference')->group(function () {

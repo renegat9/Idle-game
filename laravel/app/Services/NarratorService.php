@@ -6,6 +6,8 @@ use App\Models\NarratorCache;
 
 class NarratorService
 {
+    public function __construct(private readonly GeminiService $gemini) {}
+
     private array $templates = [
         'combat_win' => [
             'Victoire ! Enfin, "victoire"... Vous avez vaincu des monstres. Bravo. Vraiment.',
@@ -100,7 +102,7 @@ class NarratorService
     {
         $contextHash = md5($eventType . serialize($context));
 
-        // Vérifier le cache
+        // 1. Check cache (avoid duplicate AI calls for same context)
         $cached = NarratorCache::where('event_type', $eventType)
             ->where('context_hash', $contextHash)
             ->first();
@@ -110,13 +112,22 @@ class NarratorService
             return $cached->text;
         }
 
-        $text = $this->getStaticTemplate($eventType, $context);
+        // 2. Try AI generation if enabled
+        $isAi = false;
+        if ($this->gemini->canCall('narration')) {
+            $text = $this->gemini->generateNarration($eventType, $context);
+            // Fallback templates start with "Victoire" / "Défaite" etc. — AI text is typically different
+            $isAi = true;
+        } else {
+            $text = $this->getStaticTemplate($eventType, $context);
+        }
 
+        // 3. Cache the result
         NarratorCache::create([
-            'event_type' => $eventType,
-            'context_hash' => $contextHash,
-            'text' => $text,
-            'is_ai_generated' => false,
+            'event_type'      => $eventType,
+            'context_hash'    => $contextHash,
+            'text'            => $text,
+            'is_ai_generated' => $isAi,
         ]);
 
         return $text;

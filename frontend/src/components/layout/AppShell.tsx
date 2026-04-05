@@ -68,6 +68,7 @@ export function AppShell() {
           <Link to="/dungeon" style={linkStyle}>Donjon</Link>
           <Link to="/talents" style={linkStyle}>Talents</Link>
           <Link to="/world-boss" style={linkStyle}>Boss Mondial</Link>
+          <Link to="/profile" style={linkStyle}>Profil</Link>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>

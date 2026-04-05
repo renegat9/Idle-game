@@ -33,4 +33,9 @@ class SettingsService
         );
         $this->cache[$key] = $value;
     }
+
+    public function flush(): void
+    {
+        $this->cache = [];
+    }
 }

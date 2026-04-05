@@ -86,3 +86,8 @@ export const talentApi = {
     apiClient.post<any>(`/heroes/${heroId}/talents/${talentId}/allocate`),
   reset: (heroId: number) => apiClient.post<any>(`/heroes/${heroId}/talents/reset`),
 }
+export const profileApi = {
+  get: () => apiClient.get<any>('/profile'),
+  update: (data: { narrator_frequency?: string; username?: string }) =>
+    apiClient.patch<any>('/profile', data),
+}
