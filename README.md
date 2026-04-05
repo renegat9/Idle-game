@@ -2,15 +2,29 @@
 
 ## Idle RPG Fantasy Humoristique
 
-> "Un idle game où tes héros sont nuls, ton loot est absurde, et le narrateur te déteste."
+> *"Un idle game où tes héros sont nuls, ton loot est absurde, et le narrateur te déteste."*
 
 Inspiré de Kaamelott, Le Donjon de Naheulbeuk et Munchkin.
 
 ---
 
+## 📊 État d'avancement
+
+**Phases 1–4 complètes** — 184 tests, 0 échec.
+
+| Phase | Contenu | Statut |
+|-------|---------|--------|
+| **1 — MVP** | Auth, héros, combat, loot, inventaire, exploration idle, calcul offline, Narrateur statique | ✅ Complet |
+| **2 — Core** | Quêtes, crafting (Forge de Gérard), taverne, recrutement, boutique, donjons, 4 zones | ✅ Complet |
+| **3 — Systèmes** | Boutique, donjon spécial, boss mondial, arbres de talents (168 talents) | ✅ Complet |
+| **4 — IA & Async** | GeminiService (texte/image/musique + fallbacks), Jobs async, cron, `logs:cleanup`, profil | ✅ Complet |
+| **5 — Contenu** | Zones 5-8, quêtes WTF, réputation, PNJ, événements saisonniers | 🔲 À venir |
+
+---
+
 ## 📋 Résumé du projet
 
-Idle game web (navigateur) où le joueur recrute une équipe de héros incompétents (max 5) pour explorer des donjons, accomplir des quêtes absurdes et crafter des objets ridicules. Un narrateur sarcastique généré par IA commente chaque action. Le monde s'étend avec de nouvelles zones pour éviter le plafonnement. Modèle gratuit (hobby/portfolio).
+Idle game web où le joueur recrute une équipe de héros incompétents (max 5) pour explorer des donjons, accomplir des quêtes absurdes et crafter des objets ridicules. Un narrateur sarcastique — généré par IA si `AI_ENABLED=1`, templates statiques sinon — commente chaque action. Modèle gratuit (hobby/portfolio).
 
 ---
 
@@ -18,415 +32,333 @@ Idle game web (navigateur) où le joueur recrute une équipe de héros incompét
 
 | Composant | Technologie |
 |-----------|-------------|
-| **Frontend** | React + TypeScript + Vite |
-| **Backend** | PHP 8.2+ / Laravel |
-| **Base de données** | MariaDB |
+| **Frontend** | React 19 + TypeScript + Vite |
+| **Backend** | PHP 8.2 / Laravel 12 |
+| **Base de données** | MariaDB (SQLite en test) |
 | **Cache** | Laravel File/DB Cache |
-| **Auth** | Laravel Sanctum (tokens, session unique — un seul appareil connecté à la fois) |
-| **IA — Texte** | API Gemini (narration, noms d'objets, dialogues, quêtes) |
-| **IA — Images** | API Gemini Imagen (illustrations loot, monstres, héros) |
-| **IA — Musique** | API Gemini MusicFX (ambiances taverne) |
-| **Hébergement** | cPanel (VPS petit budget) — Apache, PHP natif, cron natif |
-| **Communication** | API REST JSON + polling AJAX (pas de WebSockets sur cPanel) |
-
-### Contraintes cPanel
-
-- Pas de Docker, pas de Redis, pas de WebSockets
-- Le temps réel est géré par polling AJAX (10-30 sec)
-- Les jobs asynchrones passent par le cron Laravel (`php artisan schedule:run` toutes les minutes)
-- Le calcul idle offline se fait à la reconnexion du joueur (pas de worker permanent)
-- Le frontend est un build statique (Vite → dist/) servi par Apache
-- L'API Laravel est sur un sous-domaine (api.tonsite.com → laravel/public/)
-
-### Auth — Session unique
-
-```php
-// À chaque login : supprimer tous les anciens tokens puis en créer un nouveau
-$user->tokens()->delete();
-$token = $user->createToken('game-session')->plainTextToken;
-```
-
-Les anciennes sessions reçoivent un 401 → le frontend redirige vers le login avec un message thématique.
+| **Auth** | Laravel Sanctum — session unique (un token actif à la fois) |
+| **IA — Texte** | Gemini API `gemini-2.0-flash` (narration, loot, quêtes) |
+| **IA — Images** | Gemini Imagen `imagen-3.0-generate-002` (illustrations loot) |
+| **IA — Musique** | MusicFX via Gemini (ambiances taverne) |
+| **Hébergement** | cPanel — Apache, PHP natif, cron natif (pas de Docker/Redis/WS) |
+| **Communication** | API REST JSON + polling AJAX toutes les 10–30 s |
 
 ---
 
-## 📁 Documents de game design
+## 🔧 Installation & commandes
 
-Le jeu est entièrement spécifié dans 8 documents. **Lis-les TOUS avant de coder.** Ils contiennent les formules exactes, les constantes paramétrables, les interactions entre systèmes et les cas limites.
+```bash
+# Backend
+cd laravel/
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate
+php artisan db:seed
 
-### Ordre de lecture recommandé
+# Frontend
+cd frontend/
+npm install
+npm run dev      # dev server
+npm run build    # build statique → dist/
 
-| # | Document | Contenu | Dépendances |
-|---|----------|---------|-------------|
-| 1 | `GDD.md` | Vision globale, features, phases de dev, boucle de gameplay | Aucune — lire en premier |
-| 2 | `COMBAT_SYSTEM.md` | Formules de combat (ATQ, DEF, critiques, initiative, XP, idle offline), stats de base des races/classes, table `game_settings` | GDD |
-| 3 | `TALENT_TREES.md` | 8 classes × 3 branches × 7 talents = 168 talents. Coûts (1-3 pts), paliers (0/3/6), capstones | COMBAT_SYSTEM |
-| 4 | `TRAITS_SYSTEM.md` | 10 traits négatifs détaillés : déclenchement, scaling par niveau, synergies avec la Branche du Défaut, simulation offline | COMBAT_SYSTEM, TALENT_TREES |
-| 5 | `LOOT_CRAFTING.md` | Système de loot (raretés, génération, effets spéciaux), crafting (fusion, démontage, recettes), durabilité, slots d'équipement | COMBAT_SYSTEM |
-| 6 | `BESTIARY.md` | 53 monstres, 8 mini-boss, 8 boss de zone (2 phases chacun), 5 boss mondiaux, système élémentaire (6 éléments), variantes élites (10 préfixes), compétences de monstres | COMBAT_SYSTEM, LOOT_CRAFTING |
-| 7 | `QUESTS_EFFECTS.md` | Types de quêtes (zone, quotidienne, WTF, événementielle), 15 buffs, 10 debuffs, effets monde, réputation, relations PNJ, événements surprise, aventures idle | COMBAT_SYSTEM, BESTIARY |
-| 8 | `ECONOMY.md` | Or (sources, dépenses, équilibrage), matériaux (génériques + par zone + cross-zone), boutiques (zone, taverne, Gérard, PNJ), enchantements, recettes complètes, anti-inflation | LOOT_CRAFTING, QUESTS_EFFECTS |
-| 9 | `DATABASE.md` | 34 tables MariaDB, schéma SQL complet, relations, index, diagramme, notes de maintenance | TOUS les documents ci-dessus |
+# Développement backend
+php artisan serve
+php artisan schedule:run    # jobs planifiés (à mettre en cron toutes les minutes)
+php artisan queue:work      # file d'attente async
 
-### Règles de design transversales
+# Seeders individuels
+php artisan db:seed --class=GameSettingsSeeder   # ~120 constantes paramétrables
+php artisan db:seed --class=RaceSeeder           # 6 races
+php artisan db:seed --class=ClassSeeder          # 8 classes
+php artisan db:seed --class=TraitSeeder          # 10 traits négatifs
+php artisan db:seed --class=TalentSeeder         # 168 talents (8 classes × 3 branches × 7)
+php artisan db:seed --class=ZoneSeeder           # 4 zones
+php artisan db:seed --class=MonsterSeeder        # monstres, mini-boss, boss de zone
 
-- **Valeurs entières uniquement.** Pas de float/double nulle part. Toutes les formules utilisent la division entière (floor). Les pourcentages sont appliqués via `stat × bonus / 100`.
-- **Tout est paramétrable.** Chaque constante de gameplay est dans la table `game_settings` (clé/valeur). Modifier une valeur en base change le comportement du jeu sans redéployer.
-- **Pas de conséquence négative permanente** pour le joueur. Les debuffs sont toujours temporaires (max 20 combats). Les héros perdus reviennent (max 60 min).
-- **L'IA est un enrichissement, pas une dépendance.** Chaque appel Gemini a un fallback statique (templates pré-écrits, images placeholder, musique libre de droits). Le jeu fonctionne sans IA.
-- **Cache agressif des contenus IA.** Une image générée pour un objet est stockée définitivement. Un commentaire du Narrateur est caché par type d'événement + contexte. La musique générée est stockée et réutilisée.
+# Maintenance (aussi déclenchés par le cron)
+php artisan logs:cleanup        # purge combat_log (>30j), economy_log (>90j), idle_event_log (>7j)
+php artisan shop:refresh        # purge les items de boutique expirés
+php artisan quests:generate     # génère le pool de quêtes quotidiennes (Gemini + fallback)
+php artisan world-boss:spawn    # invoque un boss mondial si aucun n'est actif
+
+# Tests
+php artisan test
+php artisan test --filter=ShopTest   # test d'un module spécifique
+```
 
 ---
 
-## 🏗️ Architecture Laravel
+## 🏗️ Architecture
 
-### Structure des dossiers
+### Backend (`laravel/`)
 
 ```
-laravel/
-├── app/
-│   ├── Http/
-│   │   ├── Controllers/
-│   │   │   ├── Auth/
-│   │   │   │   └── AuthController.php          # Login, logout, session unique
-│   │   │   ├── Game/
-│   │   │   │   ├── HeroController.php           # CRUD héros, recrutement, talents
-│   │   │   │   ├── ExplorationController.php    # Exploration idle, calcul offline
-│   │   │   │   ├── CombatController.php         # Résolution de combats (donjons, quêtes)
-│   │   │   │   ├── InventoryController.php      # Inventaire, équipement, vente
-│   │   │   │   ├── QuestController.php          # Quêtes, choix, progression
-│   │   │   │   ├── CraftingController.php       # Forge de Gérard, fusion, démontage, recettes
-│   │   │   │   ├── ShopController.php           # Boutiques, achats
-│   │   │   │   ├── DungeonController.php        # Donjons spéciaux
-│   │   │   │   ├── WorldBossController.php      # Boss mondiaux, contribution, classement
-│   │   │   │   ├── TavernController.php         # Recrutement, musique, retrait debuffs
-│   │   │   │   └── NarratorController.php       # Commentaires du Narrateur
-│   │   │   └── Social/
-│   │   │       ├── ReputationController.php     # Réputation de zone
-│   │   │       └── NpcController.php            # Relations PNJ, cadeaux
-│   │   └── Middleware/
-│   │       └── EnsureSingleSession.php          # Vérifie token unique
-│   ├── Models/
-│   │   ├── User.php
-│   │   ├── Hero.php
-│   │   ├── Race.php
-│   │   ├── GameClass.php                        # "Class" est réservé en PHP
-│   │   ├── Trait_.php                           # "Trait" est réservé en PHP
-│   │   ├── Talent.php
-│   │   ├── Item.php
-│   │   ├── ItemEffect.php
-│   │   ├── Material.php
-│   │   ├── Zone.php
-│   │   ├── Monster.php
-│   │   ├── Quest.php
-│   │   ├── QuestStep.php
-│   │   ├── QuestChoice.php
-│   │   ├── Recipe.php
-│   │   ├── WorldBoss.php
-│   │   ├── Npc.php
-│   │   └── GameSetting.php
-│   ├── Services/
-│   │   ├── CombatService.php                    # Moteur de combat (formules, tours, résolution)
-│   │   ├── IdleService.php                      # Calcul offline, simulation simplifiée
-│   │   ├── LootService.php                      # Génération de loot, raretés, stats
-│   │   ├── CraftingService.php                  # Fusion, démontage, enchantement
-│   │   ├── QuestService.php                     # Résolution des choix, tests de stats
-│   │   ├── TraitService.php                     # Déclenchement et résolution des traits
-│   │   ├── NarratorService.php                  # Génération/cache des commentaires
-│   │   ├── GeminiService.php                    # Client API Gemini (texte, image, musique)
-│   │   ├── ShopService.php                      # Génération de stock, prix
-│   │   ├── WorldBossService.php                 # Gestion boss mondiaux, classement
-│   │   └── SettingsService.php                  # Lecture/cache des game_settings
-│   └── Jobs/
-│       ├── GenerateNarratorComment.php          # Job asynchrone pour Gemini texte
-│       ├── GenerateLootImage.php                # Job asynchrone pour Gemini image
-│       ├── GenerateDailyQuests.php              # Pré-génération du pool de quêtes
-│       ├── RefreshShopInventory.php             # Régénération des boutiques
-│       ├── SpawnWorldBoss.php                   # Apparition boss mondial
-│       └── CleanupLogs.php                      # Purge des logs anciens
-├── database/
-│   ├── migrations/                              # Voir DATABASE.md pour le schéma complet
-│   └── seeders/
-│       ├── RaceSeeder.php                       # 6 races
-│       ├── ClassSeeder.php                      # 8 classes
-│       ├── TraitSeeder.php                      # 10 traits
-│       ├── TalentSeeder.php                     # 168 talents (8×3×7)
-│       ├── ZoneSeeder.php                       # 8 zones
-│       ├── MonsterSeeder.php                    # 53 monstres + 8 mini-boss + 8 boss
-│       ├── MaterialSeeder.php                   # Matériaux génériques + par zone
-│       ├── ItemTemplateSeeder.php               # ~150 objets prédéfinis
-│       ├── RecipeSeeder.php                     # Toutes les recettes
-│       ├── ElitePrefixSeeder.php                # 10 préfixes élites
-│       ├── ElementChartSeeder.php               # Table des multiplicateurs élémentaires
-│       ├── NpcSeeder.php                        # 8 PNJ
-│       ├── WorldBossSeeder.php                  # 5 boss mondiaux
-│       ├── SurpriseEventSeeder.php              # Événements surprise
-│       ├── GameSettingsSeeder.php               # ~120 constantes paramétrables
-│       └── QuestSeeder.php                      # Quêtes de zone pré-écrites
-├── routes/
-│   └── api.php                                  # Toutes les routes API REST
-└── config/
-    └── gemini.php                               # Config API Gemini (clé, modèles, limites)
+app/
+├── Http/Controllers/Game/
+│   ├── AuthController.php            # register / login (session unique) / logout
+│   ├── DashboardController.php       # GET /game/dashboard, GET /game/poll
+│   ├── HeroController.php            # CRUD héros, équipement
+│   ├── TalentController.php          # arbre de talents, allocation, reset
+│   ├── ExplorationController.php     # exploration idle, collecte, offline
+│   ├── InventoryController.php       # inventaire, vente
+│   ├── QuestController.php           # quêtes, choix narratifs
+│   ├── CraftingController.php        # Forge de Gérard : fusion, démontage, recettes
+│   ├── TavernController.php          # recrutement, retrait de debuffs
+│   ├── ShopController.php            # boutique de zone, rotation 6h
+│   ├── DungeonController.php         # donjon spécial, salles, abandon
+│   ├── WorldBossController.php       # boss mondial, attaque, leaderboard
+│   ├── ZoneController.php            # carte du monde, progression
+│   └── ProfileController.php         # profil, stats, historique économique
+├── Services/
+│   ├── CombatService.php             # moteur de combat complet (formules COMBAT_SYSTEM.md)
+│   ├── IdleService.php               # calcul offline via ratio de puissance (pas turn-by-turn)
+│   ├── LootService.php               # génération de loot par rareté
+│   ├── CraftingService.php           # fusion, démontage, recettes, enchantements
+│   ├── QuestService.php              # résolution des choix, tests de stats
+│   ├── TraitService.php              # déclenchement et résolution des traits négatifs
+│   ├── NarratorService.php           # commentaires IA (GeminiService) + cache narrator_cache
+│   ├── GeminiService.php             # client Gemini : text/image/music + fallbacks statiques
+│   ├── ShopService.php               # génération de stock, markup, rotation
+│   ├── TalentService.php             # arbre de talents, allocation, reset
+│   ├── WorldBossService.php          # boss mondiaux, contributions, classement
+│   └── SettingsService.php           # lit et cache game_settings — TOUTES les constantes passent ici
+├── Jobs/
+│   ├── CleanupLogs.php               # purge périodique des logs (occurred_at)
+│   ├── GenerateNarration.php         # appel Gemini async pour narration
+│   ├── RefreshShop.php               # purge des items de boutique expirés
+│   └── GenerateDailyQuests.php       # génération du pool de quêtes quotidiennes
+├── Console/Commands/
+│   ├── SpawnWorldBoss.php            # world-boss:spawn
+│   ├── CleanupLogsCommand.php        # logs:cleanup
+│   ├── RefreshShopCommand.php        # shop:refresh
+│   └── GenerateQuestsCommand.php     # quests:generate
+└── Models/
+    User, Hero, Race, GameClass, Trait_, Talent, HeroTalent, HeroBuff,
+    Item, ItemEffect, ItemTemplate, Material, Zone, Monster, MonsterSkill,
+    Quest, QuestStep, UserQuest, Recipe, ShopInventory, Dungeon,
+    WorldBoss, BossContribution, TavernRecruit, NarratorCache,
+    GameSetting, UserExploration, UserZoneProgress, IdleEventLog, EncounterGroup
 ```
 
-### Routes API principales
+**Note :** `GameClass` (pas `Class`) et `Trait_` (pas `Trait`) — ces noms sont réservés en PHP.
+
+**Note :** `Talent` et `HeroTalent` déclarent explicitement `$table` car le pluraliseur Laravel retourne `talent` au lieu de `talents`.
+
+### Frontend (`frontend/`)
+
+```
+src/
+├── pages/
+│   ├── LoginPage.tsx / RegisterPage.tsx
+│   ├── DashboardPage.tsx      # vue d'ensemble, collecte offline
+│   ├── TeamPage.tsx           # gestion d'équipe
+│   ├── MapPage.tsx            # carte du monde, exploration
+│   ├── InventoryPage.tsx      # inventaire, équipement
+│   ├── QuestPage.tsx          # quêtes disponibles et en cours
+│   ├── ForgePage.tsx          # Forge de Gérard (crafting)
+│   ├── TavernPage.tsx         # recrutement, taverne
+│   ├── ShopPage.tsx           # boutique de zone
+│   ├── DungeonPage.tsx        # donjon spécial
+│   ├── WorldBossPage.tsx      # boss mondial, leaderboard
+│   ├── TalentsPage.tsx        # arbres de talents des héros
+│   └── ProfilePage.tsx        # stats, historique économique, préfs narrateur
+├── api/
+│   ├── client.ts              # axios avec Bearer token
+│   ├── auth.ts                # register / login / logout
+│   └── game.ts                # tous les appels jeu (dashboard, heroes, shop, dungeon…)
+├── store/
+│   ├── authStore.ts           # zustand — user, token
+│   └── gameStore.ts           # zustand — heroes, gold, exploration
+└── components/
+    ├── layout/AppShell.tsx    # navigation principale
+    ├── narrator/              # bulle de narration
+    ├── hero/                  # cartes héros
+    ├── exploration/           # barre de progression
+    └── inventory/             # slots d'inventaire
+```
+
+---
+
+## 🗺️ Routes API
 
 ```
 POST   /api/auth/register
 POST   /api/auth/login
-POST   /api/auth/logout
+POST   /api/auth/logout                          (auth requise)
 
-GET    /api/game/dashboard                      # Vue d'ensemble (équipe, zone, ressources, narrateur)
-GET    /api/game/poll                            # Polling pour mises à jour (événements, boss, etc.)
+GET    /api/game/dashboard                       vue d'ensemble + calcul offline
+GET    /api/game/poll                            polling événements (10-30s)
 
-GET    /api/heroes                               # Liste des héros du joueur
-POST   /api/heroes                               # Créer le premier héros
-POST   /api/heroes/{id}/talents                  # Débloquer un talent
-POST   /api/heroes/{id}/talents/reset            # Reset des talents
-POST   /api/heroes/{id}/equip                    # Équiper un objet
+GET    /api/heroes                               équipe du joueur
+POST   /api/heroes                               créer le héros initial
+POST   /api/heroes/{id}/equip                    équiper un objet
+GET    /api/heroes/{id}/talents                  arbre de talents
+POST   /api/heroes/{id}/talents/{tid}/allocate   débloquer un talent
+POST   /api/heroes/{id}/talents/reset            réinitialiser (coût en or)
 
-GET    /api/exploration/status                   # État de l'exploration idle
-POST   /api/exploration/start                    # Lancer l'exploration dans une zone
-POST   /api/exploration/collect                  # Collecter les récompenses (+ calcul offline)
+GET    /api/exploration/status                   état de l'exploration idle
+POST   /api/exploration/start                    lancer l'exploration
+POST   /api/exploration/collect                  collecter + calcul offline
 
-POST   /api/combat/dungeon/start                # Lancer un donjon
-POST   /api/combat/dungeon/room/{id}            # Résoudre une salle
-GET    /api/combat/log/{id}                     # Voir le replay d'un combat
+GET    /api/inventory                            inventaire complet
+POST   /api/inventory/sell                       vendre un objet
 
-GET    /api/inventory                            # Inventaire complet
-POST   /api/inventory/sell                       # Vendre un objet
-POST   /api/inventory/dismantle                  # Démonter un objet
+GET    /api/zones                                carte du monde
 
-GET    /api/quests                               # Quêtes disponibles
-POST   /api/quests/{id}/start                   # Démarrer une quête
-POST   /api/quests/{id}/choice                  # Faire un choix dans une quête
+GET    /api/quests                               quêtes disponibles
+POST   /api/quests/{id}/start                    démarrer une quête
+POST   /api/user-quests/{id}/choose              faire un choix narratif
 
-POST   /api/crafting/fuse                        # Fusion de 3 objets
-POST   /api/crafting/recipe/{id}                # Crafter une recette
-POST   /api/crafting/enchant                     # Enchanter un objet
+GET    /api/crafting                             recettes disponibles + matériaux
+POST   /api/crafting/fuse                        fusionner 3 objets
+POST   /api/crafting/dismantle                   démonter un objet
+POST   /api/crafting/craft                       crafter via recette
 
-GET    /api/shop/{zone_id}                       # Voir la boutique de zone
-POST   /api/shop/buy                             # Acheter un objet
-GET    /api/shop/tavern                          # Boutique de la Taverne
-GET    /api/shop/gerard                          # Boutique de Gérard
+GET    /api/tavern                               recrues disponibles + héros avec debuffs
+POST   /api/tavern/hire/{recruitId}              recruter
+POST   /api/tavern/remove-debuff                 retirer un debuff (payant)
 
-POST   /api/tavern/recruit                       # Recruter un héros
-POST   /api/tavern/remove-debuff                 # Payer pour retirer un debuff
-GET    /api/tavern/music                         # Musique de la taverne
+GET    /api/shop?zone_id={id}                    boutique de zone (rotation 6h)
+POST   /api/shop/buy                             acheter un item
 
-GET    /api/world-boss                           # Boss mondial actuel
-POST   /api/world-boss/attack                   # Attaquer le boss mondial
-GET    /api/world-boss/leaderboard              # Classement des contributeurs
+GET    /api/dungeon                              état du donjon actif
+POST   /api/dungeon/start                        lancer un donjon
+POST   /api/dungeon/{id}/enter                   entrer dans la salle suivante
+POST   /api/dungeon/{id}/abandon                 abandonner
 
-GET    /api/reputation                           # Toutes les réputations du joueur
-GET    /api/npcs                                 # Relations PNJ
-POST   /api/npcs/{id}/gift                      # Offrir un cadeau
+GET    /api/world-boss                           boss mondial actif
+POST   /api/world-boss/attack                    attaquer (cooldown 5 min)
+GET    /api/world-boss/leaderboard               classement des contributeurs
 
-GET    /api/zones                                # Carte du monde
-GET    /api/zones/{id}/progress                 # Progression dans une zone
+GET    /api/profile                              stats, historique économique, budget IA
+PATCH  /api/profile                              modifier préférences (narrator_frequency)
+
+GET    /api/reference/races
+GET    /api/reference/classes
+GET    /api/reference/traits
 ```
 
 ---
 
-## 🎮 Boucle de gameplay (résumé)
+## ⚔️ Formules de combat (résumé)
+
+> **Règle absolue : tout est en entiers. Division floor. Pas de float.**
 
 ```
-IDLE (automatique) :
-  Héros explorent → combats auto → loot + XP → le joueur collecte
-
-ACTIF (choix du joueur) :
-  Quêtes à embranchements → choix narratifs → tests de stats → récompenses
-  Crafting → fusion / recettes / enchantement
-  Gestion d'équipe → talents, équipement, recrutement
-
-OFFLINE (à la reconnexion) :
-  Calcul de la progression écoulée (max 12h)
-  Combats simulés via ratio de puissance
-  Micro-événements idle générés
-  
-ÉVÉNEMENTS :
-  Boss mondial tous les 3 jours → participation collective → classement → loot unique
-  Quête WTF (5% /jour) → longue, absurde, très rémunératrice
-```
-
----
-
-## ⚔️ Moteur de combat (résumé des formules)
-
-Toutes les formules sont dans `COMBAT_SYSTEM.md`. Voici les principales :
-
-```
-Initiative      = VIT + random(1, 20)
-Esquive         = min(DEF × 100 / (DEF + VIT_atk + SPEED_BASE), DODGE_CAP)
+Initiative       = VIT + random(1, 20)
+Réduction DEF    = min(DEF × 100 / (DEF + DEF_SOFT_CAP), DEF_HARD_CAP)
+Esquive (%)      = min(DEF × 100 / (DEF + VIT_atk + SPEED_BASE), DODGE_CAP)
 Dégâts physiques = max(ATQ × variance / 100 × (100 - réduction) / 100, MIN_DAMAGE)
-Réduction DEF   = min(DEF × 100 / (DEF + DEF_SOFT_CAP), DEF_HARD_CAP)
 Dégâts magiques  = max(INT × variance / 100 × (100 - résistance/2) / 100, MIN_DAMAGE)
-Critique chance  = min(CRIT_BASE_CHANCE + CHA / 4, CRIT_CAP)
-Critique dégâts  = Dégâts × CRIT_DAMAGE_MULTIPLIER / 100
-Élémentaire     = Dégâts_nets × Multiplicateur_élément / 100
-XP par kill      = XP_BASE + (Niv_ennemi × XP_LEVEL_MULT) ± ajustement niveau
+Crit chance (%)  = min(CRIT_BASE_CHANCE + CHA / 4, CRIT_CAP)
+Dégâts crit      = Dégâts × CRIT_DAMAGE_MULTIPLIER / 100
+Élémentaire      = Dégâts_nets × Multiplicateur / 100
+XP par kill      = XP_BASE + (Niv_ennemi × XP_LEVEL_MULT) ± ajust. niveau
+Offline          = ratio de puissance simplifié, cap 12h (pas tour par tour)
 ```
 
-**Tout est en entiers. Division entière (floor). Pas de float.**
+Formules complètes dans `COMBAT_SYSTEM.md`.
 
 ---
 
 ## 🤖 Intégration Gemini
 
-### Utilisations
+Le `GeminiService` vérifie `AI_ENABLED` et `AI_DAILY_BUDGET_LIMIT` (table `game_settings`) avant chaque appel. Chaque appel est tracé dans `ai_generation_log`. **Fallback statique garanti** — le jeu fonctionne sans clé API.
 
-| Feature | API | Fréquence | Cache |
-|---------|-----|-----------|-------|
-| Narrateur sarcastique | Gemini Text | Haute | Par type d'événement + contexte |
-| Noms/descriptions de loot Rare+ | Gemini Text | Moyenne | Permanent par objet |
-| Illustrations de loot | Imagen | Moyenne | Permanent par objet |
-| Quêtes quotidiennes | Gemini Text | Batch nocturne | Pool de 50/zone |
-| Musique de taverne | MusicFX | Basse | Permanent, pool grandissant |
-| Boss mondiaux IA (phase 2+) | Gemini Text + Imagen | Très basse | Permanent |
+| Fonctionnalité | Fréquence | Cache | Fallback |
+|----------------|-----------|-------|---------|
+| Narration (texte) | Haute | `narrator_cache` par type+contexte | Templates statiques humoristiques |
+| Noms/descriptions de loot Rare+ | Moyenne | Permanent par objet | Templates génériques |
+| Illustrations de loot | Moyenne | Permanent par objet | Placeholders par slot+rareté |
+| Quêtes quotidiennes | Batch nocturne | Pool 15/zone/jour | Templates par zone |
+| Musique de taverne | Basse | `tavern_music`, pool grandissant | Bibliothèque libre de droits |
+| Description de boss | Très basse | Permanent | Template statique |
 
-### Fallbacks (si API indisponible ou budget dépassé)
+```bash
+# Activer l'IA (désactivée par défaut)
+php artisan tinker --execute="DB::table('game_settings')->where('setting_key','AI_ENABLED')->update(['setting_value'=>1]);"
 
-- **Texte :** Templates statiques pré-écrits (humour intégré)
-- **Images :** Placeholder par slot + rareté
-- **Musique :** Bibliothèque de morceaux libres de droits
-- **Quêtes :** 30 templates statiques par zone
-
-### Budget
-
-Le `GeminiService` track chaque appel dans `ai_generation_log`. Un seuil configurable dans `game_settings` (`AI_DAILY_BUDGET_LIMIT`) coupe les appels non-essentiels quand le budget est atteint.
+# Configurer la clé API dans .env
+GEMINI_API_KEY=your_key_here
+```
 
 ---
 
 ## 🗄️ Base de données
 
-34 tables MariaDB. Schéma SQL complet dans `DATABASE.md`.
+37 tables MariaDB. Schéma SQL complet dans `DATABASE.md`.
 
-### Groupes principaux
+### Groupes
 
-- **Config :** `game_settings` (~120 constantes paramétrables)
-- **Users :** `users`, `personal_access_tokens`
-- **Héros :** `races`, `classes`, `traits`, `heroes`, `talents`, `hero_talents`, `hero_buffs`
-- **Inventaire :** `items`, `item_effects`, `item_templates`, `materials`, `user_materials`
-- **Monde :** `zones`, `monsters`, `monster_skills`, `elite_prefixes`, `encounter_groups`, `element_chart`
-- **Quêtes :** `quests`, `quest_steps`, `quest_choices`, `user_quest_progress`, `user_daily_quests`
-- **Social :** `npcs`, `user_npc_relations`, `user_reputations`, `world_bosses`, `world_boss_contributions`
-- **Crafting :** `recipes`, `recipe_ingredients`, `user_recipes`
-- **Boutiques :** `shop_inventories`
-- **Exploration :** `user_exploration`, `user_zone_progress`, `dungeon_instances`, `idle_event_log`
-- **IA :** `narrator_cache`, `ai_generation_log`, `tavern_music`
-- **Logs :** `combat_log`, `economy_log`
-- **Événements :** `surprise_events`
+| Groupe | Tables |
+|--------|--------|
+| Config | `game_settings` (~120 constantes paramétrables) |
+| Auth | `users`, `personal_access_tokens` |
+| Héros | `races`, `classes`, `traits`, `heroes`, `hero_buffs`, `talents`, `hero_talents` |
+| Inventaire | `items`, `item_effects`, `item_templates`, `materials`, `user_materials` |
+| Monde | `zones`, `monsters`, `monster_skills`, `elite_prefixes`, `encounter_groups`, `element_chart` |
+| Quêtes | `quests`, `quest_steps`, `user_quests`, `user_daily_quests`, `user_zone_progress` |
+| Exploration | `user_exploration`, `idle_event_log` |
+| Boutiques | `shop_inventories` |
+| Donjons | `dungeons` |
+| Boss | `world_bosses`, `boss_contributions` |
+| Crafting | `recipes`, `user_recipes` |
+| Taverne | `tavern_recruits` |
+| IA | `narrator_cache`, `ai_generation_log`, `tavern_music` |
+| Logs | `combat_log`, `economy_log` |
 
-### Conventions DB
+### Conventions
 
-- Tous les IDs : `BIGINT UNSIGNED AUTO_INCREMENT`
-- Dates : `TIMESTAMP DEFAULT CURRENT_TIMESTAMP`
-- **Aucun FLOAT/DOUBLE** — tout en `INT`
-- FK avec `ON DELETE CASCADE` sauf mention contraire
-- JSON pour les données flexibles (effets, mécaniques, compositions)
-- Index sur toutes les requêtes critiques (voir section 18 de DATABASE.md)
-
----
-
-## 📅 Phases de développement
-
-### Phase 1 — MVP (mois 1-2)
-
-- [ ] Setup Laravel + MariaDB + migrations + seeders
-- [ ] Auth (register, login, session unique Sanctum)
-- [ ] Modèles et relations Eloquent
-- [ ] Création de héros (race + classe + trait)
-- [ ] Zone 1 (Prairie) — exploration idle basique
-- [ ] Moteur de combat (formules complètes)
-- [ ] Système de loot (Commun à Rare, sans IA)
-- [ ] Inventaire, équipement, vente
-- [ ] Calcul offline à la reconnexion
-- [ ] Narrateur avec templates statiques
-- [ ] Frontend React : Dashboard, Équipe, Carte, Inventaire
-- [ ] API REST complète pour les features ci-dessus
-
-### Phase 2 — Core features (mois 3-4)
-
-- [ ] Recrutement (Taverne, max 5 héros)
-- [ ] Système de talents (déblocage, reset payant)
-- [ ] Zones 2-4 avec leurs monstres, boss, mini-boss
-- [ ] Quêtes de zone (pré-écrites, embranchements)
-- [ ] Crafting / Forge de Gérard (fusion, démontage, recettes)
-- [ ] Boutiques (zone, taverne, Gérard)
-- [ ] Donjons spéciaux (timer 8h)
-- [ ] Système élémentaire (faiblesses/résistances)
-- [ ] Variantes élites
-- [ ] Enchantements
-
-### Phase 3 — IA et social (mois 5-6)
-
-- [ ] Intégration Gemini texte (Narrateur IA, noms de loot)
-- [ ] Intégration Gemini images (illustrations loot Rare+)
-- [ ] Intégration Gemini musique (Taverne musicale)
-- [ ] Quêtes quotidiennes (pool IA + fallback)
-- [ ] Boss mondiaux (5 pré-définis)
-- [ ] Système de réputation et relations PNJ
-- [ ] Boutiques PNJ (débloquées par relation)
-- [ ] Événements surprise (quêtes + idle)
-- [ ] Zones 5-8
-
-### Phase 4 — Contenu infini (mois 7+)
-
-- [ ] Zones 9+ générées par IA
-- [ ] Boss mondiaux générés par IA
-- [ ] Quêtes WTF
-- [ ] Ambiance musicale dynamique (contexte)
-- [ ] Événements saisonniers
-- [ ] Polish, équilibrage, feedback communautaire
+- IDs : `BIGINT UNSIGNED AUTO_INCREMENT`
+- Timestamps des logs : `occurred_at` (pas `created_at`)
+- **Aucun `FLOAT`/`DOUBLE`** — tout en `INT`
+- FK `ON DELETE CASCADE` sauf mention contraire
+- Colonnes JSON pour les données flexibles (effets, mécaniques, loot)
 
 ---
 
-## 🔧 Commandes utiles
+## ⏱️ Cron schedule
 
-```bash
-# Installation
-composer install
-php artisan key:generate
-php artisan migrate
-php artisan db:seed
+Configuré dans `routes/console.php`, exécuté via `php artisan schedule:run` (à placer en crontab toutes les minutes).
 
-# Développement
-php artisan serve                               # Serveur local
-php artisan schedule:run                        # Exécuter les jobs planifiés
-php artisan queue:work                          # Traiter la file d'attente
+```
+* * * * *   php artisan schedule:run   # crontab entry
 
-# Seeders individuels
-php artisan db:seed --class=GameSettingsSeeder
-php artisan db:seed --class=RaceSeeder
-php artisan db:seed --class=ClassSeeder
-php artisan db:seed --class=TraitSeeder
-php artisan db:seed --class=TalentSeeder
-php artisan db:seed --class=ZoneSeeder
-php artisan db:seed --class=MonsterSeeder
-php artisan db:seed --class=MaterialSeeder
-php artisan db:seed --class=ElementChartSeeder
-
-# Maintenance
-php artisan logs:cleanup                        # Purge des logs anciens
-php artisan shop:refresh                        # Régénérer les boutiques
-php artisan quests:generate                     # Remplir le pool de quêtes IA
-php artisan world-boss:spawn                    # Forcer l'apparition d'un boss mondial
+00:00 quotidien  → logs:cleanup        purge des logs anciens
+00:05 quotidien  → quests:generate     pool de quêtes quotidiennes (Gemini + fallback)
+toutes les 6h    → shop:refresh        purge des items de boutique expirés
+tous les 3j 12h  → world-boss:spawn    invocation d'un nouveau boss mondial
 ```
 
 ---
 
-## ⚠️ Points d'attention pour le développement
+## 📝 Documents de design
 
-1. **Le `SettingsService` est critique.** Il charge et cache les `game_settings`. Toutes les formules doivent passer par ce service, jamais utiliser de valeurs en dur dans le code.
+| Document | Contenu |
+|----------|---------|
+| `GDD.md` | Vision, features, boucle de gameplay, phases |
+| `COMBAT_SYSTEM.md` | Formules exactes, stats races/classes, simulation offline |
+| `TALENT_TREES.md` | 8 classes × 3 branches × 7 talents = 168 talents |
+| `TRAITS_SYSTEM.md` | 10 traits négatifs, déclenchement, synergies Branche du Défaut |
+| `LOOT_CRAFTING.md` | Raretés, génération, effets spéciaux, fusion, durabilité |
+| `BESTIARY.md` | 53 monstres, 8 boss de zone, 5 boss mondiaux, système élémentaire |
+| `QUESTS_EFFECTS.md` | Types de quêtes, 15 buffs, 10 debuffs, événements surprise |
+| `ECONOMY.md` | Or (sources/dépenses), matériaux, boutiques, équilibrage |
+| `DATABASE.md` | 37 tables MariaDB, schéma SQL, index, diagramme |
 
-2. **Le `CombatService` est le cœur du jeu.** Il doit implémenter exactement les formules de `COMBAT_SYSTEM.md`. Chaque calcul utilise la division entière. Tester avec des cas limites (DEF très haute, ATQ à 0, etc.).
+---
 
-3. **La validation des sorties Gemini est obligatoire.** Ne jamais injecter une sortie IA dans le jeu sans vérifier la structure JSON, les IDs d'effets autorisés, les durées max des debuffs, etc. Voir `QUESTS_EFFECTS.md` section 7.2.
+## ⚠️ Points d'attention
 
-4. **Les traits négatifs interagissent avec les talents.** L'ordre de résolution est : effets de statut → jet de trait → talents Branche du Défaut → action. Voir `TRAITS_SYSTEM.md` section 3.
+1. **`SettingsService` est critique.** Toutes les constantes de gameplay passent par ce service. Ne jamais hardcoder une valeur de jeu dans le code.
 
-5. **Le calcul offline ne doit PAS simuler tour par tour.** Utiliser le ratio de puissance simplifié (voir `COMBAT_SYSTEM.md` section 6) pour performance.
+2. **`CombatService` implémente les formules exactes de `COMBAT_SYSTEM.md`.** Division entière partout. Tester les cas limites (DEF très haute, ATQ à 0, traits actifs).
 
-6. **Les logs (combat, économie, idle) doivent être purgés.** Sans purge, la base explose. Le cron `CleanupLogs` est essentiel.
+3. **Fallbacks Gemini obligatoires.** Chaque appel `GeminiService` a un fallback statique. Valider la structure JSON des sorties Gemini avant injection (voir `QUESTS_EFFECTS.md` § 7.2).
 
-7. **Tester l'équilibre économique.** Le tableau de `ECONOMY.md` section 4.2 donne les ratios cibles. Si un joueur peut tout acheter sans effort, les sinks sont insuffisants.
+4. **Calcul offline ≠ simulation tour par tour.** Utiliser le ratio de puissance simplifié (`IdleService`). Cap à 12 heures.
+
+5. **Les logs doivent être purgés.** `combat_log`, `economy_log`, `idle_event_log` croissent rapidement. Le cron `logs:cleanup` est non optionnel.
+
+6. **`HeroTalent` et `Talent` déclarent `protected $table`.** Le pluraliseur Laravel retourne `hero_talent`/`talent` (sans s) — toujours préciser la table explicitement pour ces modèles.
