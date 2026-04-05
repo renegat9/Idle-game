@@ -138,6 +138,41 @@ class NarratorService
             'Raté. Même Gérard n\'a pas vu ça venir. Enfin si, un peu.',
             'La fusion a échoué. Le Narrateur n\'est pas surpris. Vous devriez l\'être.',
         ],
+        'dungeon_start' => [
+            'Vos héros pénètrent dans le donjon. Le Narrateur prépare ses condoléances.',
+            'Le donjon s\'ouvre. Sombre, humide, et rempli de mauvaises surprises. Bienvenue.',
+            'Aventure en donjon ! Le Narrateur note que personne ne le lui a demandé.',
+        ],
+        'dungeon_completed' => [
+            'Donjon terminé ! Contre toute attente, vos héros sont encore en vie. Bravo.',
+            'Victoire complète ! Le Narrateur est modérément impressionné. C\'est rare.',
+            'Le donjon est conquis. Vos héros ressortent couverts de gloire et de boue.',
+        ],
+        'dungeon_failed' => [
+            'Défaite dans le donjon. Le Narrateur a vu pire. Mais pas souvent.',
+            'Vos héros gisent dans le donjon. La honte est proportionnelle à la distance.',
+            'Échec. Le donjon a gagné. Il s\'en fiche, mais quand même.',
+        ],
+        'dungeon_abandoned' => [
+            'Abandonné ! Vos héros fuient le donjon. C\'est une retraite stratégique.',
+            'Fuite honteuse. Le donjon regarde partir vos héros avec mépris.',
+            'Abandon acté. Le Narrateur n\'est pas surpris. Il l\'attendait, celui-là.',
+        ],
+        'dungeon_boss_defeated' => [
+            'Le boss est vaincu ! Le Narrateur reconnaît que c\'était presque impressionnant.',
+            'Boss terrassé ! Pour une fois, vos héros ont fait leur travail.',
+            'Le gardien du donjon est tombé. Il avait l\'air pourtant si menaçant.',
+        ],
+        'trap_triggered' => [
+            'Piège déclenché ! Le Narrateur avait pourtant mis des panneaux d\'avertissement.',
+            'PIÈGE ! Vos héros encaissent avec la dignité qu\'on leur connaît.',
+            'Le piège s\'active. Vos héros n\'avaient qu\'à regarder où ils marchaient.',
+        ],
+        'rest_room' => [
+            'Vos héros se reposent. Brève accalmie dans ce chaos organisé.',
+            'Une salle de repos ! Le Narrateur admet que c\'est mérité.',
+            'Repos bien gagné. Les héros récupèrent. Le Narrateur en profite aussi.',
+        ],
     ];
 
     private function getStaticTemplate(string $eventType, array $context): string

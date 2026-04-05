@@ -128,6 +128,9 @@ class GameSettingsSeeder extends Seeder
             ['MULTI_TARGET_PENALTY', 70, 'Efficacité des attaques multi-cibles (%)'],
             ['FLEE_BASE_CHANCE', 50, 'Chance de base de fuite réussie (%)'],
             ['WORLD_BOSS_HP_PER_PLAYER', 5000, 'HP du boss mondial par joueur actif'],
+            ['WORLD_BOSS_DAMAGE_SCALE', 10, 'Échelle de dégâts des attaques sur le boss mondial (team_power × scale / 100)'],
+            ['WORLD_BOSS_ATTACK_COOLDOWN', 300, 'Cooldown entre deux attaques sur le boss mondial (secondes)'],
+            ['WORLD_BOSS_REWARD_BASE', 500, 'Récompense de base en or pour participation au boss mondial'],
 
             // IA et budget
             ['AI_DAILY_BUDGET_LIMIT', 1000, 'Limite de budget IA journalier (unités arbitraires)'],
@@ -143,6 +146,17 @@ class GameSettingsSeeder extends Seeder
             // Économie
             ['GOLD_SELL_RATIO', 30, 'Ratio de vente d\'objets vs valeur (%)'],
             ['DUNGEON_TIMER_HOURS', 8, 'Délai entre les donjons spéciaux (heures)'],
+
+            // Donjon
+            ['DUNGEON_COOLDOWN_HOURS', 8, 'Heures de recharge entre deux donjons'],
+            ['DUNGEON_ROOMS_MIN', 5, 'Nombre minimum de salles dans un donjon'],
+            ['DUNGEON_ROOMS_MAX', 8, 'Nombre maximum de salles dans un donjon'],
+            ['DUNGEON_BOSS_HP_MULT', 300, 'Multiplicateur de HP/ATQ du boss de donjon (%)'],
+
+            // Boutique
+            ['SHOP_REFRESH_HOURS', 6, 'Heures entre les rafraîchissements de la boutique'],
+            ['SHOP_ITEMS_COUNT', 6, 'Nombre d\'articles dans la boutique'],
+            ['SHOP_PRICE_MARKUP', 300, 'Majoration du prix boutique vs base (%)'],
 
             // Quêtes
             ['QUEST_DAILY_COUNT', 3, 'Quêtes quotidiennes par jour'],
@@ -182,6 +196,10 @@ class GameSettingsSeeder extends Seeder
             ['INVENTORY_MAX_ITEMS', 100, 'Limite d\'objets en inventaire'],
             ['INVENTORY_EXPAND_COST', 500, 'Coût d\'expansion par tranche de 20 slots'],
             ['INVENTORY_MAX_EXPANDED', 200, 'Limite maximale après expansion'],
+
+            // Talents
+            ['MAX_TALENT_POINTS', 20, 'Points de talent maximum par héros'],
+            ['TALENT_RESET_BASE_COST', 200, 'Coût de base pour réinitialiser les talents (×1.5 par reset)'],
 
             // Durabilité
             ['LOOT_DURABILITY_BASE', 100, 'Durabilité de base des objets'],

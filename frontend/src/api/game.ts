@@ -60,3 +60,29 @@ export const tavernApi = {
   removeDebuff: (heroId: number, buffId: number) =>
     apiClient.post<any>('/tavern/remove-debuff', { hero_id: heroId, buff_id: buffId }),
 }
+
+export const shopApi = {
+  get: (zoneId?: number) =>
+    apiClient.get<any>('/shop', { params: zoneId ? { zone_id: zoneId } : undefined }),
+  buy: (itemId: number) => apiClient.post<any>('/shop/buy', { item_id: itemId }),
+}
+
+export const dungeonApi = {
+  status: () => apiClient.get<any>('/dungeon'),
+  start: (zoneId: number) => apiClient.post<any>('/dungeon/start', { zone_id: zoneId }),
+  enter: (dungeonId: number) => apiClient.post<any>(`/dungeon/${dungeonId}/enter`),
+  abandon: (dungeonId: number) => apiClient.post<any>(`/dungeon/${dungeonId}/abandon`),
+}
+
+export const worldBossApi = {
+  status: () => apiClient.get<any>('/world-boss'),
+  attack: () => apiClient.post<any>('/world-boss/attack'),
+  leaderboard: () => apiClient.get<any>('/world-boss/leaderboard'),
+}
+
+export const talentApi = {
+  tree: (heroId: number) => apiClient.get<any>(`/heroes/${heroId}/talents`),
+  allocate: (heroId: number, talentId: number) =>
+    apiClient.post<any>(`/heroes/${heroId}/talents/${talentId}/allocate`),
+  reset: (heroId: number) => apiClient.post<any>(`/heroes/${heroId}/talents/reset`),
+}

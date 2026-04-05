@@ -13,7 +13,7 @@ class Hero extends Model
     protected $fillable = [
         'user_id', 'race_id', 'class_id', 'trait_id', 'name',
         'level', 'xp', 'xp_to_next_level', 'current_hp', 'max_hp',
-        'talent_points', 'slot_index', 'is_active', 'deaths',
+        'talent_points', 'talent_reset_count', 'slot_index', 'is_active', 'deaths',
     ];
 
     protected $casts = [
@@ -23,6 +23,7 @@ class Hero extends Model
         'current_hp' => 'integer',
         'max_hp' => 'integer',
         'talent_points' => 'integer',
+        'talent_reset_count' => 'integer',
         'slot_index' => 'integer',
         'is_active' => 'boolean',
         'deaths' => 'integer',

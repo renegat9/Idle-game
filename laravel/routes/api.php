@@ -10,6 +10,10 @@ use App\Http\Controllers\Game\ZoneController;
 use App\Http\Controllers\Game\QuestController;
 use App\Http\Controllers\Game\CraftingController;
 use App\Http\Controllers\Game\TavernController;
+use App\Http\Controllers\Game\ShopController;
+use App\Http\Controllers\Game\WorldBossController;
+use App\Http\Controllers\Game\DungeonController;
+use App\Http\Controllers\Game\TalentController;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -25,6 +29,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/heroes', [HeroController::class, 'index']);
     Route::post('/heroes', [HeroController::class, 'store']);
     Route::post('/heroes/{hero}/equip', [HeroController::class, 'equip']);
+
+    // Talents
+    Route::get('/heroes/{heroId}/talents', [TalentController::class, 'index']);
+    Route::post('/heroes/{heroId}/talents/{talentId}/allocate', [TalentController::class, 'allocate']);
+    Route::post('/heroes/{heroId}/talents/reset', [TalentController::class, 'reset']);
 
     // Exploration
     Route::get('/exploration/status', [ExplorationController::class, 'status']);
@@ -53,6 +62,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tavern', [TavernController::class, 'index']);
     Route::post('/tavern/hire/{recruitId}', [TavernController::class, 'hire']);
     Route::post('/tavern/remove-debuff', [TavernController::class, 'removeDebuff']);
+
+    // Boutique
+    Route::get('/shop', [ShopController::class, 'index']);
+    Route::post('/shop/buy', [ShopController::class, 'buy']);
+
+    // Donjon
+    Route::get('/dungeon', [DungeonController::class, 'status']);
+    Route::post('/dungeon/start', [DungeonController::class, 'start']);
+    Route::post('/dungeon/{dungeonId}/enter', [DungeonController::class, 'enter']);
+    Route::post('/dungeon/{dungeonId}/abandon', [DungeonController::class, 'abandon']);
+
+    // Boss mondial
+    Route::get('/world-boss', [WorldBossController::class, 'status']);
+    Route::post('/world-boss/attack', [WorldBossController::class, 'attack']);
+    Route::get('/world-boss/leaderboard', [WorldBossController::class, 'leaderboard']);
 
     // Reference data
     Route::prefix('reference')->group(function () {

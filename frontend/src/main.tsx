@@ -12,6 +12,10 @@ import { InventoryPage } from './pages/InventoryPage'
 import { QuestPage } from './pages/QuestPage'
 import { ForgePage } from './pages/ForgePage'
 import { TavernPage } from './pages/TavernPage'
+import { ShopPage } from './pages/ShopPage'
+import { DungeonPage } from './pages/DungeonPage'
+import { WorldBossPage } from './pages/WorldBossPage'
+import { TalentsPage } from './pages/TalentsPage'
 import './index.css'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -37,6 +41,10 @@ function App() {
           <Route path="quests" element={<QuestPage />} />
           <Route path="forge" element={<ForgePage />} />
           <Route path="tavern" element={<TavernPage />} />
+          <Route path="shop" element={<ShopPage />} />
+          <Route path="dungeon" element={<DungeonPage />} />
+          <Route path="world-boss" element={<WorldBossPage />} />
+          <Route path="talents" element={<TalentsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
