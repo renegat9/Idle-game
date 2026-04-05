@@ -1,0 +1,155 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class GameSettingsSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $settings = [
+            // Combat général
+            ['COMBAT_MAX_TURNS', 15, 'Nombre maximum de tours par combat'],
+            ['MIN_DAMAGE', 1, 'Dégâts minimum garantis'],
+            ['VARIANCE_MIN', 90, 'Variance minimale des dégâts (%)'],
+            ['VARIANCE_MAX', 110, 'Variance maximale des dégâts (%)'],
+            ['SPEED_BASE', 100, 'Constante de base pour le calcul d\'esquive'],
+
+            // Statistiques de base et scaling
+            ['LEVEL_SCALING_FACTOR', 3, 'Points de stat gagnés par niveau (stat primaire)'],
+            ['LEVEL_SCALING_SECONDARY', 1, 'Points de stat gagnés par niveau (stat secondaire)'],
+
+            // Critiques
+            ['CRIT_BASE_CHANCE', 5, 'Chance de critique de base (%)'],
+            ['CRIT_DAMAGE_MULTIPLIER', 150, 'Multiplicateur de dégâts critiques (%)'],
+            ['CRIT_CAP', 50, 'Cap maximum de chance critique (%)'],
+
+            // Esquive et défense
+            ['DODGE_BASE_CHANCE', 3, 'Chance d\'esquive de base (%)'],
+            ['DODGE_CAP', 40, 'Cap maximum d\'esquive (%)'],
+            ['DEF_SOFT_CAP', 200, 'Soft cap pour la réduction de défense'],
+            ['DEF_HARD_CAP', 75, 'Hard cap maximum de réduction de défense (%)'],
+
+            // XP et niveaux
+            ['XP_BASE_PER_KILL', 10, 'XP de base par kill'],
+            ['XP_LEVEL_MULTIPLIER', 2, 'XP bonus par niveau de l\'ennemi'],
+            ['XP_LEVEL_DIFF_PENALTY', 5, 'Pénalité XP par niveau de différence (ennemi plus faible, %)'],
+            ['XP_LEVEL_DIFF_BONUS', 10, 'Bonus XP par niveau de différence (ennemi plus fort, %)'],
+            ['XP_TO_LEVEL_BASE', 100, 'XP requise pour atteindre le niveau 2'],
+            ['XP_TO_LEVEL_EXPONENT', 115, 'Exposant de la courbe XP (× 1/100 par itération)'],
+
+            // Idle et offline
+            ['OFFLINE_EFFICIENCY', 75, 'Efficacité du calcul offline (%)'],
+            ['OFFLINE_MAX_HOURS', 12, 'Cap maximum des heures offline'],
+            ['HEAL_BETWEEN_FIGHTS', 30, 'Régénération HP entre les combats idle (%)'],
+
+            // Loot
+            ['LOOT_DROP_CHANCE', 60, 'Chance de base de drop d\'objet (%)'],
+            ['LOOT_RARITY_COMMUN', 50, 'Poids de rareté: Commun'],
+            ['LOOT_RARITY_PEU_COMMUN', 25, 'Poids de rareté: Peu Commun'],
+            ['LOOT_RARITY_RARE', 14, 'Poids de rareté: Rare'],
+            ['LOOT_RARITY_EPIQUE', 7, 'Poids de rareté: Épique'],
+            ['LOOT_RARITY_LEGENDAIRE', 3, 'Poids de rareté: Légendaire'],
+            ['LOOT_RARITY_WTF', 1, 'Poids de rareté: WTF'],
+            ['LOOT_LEVEL_RANGE', 2, 'Variation du niveau d\'objet autour du niveau de zone'],
+            ['LOOT_SELL_PERCENT', 30, 'Pourcentage de la valeur de vente vs valeur réelle'],
+            ['LOOT_STAT_VARIANCE', 15, 'Variance des stats d\'objet générées (%)'],
+            ['MONSTER_ELITE_LOOT_BONUS', 50, 'Bonus de chance de loot pour les élites (%)'],
+
+            // Traits — Couard
+            ['TRAIT_COUARD_CHANCE', 15, 'Chance de déclenchement du trait Couard (%)'],
+            ['TRAIT_COUARD_CHANCE_L26', 18, 'Chance Couard niveau 26-50 (%)'],
+            ['TRAIT_COUARD_CHANCE_L51', 20, 'Chance Couard niveau 51-75 (%)'],
+            ['TRAIT_COUARD_CHANCE_L76', 15, 'Chance Couard niveau 76+ (%)'],
+
+            // Traits — Narcoleptique
+            ['TRAIT_NARCOLEPTIQUE_CHANCE', 10, 'Chance de déclenchement Narcoleptique (%)'],
+            ['TRAIT_NARCOLEPTIQUE_CHANCE_L26', 12, 'Chance Narcoleptique niveau 26-50 (%)'],
+            ['TRAIT_NARCOLEPTIQUE_CHANCE_L51', 8, 'Chance Narcoleptique niveau 51-75 (%)'],
+            ['TRAIT_NARCOLEPTIQUE_CHANCE_L76', 5, 'Chance Narcoleptique niveau 76+ (%)'],
+            ['TRAIT_NARCOLEPTIQUE_DURATION', 2, 'Durée du sommeil en tours'],
+            ['TRAIT_NARCOLEPTIQUE_WAKE_CHANCE', 50, 'Chance de se réveiller avant la fin (%)'],
+
+            // Traits — Kleptomane
+            ['TRAIT_KLEPTOMANE_CHANCE', 20, 'Chance de vol de loot Kleptomane (%)'],
+            ['TRAIT_KLEPTOMANE_CHANCE_L26', 25, 'Chance Kleptomane niveau 26-50 (%)'],
+            ['TRAIT_KLEPTOMANE_CHANCE_L51', 30, 'Chance Kleptomane niveau 51-75 (%)'],
+            ['TRAIT_KLEPTOMANE_CHANCE_L76', 35, 'Chance Kleptomane niveau 76+ (%)'],
+
+            // Traits — Pyromane
+            ['TRAIT_PYROMANE_CHANCE', 20, 'Chance de déclenchement Pyromane (%)'],
+            ['TRAIT_PYROMANE_CHANCE_L26', 22, 'Chance Pyromane niveau 26-50 (%)'],
+            ['TRAIT_PYROMANE_CHANCE_L51', 25, 'Chance Pyromane niveau 51-75 (%)'],
+            ['TRAIT_PYROMANE_CHANCE_L76', 28, 'Chance Pyromane niveau 76+ (%)'],
+            ['TRAIT_PYROMANE_DAMAGE_PERCENT', 8, 'Dégâts de feu Pyromane (% ATQ)'],
+            ['TRAIT_PYROMANE_FRIENDLY_FIRE', 1, 'Le Pyromane blesse aussi ses alliés (1=oui)'],
+
+            // Traits — Allergique
+            ['TRAIT_ALLERGIQUE_CHANCE', 25, 'Chance de déclenchement Allergique (%)'],
+            ['TRAIT_ALLERGIQUE_CHANCE_L26', 20, 'Chance Allergique niveau 26-50 (%)'],
+            ['TRAIT_ALLERGIQUE_CHANCE_L51', 15, 'Chance Allergique niveau 51-75 (%)'],
+            ['TRAIT_ALLERGIQUE_CHANCE_L76', 10, 'Chance Allergique niveau 76+ (%)'],
+            ['TRAIT_ALLERGIQUE_MALUS', 20, 'Malus de stats en zone magique (%)'],
+
+            // Traits — Philosophe
+            ['TRAIT_PHILOSOPHE_CHANCE', 12, 'Chance de déclenchement Philosophe (%)'],
+            ['TRAIT_PHILOSOPHE_CHANCE_L26', 10, 'Chance Philosophe niveau 26-50 (%)'],
+            ['TRAIT_PHILOSOPHE_CHANCE_L51', 8, 'Chance Philosophe niveau 51-75 (%)'],
+            ['TRAIT_PHILOSOPHE_CHANCE_L76', 5, 'Chance Philosophe niveau 76+ (%)'],
+            ['TRAIT_PHILOSOPHE_INT_BUFF', 15, 'Buff d\'INT après réflexion (%)'],
+
+            // Traits — Gourmand
+            ['TRAIT_GOURMAND_CHANCE', 25, 'Chance de consommer une potion Gourmand (%)'],
+            ['TRAIT_GOURMAND_CHANCE_L26', 30, 'Chance Gourmand niveau 26-50 (%)'],
+            ['TRAIT_GOURMAND_CHANCE_L51', 35, 'Chance Gourmand niveau 51-75 (%)'],
+            ['TRAIT_GOURMAND_CHANCE_L76', 40, 'Chance Gourmand niveau 76+ (%)'],
+
+            // Traits — Superstitieux
+            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE', 15, 'Chance de refus d\'entrer dans un donjon (%)'],
+            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE_L26', 12, 'Chance Superstitieux niveau 26-50 (%)'],
+            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE_L51', 10, 'Chance Superstitieux niveau 51-75 (%)'],
+            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE_L76', 5, 'Chance Superstitieux niveau 76+ (%)'],
+
+            // Traits — Mythomane
+            ['TRAIT_MYTHOMANE_VARIANCE', 20, 'Variance d\'affichage des stats Mythomane (%)'],
+
+            // Traits — Pacifiste
+            ['TRAIT_PACIFISTE_CHANCE', 15, 'Chance de refus d\'attaquer Pacifiste (%)'],
+            ['TRAIT_PACIFISTE_CHANCE_L26', 12, 'Chance Pacifiste niveau 26-50 (%)'],
+            ['TRAIT_PACIFISTE_CHANCE_L51', 10, 'Chance Pacifiste niveau 51-75 (%)'],
+            ['TRAIT_PACIFISTE_CHANCE_L76', 8, 'Chance Pacifiste niveau 76+ (%)'],
+            ['TRAIT_PACIFISTE_THRESHOLD', 30, 'Seuil de HP ennemi pour le refus d\'attaque (%)'],
+
+            // Boss et monde
+            ['BOSS_STAT_MULTIPLIER', 300, 'Multiplicateur de stats des boss (%)'],
+            ['MINI_BOSS_STAT_MULTIPLIER', 150, 'Multiplicateur de stats des mini-boss (%)'],
+            ['MULTI_TARGET_PENALTY', 70, 'Efficacité des attaques multi-cibles (%)'],
+            ['FLEE_BASE_CHANCE', 50, 'Chance de base de fuite réussie (%)'],
+            ['WORLD_BOSS_HP_PER_PLAYER', 5000, 'HP du boss mondial par joueur actif'],
+
+            // IA et budget
+            ['AI_DAILY_BUDGET_LIMIT', 1000, 'Limite de budget IA journalier (unités arbitraires)'],
+            ['AI_ENABLED', 0, 'IA activée (0=fallback statique uniquement)'],
+
+            // Taverne
+            ['TAVERN_REFRESH_HOURS', 4, 'Heures entre les rafraîchissements de la taverne'],
+            ['TAVERN_MAX_OFFERS', 3, 'Nombre de héros proposés à la taverne'],
+            ['HERO_MAX_SLOTS', 5, 'Nombre maximum de héros dans l\'équipe'],
+            ['HERO_RECRUIT_COST_BASE', 100, 'Coût de base pour recruter un héros (or)'],
+            ['HERO_RECRUIT_COST_PER_SLOT', 200, 'Coût supplémentaire par slot débloqué (or)'],
+
+            // Économie
+            ['GOLD_SELL_RATIO', 30, 'Ratio de vente d\'objets vs valeur (%)'],
+            ['DUNGEON_TIMER_HOURS', 8, 'Délai entre les donjons spéciaux (heures)'],
+        ];
+
+        foreach ($settings as [$key, $value, $description]) {
+            DB::table('game_settings')->updateOrInsert(
+                ['setting_key' => $key],
+                ['setting_value' => $value, 'description' => $description]
+            );
+        }
+    }
+}
