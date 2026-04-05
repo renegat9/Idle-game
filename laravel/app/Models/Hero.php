@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use App\Services\SettingsService;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Hero extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'user_id', 'race_id', 'class_id', 'trait_id', 'name',
         'level', 'xp', 'xp_to_next_level', 'current_hp', 'max_hp',

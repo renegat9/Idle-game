@@ -108,7 +108,7 @@ class CraftingService
         $resultSlot = $sameSlot ? $slots[0] : $slots[array_rand($slots)];
 
         $resultLevel = min($avgLevel + rand(0, 3), 99);
-        $resultItem  = $this->loot->generateFromTemplate($user, $resultRarity, $resultSlot, $resultLevel);
+        $resultItem  = $this->loot->generateItemForCrafting($user, $resultRarity, $resultSlot, $resultLevel);
 
         DB::transaction(function () use ($user, $items, $fusionCost, $resultItem) {
             $user->decrement('gold', $fusionCost);
@@ -151,14 +151,7 @@ class CraftingService
         DB::transaction(function () use ($user, $item, $materials) {
             $item->delete();
             foreach ($materials as ['slug' => $slug, 'qty' => $qty]) {
-                DB::table('user_materials')->updateOrInsert(
-                    ['user_id' => $user->id, 'material_slug' => $slug],
-                    [
-                        'quantity'   => DB::raw("quantity + {$qty}"),
-                        'updated_at' => now(),
-                        'created_at' => now(),
-                    ]
-                );
+                $this->addMaterialBySlug($user->id, $slug, $qty);
             }
         });
 
@@ -188,10 +181,10 @@ class CraftingService
 
         // Check materials
         foreach ($recipe->ingredients as $ing) {
-            $have = DB::table('user_materials')
-                ->where('user_id', $user->id)
-                ->where('material_slug', $ing['slug'])
-                ->value('quantity') ?? 0;
+            $materialId = DB::table('materials')->where('slug', $ing['slug'])->value('id');
+            $have = $materialId
+                ? (DB::table('user_materials')->where('user_id', $user->id)->where('material_id', $materialId)->value('quantity') ?? 0)
+                : 0;
             if ($have < $ing['qty']) {
                 $mat = DB::table('materials')->where('slug', $ing['slug'])->value('name') ?? $ing['slug'];
                 return ['error' => "Matériaux insuffisants : {$mat} (besoin {$ing['qty']}, vous avez {$have})."];
@@ -206,10 +199,13 @@ class CraftingService
         $resultItem = DB::transaction(function () use ($user, $recipe) {
             $user->decrement('gold', $recipe->gold_cost);
             foreach ($recipe->ingredients as $ing) {
-                DB::table('user_materials')
-                    ->where('user_id', $user->id)
-                    ->where('material_slug', $ing['slug'])
-                    ->decrement('quantity', $ing['qty']);
+                $materialId = DB::table('materials')->where('slug', $ing['slug'])->value('id');
+                if ($materialId) {
+                    DB::table('user_materials')
+                        ->where('user_id', $user->id)
+                        ->where('material_id', $materialId)
+                        ->decrement('quantity', $ing['qty']);
+                }
             }
             return $this->createRecipeItem($user, $recipe);
         });
@@ -231,7 +227,7 @@ class CraftingService
     public function getUserMaterials(User $user): array
     {
         return DB::table('user_materials')
-            ->join('materials', 'user_materials.material_slug', '=', 'materials.slug')
+            ->join('materials', 'user_materials.material_id', '=', 'materials.id')
             ->where('user_materials.user_id', $user->id)
             ->where('user_materials.quantity', '>', 0)
             ->select('materials.name', 'materials.slug', 'materials.description', 'user_materials.quantity')
@@ -314,10 +310,32 @@ class CraftingService
             'legendaire'  => 'fragment_stellaire',
             default       => 'ferraille',
         };
-        DB::table('user_materials')->updateOrInsert(
-            ['user_id' => $user->id, 'material_slug' => $slug],
-            ['quantity' => DB::raw("quantity + {$qty}"), 'updated_at' => now(), 'created_at' => now()]
-        );
+        $this->addMaterialBySlug($user->id, $slug, $qty);
+    }
+
+    private function addMaterialBySlug(int $userId, string $slug, int $qty): void
+    {
+        $materialId = DB::table('materials')->where('slug', $slug)->value('id');
+        if (!$materialId) {
+            return;
+        }
+        $existing = DB::table('user_materials')
+            ->where('user_id', $userId)
+            ->where('material_id', $materialId)
+            ->first();
+        if ($existing) {
+            DB::table('user_materials')
+                ->where('user_id', $userId)
+                ->where('material_id', $materialId)
+                ->update(['quantity' => $existing->quantity + $qty, 'updated_at' => now()]);
+        } else {
+            DB::table('user_materials')->insert([
+                'user_id'     => $userId,
+                'material_id' => $materialId,
+                'quantity'    => $qty,
+                'updated_at'  => now(),
+            ]);
+        }
     }
 
     private function discoverRecipe(User $user): ?Recipe

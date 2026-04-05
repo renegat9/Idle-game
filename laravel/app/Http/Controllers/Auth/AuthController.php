@@ -36,8 +36,11 @@ class AuthController extends Controller
             'xp_to_next_level' => 100,
         ]);
 
+        $token = $user->createToken('game-session')->plainTextToken;
+
         return response()->json([
             'message' => 'Compte créé. Maintenant crée un héros, le Narrateur te surveille.',
+            'token' => $token,
             'user' => $this->userResponse($user),
         ], 201);
     }
@@ -55,9 +58,9 @@ class AuthController extends Controller
         $user = User::where('email', $validated['email'])->first();
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Identifiants incorrects. Le Narrateur lève les yeux au ciel.'],
-            ]);
+            return response()->json([
+                'message' => 'Identifiants incorrects. Le Narrateur lève les yeux au ciel.',
+            ], 401);
         }
 
         // Session unique : supprimer tous les tokens existants

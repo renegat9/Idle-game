@@ -137,7 +137,7 @@ class QuestService
         // Resolve test
         $success = true;
         $rollResult = null;
-        if (!empty($choice['test']) && $choice['test']['type'] !== 'combat') {
+        if (!empty($choice['test']) && ($choice['test']['type'] ?? '') !== 'combat') {
             [$success, $rollResult] = $this->resolveStatTest($user, $choice['test'], $heroId);
         }
 
@@ -292,12 +292,14 @@ class QuestService
 
         foreach ($heroes as $hero) {
             HeroBuff::create([
-                'hero_id'         => $hero->id,
-                'source'          => 'quest_buff_' . $buffId,
-                'stat_affected'   => $buffData['stat'] ?? 'all',
-                'modifier_percent'=> $buffData['percent'] ?? 0,
+                'hero_id'           => $hero->id,
+                'buff_key'          => $buffId,
+                'name'              => $buffData['name'] ?? $buffId,
+                'source'            => 'quest_buff_' . $buffId,
+                'stat_affected'     => $buffData['stat'] ?? 'all',
+                'modifier_percent'  => $buffData['percent'] ?? 0,
                 'remaining_combats' => $buffData['duration'] ?? $this->settings->get('QUEST_BUFF_DURATION_MEDIUM'),
-                'is_debuff'       => false,
+                'is_debuff'         => false,
             ]);
         }
     }
@@ -311,6 +313,8 @@ class QuestService
         foreach ($heroes as $hero) {
             HeroBuff::create([
                 'hero_id'           => $hero->id,
+                'buff_key'          => $debuffId,
+                'name'              => $debuffData['name'] ?? $debuffId,
                 'source'            => 'quest_debuff_' . $debuffId,
                 'stat_affected'     => $debuffData['stat'] ?? 'all',
                 'modifier_percent'  => -abs($debuffData['percent'] ?? 10),

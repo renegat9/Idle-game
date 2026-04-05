@@ -192,6 +192,57 @@ class LootService
         ]);
     }
 
+    /**
+     * Generate an item by rarity/slot without requiring a zone (used for crafting).
+     */
+    public function generateItemForCrafting(User $user, string $rarity, string $slot, int $itemLevel): Item
+    {
+        $variance = $this->settings->get('LOOT_STAT_VARIANCE', 15);
+
+        // Try to find any template matching rarity/slot
+        $template = ItemTemplate::where('rarity', $rarity)->where('slot', $slot)->inRandomOrder()->first();
+        if ($template) {
+            return $this->generateFromTemplate($template, $itemLevel, $variance, $user);
+        }
+
+        // Fallback without zone
+        $rarityMultipliers = [
+            'commun' => 1, 'peu_commun' => 2, 'rare' => 3,
+            'epique' => 5, 'legendaire' => 8, 'wtf' => 10,
+        ];
+        $mult = $rarityMultipliers[$rarity] ?? 1;
+        $baseStatValue = max(1, intdiv($itemLevel * $mult * random_int(100 - $variance, 100 + $variance), 100));
+
+        $atq = $def = $hp = $vit = $cha = $int = 0;
+        match ($slot) {
+            'arme'        => $atq = $baseStatValue,
+            'armure'      => $def = $baseStatValue,
+            'casque'      => $def = intdiv($baseStatValue, 2),
+            'bottes'      => $vit = $baseStatValue,
+            'accessoire'  => $cha = $baseStatValue,
+            default       => $hp  = $baseStatValue,
+        };
+
+        $names = $this->rareNameTemplates[$slot] ?? ['Objet Forgé'];
+        $sellPercent = $this->settings->get('LOOT_SELL_PERCENT', 30);
+        $totalStats  = $atq + $def + $hp + $vit + $cha + $int;
+        $sellValue   = max(1, intdiv($totalStats * $sellPercent * $mult, 100));
+
+        return Item::create([
+            'user_id'        => $user->id,
+            'name'           => $names[array_rand($names)] . ' (Forgé)',
+            'description'    => 'Créé par fusion à la forge. Gérard est impressionné.',
+            'rarity'         => $rarity,
+            'slot'           => $slot,
+            'element'        => 'physique',
+            'item_level'     => $itemLevel,
+            'atq' => $atq, 'def' => $def, 'hp' => $hp,
+            'vit' => $vit, 'cha' => $cha, 'int' => $int,
+            'sell_value'     => $sellValue,
+            'is_ai_generated'=> false,
+        ]);
+    }
+
     private function generateFallbackItem(Zone $zone, string $rarity, string $slot, int $itemLevel, int $variance, User $user): Item
     {
         $rarityMultipliers = [
