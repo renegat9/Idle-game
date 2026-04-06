@@ -107,6 +107,40 @@ class GeminiService
     }
 
     /**
+     * Generate a new zone definition (name, slug, description, element, monsters theme).
+     * Used by ZoneGeneratorService for procedural zone creation (zone 9+).
+     * @return array{name: string, slug: string, description: string, element: string, monster_theme: string, flavor: string}
+     */
+    public function generateZone(int $zoneIndex, int $levelMin, int $levelMax): array
+    {
+        if (!$this->canCall('zone')) {
+            return $this->fallbackZone($zoneIndex, $levelMin, $levelMax);
+        }
+
+        $prompt = "Tu es le Narrateur sarcastique du Donjon des Incompétents. "
+            . "Crée une nouvelle zone de donjon absurde et humoristique (zone n°{$zoneIndex}, niveaux {$levelMin}-{$levelMax}). "
+            . "Nom court (max 50 chars), slug unique en snake_case, description drôle (max 200 chars), "
+            . "élément dominant parmi: physique/feu/glace/foudre/poison/sacre/ombre, "
+            . "thème de monstres (1 phrase), texte de saveur sarcastique (max 100 chars). "
+            . "Format JSON strict : {\"name\": \"...\", \"slug\": \"...\", \"description\": \"...\", "
+            . "\"element\": \"...\", \"monster_theme\": \"...\", \"flavor\": \"...\"}";
+
+        try {
+            $raw = $this->callTextApi($prompt, 'zone', 300);
+            if ($raw !== null) {
+                $parsed = $this->parseZoneResponse($raw);
+                if ($parsed !== null) {
+                    return $parsed;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateZone failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackZone($zoneIndex, $levelMin, $levelMax);
+    }
+
+    /**
      * Generate an illustration for a loot item using Imagen.
      * Saves the image to storage and returns the public path.
      * Falls back to a static placeholder if AI is unavailable.
@@ -419,6 +453,65 @@ class GeminiService
             'title'       => substr((string) $data['title'], 0, 60),
             'description' => substr((string) $data['description'], 0, 200),
             'flavor'      => substr((string) ($data['flavor'] ?? ''), 0, 100),
+        ];
+    }
+
+    private const VALID_ELEMENTS = ['physique', 'feu', 'glace', 'foudre', 'poison', 'sacre', 'ombre'];
+
+    /** @return array{name: string, slug: string, description: string, element: string, monster_theme: string, flavor: string}|null */
+    private function parseZoneResponse(string $raw): ?array
+    {
+        $json = $this->extractJson($raw);
+        if ($json === null) {
+            return null;
+        }
+
+        $data = json_decode($json, true);
+        if (!is_array($data) || empty($data['name']) || empty($data['slug']) || empty($data['element'])) {
+            return null;
+        }
+
+        // Validate element
+        if (!in_array($data['element'], self::VALID_ELEMENTS)) {
+            $data['element'] = 'physique';
+        }
+
+        // Sanitize slug: only lowercase letters, digits, underscores
+        $slug = preg_replace('/[^a-z0-9_]/', '_', strtolower((string) $data['slug']));
+        $slug = preg_replace('/_+/', '_', trim($slug, '_'));
+
+        return [
+            'name'          => substr((string) $data['name'], 0, 50),
+            'slug'          => substr($slug, 0, 50),
+            'description'   => substr((string) ($data['description'] ?? ''), 0, 200),
+            'element'       => $data['element'],
+            'monster_theme' => substr((string) ($data['monster_theme'] ?? ''), 0, 200),
+            'flavor'        => substr((string) ($data['flavor'] ?? ''), 0, 100),
+        ];
+    }
+
+    /** @return array{name: string, slug: string, description: string, element: string, monster_theme: string, flavor: string} */
+    private function fallbackZone(int $zoneIndex, int $levelMin, int $levelMax): array
+    {
+        $themes = [
+            ['name' => 'Les Archives Abandonnées',     'element' => 'ombre',    'monster_theme' => 'Bureaucrates zombifiés et fantômes de formulaires non remplis'],
+            ['name' => 'Le Laboratoire du Savant Fou', 'element' => 'foudre',   'monster_theme' => 'Expériences ratées et assistants incompétents'],
+            ['name' => 'La Cuisine Maudite',           'element' => 'feu',      'monster_theme' => 'Ingrédients animés et recettes qui se défendent'],
+            ['name' => 'La Bibliothèque Interdite',    'element' => 'sacre',    'monster_theme' => 'Livres sentients et bibliothécaires zélés'],
+            ['name' => 'Les Égouts Enchantés',         'element' => 'poison',   'monster_theme' => 'Créatures aquatiques et champignons mutants'],
+            ['name' => 'La Salle des Trophées',        'element' => 'physique', 'monster_theme' => 'Armures animées et souvenirs de batailles oubliées'],
+        ];
+
+        $theme = $themes[$zoneIndex % count($themes)];
+        $slug  = 'zone_ia_' . $zoneIndex;
+
+        return [
+            'name'          => $theme['name'] . " (Zone {$zoneIndex})",
+            'slug'          => $slug,
+            'description'   => "Zone générée pour les niveaux {$levelMin}-{$levelMax}. {$theme['monster_theme']}.",
+            'element'       => $theme['element'],
+            'monster_theme' => $theme['monster_theme'],
+            'flavor'        => "Le Narrateur a généré ça à {$zoneIndex}h du matin. Ça se voit.",
         ];
     }
 

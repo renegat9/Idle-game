@@ -16,6 +16,8 @@ use App\Http\Controllers\Game\DungeonController;
 use App\Http\Controllers\Game\TalentController;
 use App\Http\Controllers\Game\ProfileController;
 use App\Http\Controllers\Game\ReputationController;
+use App\Http\Controllers\Game\MusicController;
+use App\Http\Controllers\Game\SeasonalEventController;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -91,6 +93,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Réputation par zone
     Route::get('/reputation', [ReputationController::class, 'index']);
     Route::get('/reputation/{zoneId}', [ReputationController::class, 'show']);
+
+    // Ambiance musicale dynamique
+    Route::get('/music/current', [MusicController::class, 'current']);
+
+    // Événements saisonniers
+    Route::get('/events/current', [SeasonalEventController::class, 'current']);
+    Route::get('/events', [SeasonalEventController::class, 'index']);
 
     // Reference data
     Route::prefix('reference')->group(function () {

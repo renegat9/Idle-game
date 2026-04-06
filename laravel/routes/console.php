@@ -33,3 +33,8 @@ Schedule::command('shop:refresh')->everySixHours()
 Schedule::command('world-boss:spawn')->cron('0 12 */3 * *')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Weekly on Monday at 02:00: generate a new procedural zone (zone 9+)
+Schedule::command('zones:generate')->weekly()->mondays()->at('02:00')
+    ->withoutOverlapping()
+    ->runInBackground();

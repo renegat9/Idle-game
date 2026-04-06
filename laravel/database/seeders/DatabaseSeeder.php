@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             QuestSeeder::class,
             RecipeSeeder::class,
             TalentSeeder::class,
+            SeasonalEventSeeder::class,
         ]);
     }
 }

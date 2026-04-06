@@ -55,7 +55,10 @@ class WorldBossService
         'Le Boss est abattu ! Votre incompétence collective a, paradoxalement, triomphé.',
     ];
 
-    public function __construct(private SettingsService $settings) {}
+    public function __construct(
+        private SettingsService $settings,
+        private GeminiService $gemini,
+    ) {}
 
     /**
      * Retourne le boss mondial actuellement actif, ou null.
@@ -201,11 +204,15 @@ class WorldBossService
 
     /**
      * Invoque un nouveau boss mondial (appelé par la commande console ou le scheduler).
+     * Enrichit le boss avec du texte IA (description + mécanique) si Gemini est disponible.
      */
     public function spawnBoss(): WorldBoss
     {
         // Choisir un boss au hasard parmi les définitions
         $definition = $this->bossDefinitions[array_rand($this->bossDefinitions)];
+
+        // Enrichir avec texte IA (description narrative + mécanique spéciale)
+        $aiText = $this->gemini->generateBossText($definition['name']);
 
         $boss = WorldBoss::create([
             'name'             => $definition['name'],
@@ -213,7 +220,8 @@ class WorldBossService
             'total_hp'         => $definition['total_hp'],
             'current_hp'       => $definition['total_hp'],
             'status'           => 'active',
-            'special_mechanic' => $definition['special_mechanic'],
+            'special_mechanic' => $definition['special_mechanic'] ?? $aiText['mechanic'],
+            'description'      => $aiText['description'],
             'spawned_at'       => now(),
             'defeated_at'      => null,
         ]);

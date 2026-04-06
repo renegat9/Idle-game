@@ -13,6 +13,7 @@ class WorldBoss extends Model
         'current_hp',
         'status',
         'special_mechanic',
+        'description',
         'spawned_at',
         'defeated_at',
     ];
