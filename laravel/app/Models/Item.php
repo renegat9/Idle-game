@@ -16,6 +16,7 @@ class Item extends Model
         'name', 'description', 'rarity', 'slot', 'element',
         'item_level', 'atq', 'def', 'hp', 'vit', 'cha', 'int',
         'sell_value', 'is_ai_generated',
+        'durability_current', 'durability_max', 'enchant_count',
     ];
 
     protected $casts = [
@@ -24,6 +25,9 @@ class Item extends Model
         'vit' => 'integer', 'cha' => 'integer', 'int' => 'integer',
         'sell_value' => 'integer',
         'is_ai_generated' => 'boolean',
+        'durability_current' => 'integer',
+        'durability_max' => 'integer',
+        'enchant_count' => 'integer',
     ];
 
     public function user()

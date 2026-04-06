@@ -59,6 +59,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/crafting/fuse', [CraftingController::class, 'fuse']);
     Route::post('/crafting/dismantle', [CraftingController::class, 'dismantle']);
     Route::post('/crafting/craft', [CraftingController::class, 'craft']);
+    Route::get('/crafting/enchantments', [CraftingController::class, 'enchantments']);
+    Route::post('/crafting/enchant', [CraftingController::class, 'enchant']);
 
     // Taverne
     Route::get('/tavern', [TavernController::class, 'index']);

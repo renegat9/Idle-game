@@ -162,6 +162,223 @@ class CraftingService
         ];
     }
 
+    // ─── Enchantment ─────────────────────────────────────────────────────────
+
+    /** Catalogue des enchantements disponibles (slug → config) */
+    private const ENCHANTMENTS = [
+        // Enchantements de base (toujours disponibles)
+        'aiguisage'    => ['name' => 'Aiguisage',     'gold' => 2000, 'tier' => 'base',  'stat' => 'atq', 'bonus_pct' => 8,  'materials' => ['ferraille' => 5, 'essence_mineure' => 2]],
+        'renforcement' => ['name' => 'Renforcement',  'gold' => 2000, 'tier' => 'base',  'stat' => 'def', 'bonus_pct' => 8,  'materials' => ['ferraille' => 5, 'cuir' => 2]],
+        'allegement'   => ['name' => 'Allègement',    'gold' => 2000, 'tier' => 'base',  'stat' => 'vit', 'bonus_pct' => 8,  'materials' => ['cuir' => 3, 'gemme_brute' => 2]],
+        'chance'       => ['name' => 'Chance',        'gold' => 2500, 'tier' => 'base',  'stat' => 'cha', 'bonus_pct' => 8,  'materials' => ['gemme_brute' => 3, 'essence_mineure' => 1]],
+        'vitalite'     => ['name' => 'Vitalité',      'gold' => 2500, 'tier' => 'base',  'stat' => 'hp',  'bonus_pct' => 10, 'materials' => ['cuir' => 5, 'essence_mineure' => 2]],
+        'sagesse'      => ['name' => 'Sagesse',       'gold' => 2500, 'tier' => 'base',  'stat' => 'int', 'bonus_pct' => 8,  'materials' => ['essence_mineure' => 3, 'cristal_brut' => 1]],
+        'solidite'     => ['name' => 'Solidité',      'gold' => 1500, 'tier' => 'base',  'stat' => 'durability', 'flat' => 50, 'materials' => ['ferraille' => 8]],
+        // Enchantements avancés (Magus, non débloqués par défaut)
+        'vampirisme'   => ['name' => 'Vampirisme',    'gold' => 8000, 'tier' => 'avance', 'effect' => 'lifesteal_5pct',    'materials' => ['cristal_brut' => 3, 'essence_majeure' => 1]],
+        'precision'    => ['name' => 'Précision',     'gold' => 6000, 'tier' => 'avance', 'effect' => 'crit_plus_8',       'materials' => ['cristal_brut' => 2, 'gemme_brute' => 2]],
+        'esquive'      => ['name' => 'Esquive',       'gold' => 6000, 'tier' => 'avance', 'effect' => 'dodge_plus_6',      'materials' => ['cristal_brut' => 2, 'cuir' => 3]],
+        'indestructible' => ['name' => 'Indestructible', 'gold' => 10000, 'tier' => 'avance', 'stat' => 'durability', 'flat' => 999, 'materials' => ['cristal_brut' => 5, 'essence_majeure' => 2]],
+        'prosperite'   => ['name' => 'Prospérité',   'gold' => 5000, 'tier' => 'avance', 'effect' => 'gold_plus_10',      'materials' => ['cristal_brut' => 2, 'gemme_brute' => 3]],
+        // Enchantements élémentaires
+        'flamme'       => ['name' => 'Flamme',        'gold' => 4000, 'tier' => 'elementaire', 'effect' => 'element_feu',   'materials' => ['cendre_volcanique' => 3, 'cristal_brut' => 1]],
+        'givre'        => ['name' => 'Givre',         'gold' => 4000, 'tier' => 'elementaire', 'effect' => 'element_glace', 'materials' => ['glace_eternelle' => 3, 'cristal_brut' => 1]],
+        'foudre'       => ['name' => 'Foudre',        'gold' => 4000, 'tier' => 'elementaire', 'effect' => 'element_foudre','materials' => ['eclat_foudre' => 3, 'cristal_brut' => 1]],
+        'venin'        => ['name' => 'Venin',         'gold' => 4000, 'tier' => 'elementaire', 'effect' => 'element_poison','materials' => ['seve_toxique' => 3, 'cristal_brut' => 1]],
+        'sacre'        => ['name' => 'Sacré',         'gold' => 5000, 'tier' => 'elementaire', 'effect' => 'element_sacre', 'materials' => ['essence_ombre' => 3, 'essence_majeure' => 1]],
+    ];
+
+    private const ENCHANT_MAX_EFFECTS = 2;
+    private const ENCHANT_MIN_RARITY = ['rare', 'epique', 'legendaire', 'wtf'];
+
+    /**
+     * Retourne les enchantements disponibles pour l'utilisateur.
+     * Les enchantements avancés ne sont disponibles que si ENCHANT_ADVANCED_UNLOCKED est vrai.
+     */
+    public function getAvailableEnchantments(User $user): array
+    {
+        $advancedUnlocked = (bool) $this->settings->get('ENCHANT_ADVANCED_UNLOCKED', 0);
+
+        return collect(self::ENCHANTMENTS)
+            ->filter(fn ($e) => $advancedUnlocked || $e['tier'] === 'base' || $e['tier'] === 'elementaire')
+            ->map(fn ($e, $slug) => array_merge($e, ['slug' => $slug]))
+            ->values()
+            ->toArray();
+    }
+
+    /**
+     * Applique un enchantement à un objet.
+     * Conditions : objet Rare+, max 2 effets, si 2 effets → remplace le dernier.
+     */
+    public function enchant(User $user, int $itemId, string $enchantSlug): array
+    {
+        // Validate enchantment
+        if (!isset(self::ENCHANTMENTS[$enchantSlug])) {
+            return ['error' => "Enchantement '{$enchantSlug}' inconnu."];
+        }
+        $ench = self::ENCHANTMENTS[$enchantSlug];
+
+        // Check advanced lock
+        if ($ench['tier'] === 'avance' && !$this->settings->get('ENCHANT_ADVANCED_UNLOCKED', 0)) {
+            return ['error' => 'Cet enchantement requiert la relation avec le Magus (niveau 75+).'];
+        }
+
+        // Load item
+        $item = Item::where('id', $itemId)
+            ->where('user_id', $user->id)
+            ->whereNull('equipped_by_hero_id')
+            ->first();
+
+        if (!$item) {
+            return ['error' => "Objet introuvable ou équipé."];
+        }
+
+        // Rarity check
+        if (!in_array($item->rarity, self::ENCHANT_MIN_RARITY, true)) {
+            return ['error' => "L'enchantement nécessite un objet Rare ou supérieur. Gérard regarde votre {$item->rarity} avec pitié."];
+        }
+
+        // Check materials
+        foreach ($ench['materials'] as $slug => $qty) {
+            $materialId = DB::table('materials')->where('slug', $slug)->value('id');
+            $have = $materialId
+                ? (DB::table('user_materials')->where('user_id', $user->id)->where('material_id', $materialId)->value('quantity') ?? 0)
+                : 0;
+            if ($have < $qty) {
+                $name = DB::table('materials')->where('slug', $slug)->value('name') ?? $slug;
+                return ['error' => "Matériaux insuffisants : {$name} (besoin {$qty}, vous avez {$have})."];
+            }
+        }
+
+        if ($user->gold < $ench['gold']) {
+            return ['error' => "Or insuffisant. Coût : {$ench['gold']} or."];
+        }
+
+        // Check existing effects
+        $existingEffects = DB::table('item_effects')->where('item_id', $item->id)->orderBy('id')->get();
+        $effectCount = $existingEffects->count();
+        $replacedEffect = null;
+
+        if ($effectCount >= self::ENCHANT_MAX_EFFECTS) {
+            // Replace last enchantment
+            $lastEffect = $existingEffects->last();
+            if ($lastEffect) {
+                $replacedEffect = $lastEffect->description;
+                DB::table('item_effects')->where('id', $lastEffect->id)->delete();
+            }
+        }
+
+        // Apply enchantment in transaction
+        DB::transaction(function () use ($user, $item, $ench, $enchantSlug) {
+            // Deduct gold
+            $user->decrement('gold', $ench['gold']);
+
+            // Deduct materials
+            foreach ($ench['materials'] as $slug => $qty) {
+                $materialId = DB::table('materials')->where('slug', $slug)->value('id');
+                if ($materialId) {
+                    DB::table('user_materials')
+                        ->where('user_id', $user->id)
+                        ->where('material_id', $materialId)
+                        ->decrement('quantity', $qty);
+                }
+            }
+
+            // Apply stat bonus if it's a stat enchantment
+            if (isset($ench['stat'])) {
+                if ($ench['stat'] === 'durability') {
+                    $flat = $ench['flat'] ?? 50;
+                    $newDurability = ($flat === 999)
+                        ? 999
+                        : min(999, $item->durability_max + $flat);
+                    $item->durability_max = $newDurability;
+                    $item->durability_current = min($item->durability_current + $flat, $newDurability);
+                } else {
+                    $bonusPct = $ench['bonus_pct'] ?? 8;
+                    $statValue = $item->{$ench['stat']} ?? 0;
+                    $bonus = max(1, intdiv($statValue * $bonusPct, 100));
+                    $item->{$ench['stat']} = $statValue + $bonus;
+                }
+                $item->enchant_count = ($item->enchant_count ?? 0) + 1;
+                $item->save();
+            } else {
+                $item->enchant_count = ($item->enchant_count ?? 0) + 1;
+                $item->save();
+            }
+
+            // Add effect row
+            $effectData = $this->buildEffectData($ench, $item);
+            DB::table('item_effects')->insert([
+                'item_id'       => $item->id,
+                'effect_key'    => $enchantSlug,
+                'description'   => $this->buildEffectDescription($ench),
+                'effect_data'   => json_encode($effectData),
+                'is_enchantment'=> 1,
+            ]);
+        });
+
+        return [
+            'success'         => true,
+            'item_id'         => $item->id,
+            'enchantment'     => $ench['name'],
+            'gold_spent'      => $ench['gold'],
+            'replaced_effect' => $replacedEffect,
+            'gerard_comment'  => $this->gerardEnchantComment($enchantSlug),
+        ];
+    }
+
+    private function buildEffectData(array $ench, Item $item): array
+    {
+        if (isset($ench['stat']) && $ench['stat'] !== 'durability') {
+            return ['stat' => $ench['stat'], 'bonus_pct' => $ench['bonus_pct'] ?? 8];
+        }
+        if (isset($ench['effect'])) {
+            if (str_starts_with($ench['effect'], 'element_')) {
+                $element = substr($ench['effect'], strlen('element_'));
+                return ['type' => 'element_change', 'element' => $element, 'dmg_bonus_pct' => 10];
+            }
+            return ['type' => $ench['effect']];
+        }
+        return ['type' => 'durability_bonus', 'flat' => $ench['flat'] ?? 50];
+    }
+
+    private function buildEffectDescription(array $ench): string
+    {
+        if (isset($ench['stat']) && $ench['stat'] !== 'durability') {
+            $pct = $ench['bonus_pct'] ?? 8;
+            return strtoupper($ench['stat']) . " +{$pct}%";
+        }
+        if (isset($ench['flat'])) {
+            return $ench['flat'] === 999 ? 'Durabilité infinie' : "Durabilité +{$ench['flat']}";
+        }
+        $effectDescriptions = [
+            'lifesteal_5pct'  => 'Soigne 5% des dégâts infligés',
+            'crit_plus_8'     => 'Critique +8%',
+            'dodge_plus_6'    => 'Esquive +6%',
+            'gold_plus_10'    => '+10% or trouvé',
+            'element_feu'     => 'Dégâts Feu +10%',
+            'element_glace'   => 'Dégâts Glace, 8% chance Ralenti',
+            'element_foudre'  => 'Dégâts Foudre, 5% chance Étourdi',
+            'element_poison'  => 'Dégâts Poison, empoisonne 2 tours',
+            'element_sacre'   => 'Dégâts Sacré, +15% dégâts morts-vivants',
+        ];
+        return $effectDescriptions[$ench['effect'] ?? ''] ?? $ench['name'];
+    }
+
+    private function gerardEnchantComment(string $slug): ?string
+    {
+        if (rand(1, 100) > $this->settings->get('CRAFT_GERARD_HUMOR_CHANCE', 30)) {
+            return null;
+        }
+        return collect([
+            "Enchantement '{$slug}' appliqué. Je comprends pas comment ça marche. Mais ça marche.",
+            "Voilà. J'ai suivi la procédure. Si quelque chose brûle, c'est pas ma faute.",
+            "Normalement c'est mieux maintenant. Normalement.",
+            "J'ai mis des runes dessus. Les runes c'est ma passion. Ma passion incomprise.",
+            "L'objet est enchanté. Il vous regarde différemment maintenant.",
+        ])->random();
+    }
+
     // ─── Recipe craft ────────────────────────────────────────────────────────
 
     public function craftRecipe(User $user, int $recipeId): array

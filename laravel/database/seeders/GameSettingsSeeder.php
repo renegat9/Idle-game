@@ -183,6 +183,7 @@ class GameSettingsSeeder extends Seeder
             ['QUEST_POOL_REFILL_THRESHOLD', 20, 'Seuil pour déclencher la régénération du pool'],
             ['REPUTATION_MAX', 200, 'Score de réputation maximum par zone'],
             ['NPC_RELATION_MAX', 100, 'Score de relation maximum par PNJ'],
+            ['ENCHANT_ADVANCED_UNLOCKED', 0, '1 si les enchantements avancés (Magus) sont débloqués'],
             ['IDLE_EVENT_INTERVAL', 30, 'Minutes entre chaque micro-événement idle'],
 
             // Crafting

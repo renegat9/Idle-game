@@ -65,4 +65,38 @@ class CraftingController extends Controller
 
         return response()->json($result, 201);
     }
+
+    /**
+     * GET /api/crafting/enchantments
+     * Retourne les enchantements disponibles pour le joueur.
+     */
+    public function enchantments(Request $request): JsonResponse
+    {
+        $available = $this->craftingService->getAvailableEnchantments($request->user());
+        return response()->json(['enchantments' => $available]);
+    }
+
+    /**
+     * POST /api/crafting/enchant
+     * Applique un enchantement à un objet.
+     */
+    public function enchant(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'item_id'       => 'required|integer',
+            'enchantment'   => 'required|string|max:50',
+        ]);
+
+        $result = $this->craftingService->enchant(
+            $request->user(),
+            $validated['item_id'],
+            $validated['enchantment']
+        );
+
+        if (isset($result['error'])) {
+            return response()->json(['message' => $result['error']], 422);
+        }
+
+        return response()->json($result, 201);
+    }
 }

@@ -38,6 +38,9 @@ class ItemFactory extends Factory
             'sell_value'          => $level * $mult * 3,
             'equipped_by_hero_id' => null,
             'is_ai_generated'     => false,
+            'durability_current'  => 100,
+            'durability_max'      => 100,
+            'enchant_count'       => 0,
         ];
     }
 }

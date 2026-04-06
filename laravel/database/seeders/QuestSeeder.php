@@ -11,6 +11,8 @@ class QuestSeeder extends Seeder
     {
         $prairieId = DB::table('zones')->where('slug', 'prairie')->value('id');
         $foretId   = DB::table('zones')->where('slug', 'foret_elfes')->value('id');
+        $minesId   = DB::table('zones')->where('slug', 'mines_nain')->value('id');
+        $maraisId  = DB::table('zones')->where('slug', 'marais_bureaucratie')->value('id');
 
         $quests = [
             // ── Zone 1 — La Prairie des Débutants ──
@@ -104,6 +106,73 @@ class QuestSeeder extends Seeder
                 'reward_xp'          => 400,
                 'reward_gold'        => 240,
                 'reward_loot_rarity' => 'peu_commun',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+
+            // ── Quêtes WTF — Absurdes, épiques, imprévisibles ──
+            [
+                'zone_id'            => $prairieId,
+                'type'               => 'wtf',
+                'title'              => 'Le Narrateur a Besoin d\'un Café',
+                'description'        => 'Une voix venue de nulle part vous demande d\'apporter un café au Narrateur. Vous ne voyez pas de Narrateur. La voix insiste. Le café est dans la maison du fermier à l\'autre bout de la carte. Il est peut-être froid.',
+                'steps_count'        => 7,
+                'order_index'        => 10,
+                'reward_xp'          => 2000,
+                'reward_gold'        => 1500,
+                'reward_loot_rarity' => 'epique',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $foretId,
+                'type'               => 'wtf',
+                'title'              => 'La Fée Qui Voulait Devenir Comptable',
+                'description'        => 'Une fée de la forêt a décidé qu\'elle voulait changer de vie. Elle veut devenir comptable. Elle a besoin d\'un certificat. Le certificat est gardé par un gobelin qui l\'a mangé. Vous devez récupérer des morceaux. La fée est... enthousiaste.',
+                'steps_count'        => 8,
+                'order_index'        => 11,
+                'reward_xp'          => 3000,
+                'reward_gold'        => 2200,
+                'reward_loot_rarity' => 'epique',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $minesId,
+                'type'               => 'wtf',
+                'title'              => 'Thorin a Perdu ses Clés',
+                'description'        => 'Thorin le Nain Ivre a perdu les clés de sa cave à bière. Sans elles, il ne peut pas brasser sa bière secrète. Sans la bière secrète, sa mine s\'effondre. Enfin c\'est ce qu\'il dit. Le Narrateur a des doutes. Vous aussi probablement.',
+                'steps_count'        => 9,
+                'order_index'        => 12,
+                'reward_xp'          => 4500,
+                'reward_gold'        => 3000,
+                'reward_loot_rarity' => 'legendaire',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $maraisId,
+                'type'               => 'wtf',
+                'title'              => 'Le Formulaire W-99-Bis',
+                'description'        => 'Un fantôme bureaucrate vous remet le Formulaire W-99-Bis en 47 exemplaires. Ce formulaire, s\'il est rempli correctement, permettrait théoriquement de rembourser tous vos impôts. Théoriquement. Le formulaire est en latin. Le Narrateur ne parle pas latin non plus.',
+                'steps_count'        => 10,
+                'order_index'        => 13,
+                'reward_xp'          => 6000,
+                'reward_gold'        => 4500,
+                'reward_loot_rarity' => 'legendaire',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $prairieId,
+                'type'               => 'wtf',
+                'title'              => 'Gérard a Commandé Trop de Ferraille',
+                'description'        => 'Gérard a commandé de la ferraille par erreur. 47 tonnes. Elle bloque la forge. Et la route. Et apparemment le canal. Les ferrailleuses de la zone ont envoyé une facture. Gérard pleure. Aidez-le ou pas — de toute façon le Narrateur s\'en amuse.',
+                'steps_count'        => 7,
+                'order_index'        => 14,
+                'reward_xp'          => 2500,
+                'reward_gold'        => 2000,
+                'reward_loot_rarity' => 'epique',
                 'is_repeatable'      => true,
                 'is_ai_generated'    => false,
             ],
@@ -237,7 +306,96 @@ class QuestSeeder extends Seeder
             ],
         ];
 
+        // WTF quests use generic steps with WTF-flavored narration
+        $wtfTitles = [
+            'Le Narrateur a Besoin d\'un Café',
+            'La Fée Qui Voulait Devenir Comptable',
+            'Thorin a Perdu ses Clés',
+            'Le Formulaire W-99-Bis',
+            'Gérard a Commandé Trop de Ferraille',
+        ];
+
+        if (in_array($title, $wtfTitles, true)) {
+            return $this->generateWtfSteps($title);
+        }
+
         return $allSteps[$title] ?? [];
+    }
+
+    private function generateWtfSteps(string $title): array
+    {
+        $wtfNarrations = [
+            'Le Narrateur a Besoin d\'un Café' => [
+                ['narration' => '"Le café. Maintenant. S\'il vous plaît." La voix est étrangement proche de votre oreille gauche.', 'narrator_comment' => 'Le Narrateur reconnaît qu\'il parle directement aux personnages. C\'est contre les règles. Il s\'en moque.', 'choices' => [['id' => 'A', 'text' => 'Demander "Mais vous êtes qui ?"', 'test' => ['stat' => 'int', 'difficulty' => 99], 'success' => ['next_step' => 2, 'effects' => [['type' => 'buff', 'id' => 'B07', 'target' => 'party']], 'narration' => 'Une révélation cosmique vous traverse. Puis la voix dit "café d\'abord".'], 'failure' => ['next_step' => 2, 'effects' => [], 'narration' => 'Vous ne comprenez pas. Personne ne comprend. C\'est normal.']], ['id' => 'B', 'text' => 'Aller chercher le café sans poser de questions', 'test' => null, 'success' => ['next_step' => 2, 'effects' => [], 'narration' => 'Sage décision. La voix approuve.'], 'failure' => null]]],
+                ['narration' => 'Le fermier a du café... mais il est froid. Il faudrait un feu. Il y a un dragon par là.', 'narrator_comment' => 'Un dragon comme source de chaleur pour un café. Qui a approuvé cette quête ?', 'choices' => [['id' => 'A', 'text' => 'Négocier avec le dragon (test CHA)', 'test' => ['stat' => 'cha', 'difficulty' => 60], 'success' => ['next_step' => 3, 'effects' => [], 'narration' => 'Le dragon accepte de chauffer votre café. Il le trouve trop léger.'], 'failure' => ['next_step' => 3, 'effects' => [['type' => 'debuff', 'id' => 'D03', 'target' => 'party']], 'narration' => 'Le dragon a réchauffé le café et a failli réchauffer votre équipe aussi.']], ['id' => 'B', 'text' => 'Attaquer le dragon pour son feu', 'test' => ['type' => 'combat', 'enemy' => 'dragon_mines_retraite'], 'success' => ['next_step' => 3, 'effects' => [['type' => 'loot', 'rarity_min' => 'rare']], 'narration' => 'Victoire héroïque. Le café est chaud. Le dragon est un peu froissé.'], 'failure' => ['next_step' => 3, 'effects' => [['type' => 'debuff', 'id' => 'D07', 'target' => 'party']], 'narration' => 'Le dragon vous a un peu brûlé. Le café aussi est brûlant. Tout est brûlant maintenant.']]]],
+                ['narration' => 'Le café est chaud. Il y a un problème : pas de tasse. La voix soupire.', 'narrator_comment' => 'Évidemment. Il fallait prévoir ça.', 'choices' => [['id' => 'A', 'text' => 'Chercher une tasse dans la zone (test INT)', 'test' => ['stat' => 'int', 'difficulty' => 35], 'success' => ['next_step' => 4, 'effects' => [], 'narration' => 'Vous trouvez une tasse dans les décombres d\'une maison. Elle est propre. Presque.'], 'failure' => ['next_step' => 4, 'effects' => [], 'narration' => 'Vous ne trouvez qu\'une corne de taureau. Ce sera une tasse maintenant.']], ['id' => 'B', 'text' => 'Improviser avec un casque', 'test' => null, 'success' => ['next_step' => 4, 'effects' => [], 'narration' => 'Un casque de gobelin. C\'est pas parfait mais ça contient du liquide.'], 'failure' => null]]],
+                ['narration' => 'Tasse trouvée. Café chaud. Il reste à traverser la prairie sans le renverser.', 'narrator_comment' => 'La plus grande épreuve de cette quête. Le Narrateur tient enfin son café.', 'choices' => [['id' => 'A', 'text' => 'Marcher très doucement (test VIT inversé)', 'test' => ['stat' => 'vit', 'difficulty' => 20], 'success' => ['next_step' => 5, 'effects' => [], 'narration' => 'Vous vous déplacez lentement. Très lentement. Mais le café est intact.'], 'failure' => ['next_step' => 5, 'effects' => [['type' => 'gold', 'amount' => -100]], 'narration' => 'Vous avez renversé un peu. Le Narrateur est mécontent. 100 or d\'amende pour distraction.']], ['id' => 'B', 'text' => 'Courir très vite avant que ça refroidisse', 'test' => ['stat' => 'vit', 'difficulty' => 70], 'success' => ['next_step' => 5, 'effects' => [['type' => 'buff', 'id' => 'B04', 'target' => 'party']], 'narration' => 'Speed run ! Le café est chaud et intact. La voix est surprise.'], 'failure' => ['next_step' => 5, 'effects' => [['type' => 'gold', 'amount' => -200]], 'narration' => 'Vous avez tout renversé. Le Narrateur est très mécontent.']]]],
+                ['narration' => 'La voix reçoit le café. Silence. Longue gorgée.', 'narrator_comment' => '...', 'choices' => [['id' => 'A', 'text' => 'Attendre la récompense', 'test' => null, 'success' => ['next_step' => 6, 'effects' => [], 'narration' => '"Il est froid." La voix est décevante. Vous avez pourtant essayé.'], 'failure' => null]]],
+                ['narration' => '"Bon. Vous avez quand même essayé. Voici votre récompense. Ne parlez de ça à personne."', 'narrator_comment' => 'Personne ne croira votre histoire de toute façon. C\'était une bonne quête. Le Narrateur le dit à contrecœur.', 'is_final' => true, 'choices' => [['id' => 'A', 'text' => 'Promettre de garder le secret', 'test' => null, 'success' => ['next_step' => null, 'effects' => [['type' => 'buff', 'id' => 'B07', 'target' => 'party'], ['type' => 'loot', 'rarity_min' => 'epique']], 'narration' => 'Une récompense cosmique. Et un secret gardé. Le Narrateur reprend son café.'], 'failure' => null], ['id' => 'B', 'text' => 'Raconter à tout le monde', 'test' => null, 'success' => ['next_step' => null, 'effects' => [['type' => 'loot', 'rarity_min' => 'epique'], ['type' => 'debuff', 'id' => 'D05', 'target' => 'party']], 'narration' => 'Personne ne vous croit. Mais la récompense est là quand même. Le Narrateur est légèrement offensé.'], 'failure' => null]]],
+                ['narration' => 'Le Narrateur a terminé son café.', 'narrator_comment' => 'FIN DE LA QUÊTE WTF. Le Narrateur reprend son travail normal, mécontent de l\'interruption mais légèrement mieux disposé.', 'is_final' => true, 'choices' => [['id' => 'A', 'text' => 'Rentrer à la taverne', 'test' => null, 'success' => ['next_step' => null, 'effects' => [['type' => 'reputation', 'zone' => 'prairie', 'amount' => 25]], 'narration' => 'Vous avez aidé le Narrateur. Votre réputation en prairie en profite bizarrement.'], 'failure' => null]]],
+            ],
+        ];
+
+        if (isset($wtfNarrations[$title])) {
+            return $wtfNarrations[$title];
+        }
+
+        // Fallback: generate generic steps with WTF flavor for other WTF quests
+        $steps = [];
+        $count = match ($title) {
+            'La Fée Qui Voulait Devenir Comptable' => 8,
+            'Thorin a Perdu ses Clés'              => 9,
+            'Le Formulaire W-99-Bis'               => 10,
+            default                                => 7,
+        };
+
+        for ($i = 1; $i <= $count; $i++) {
+            $isFinal = ($i === $count);
+            $steps[] = [
+                'narration'        => 'La situation devient de plus en plus absurde. C\'est une quête WTF. C\'est prévu.',
+                'narrator_comment' => 'Le Narrateur documente l\'absurdité croissante avec une satisfaction tranquille.',
+                'is_final'         => $isFinal,
+                'choices'          => [
+                    [
+                        'id'      => 'A',
+                        'text'    => $isFinal ? 'Résoudre l\'absurdité par la force (test ATQ)' : 'Affronter le problème (test ATQ)',
+                        'test'    => ['stat' => 'atq', 'difficulty' => min(30 + ($i * 5), 75)],
+                        'success' => [
+                            'next_step' => $isFinal ? null : $i + 1,
+                            'effects'   => $isFinal
+                                ? [['type' => 'loot', 'rarity_min' => 'epique'], ['type' => 'buff', 'id' => 'B07', 'target' => 'party']]
+                                : [['type' => 'buff', 'id' => 'B02', 'target' => 'attacker']],
+                            'narration' => $isFinal ? 'Contre toute logique, ça a marché. La quête WTF est terminée.' : 'L\'absurdité recule temporairement.',
+                        ],
+                        'failure' => [
+                            'next_step' => $isFinal ? null : $i + 1,
+                            'effects'   => $isFinal
+                                ? [['type' => 'loot', 'rarity_min' => 'rare']]
+                                : [['type' => 'debuff', 'id' => 'D10', 'target' => 'leader']],
+                            'narration' => $isFinal ? 'L\'échec final. Vous avez quand même une récompense. La quête était WTF.' : 'L\'absurdité riposte.',
+                        ],
+                    ],
+                    [
+                        'id'      => 'B',
+                        'text'    => $isFinal ? 'Résoudre par la ruse (test INT)' : 'Analyser la situation (test INT)',
+                        'test'    => ['stat' => 'int', 'difficulty' => min(25 + ($i * 5), 70)],
+                        'success' => [
+                            'next_step' => $isFinal ? null : $i + 1,
+                            'effects'   => $isFinal
+                                ? [['type' => 'loot', 'rarity_min' => 'epique'], ['type' => 'gold', 'amount' => 500]]
+                                : [['type' => 'buff', 'id' => 'B03', 'target' => 'leader']],
+                            'narration' => $isFinal ? 'Votre intelligence transcende l\'absurdité. Impressionnant.' : 'Votre analyse révèle des patterns... absurdes.',
+                        ],
+                        'failure' => [
+                            'next_step' => $isFinal ? null : $i + 1,
+                            'effects'   => [],
+                            'narration' => $isFinal ? 'Même l\'analyse échoue face à l\'absurde. C\'est beau.' : 'L\'absurdité défie l\'analyse.',
+                        ],
+                    ],
+                ],
+            ];
+        }
+        return $steps;
     }
 
     private function generateGenericSteps(int $count): array
