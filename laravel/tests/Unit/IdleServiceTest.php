@@ -6,6 +6,7 @@ use App\Services\IdleService;
 use App\Services\SettingsService;
 use App\Services\LootService;
 use App\Services\NarratorService;
+use App\Services\ReputationService;
 use PHPUnit\Framework\TestCase;
 
 class IdleServiceTest extends TestCase
@@ -23,8 +24,10 @@ class IdleServiceTest extends TestCase
         $loot = $this->createMock(LootService::class);
         $narrator = $this->createMock(NarratorService::class);
         $narrator->method('getComment')->willReturn('...');
+        $reputation = $this->createMock(ReputationService::class);
+        $reputation->method('addReputation')->willReturn(['reputation' => 0, 'tier' => 'etranger', 'tier_up' => false, 'old_tier' => 'etranger', 'capped' => false]);
 
-        $this->idle = new IdleService($settings, $loot, $narrator);
+        $this->idle = new IdleService($settings, $loot, $narrator, $reputation);
     }
 
     // ─── calculatePower ───────────────────────────────────────────────────────

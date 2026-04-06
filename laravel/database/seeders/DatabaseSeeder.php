@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             TraitSeeder::class,
             ZoneSeeder::class,
             MonsterSeeder::class,
+            ElitePrefixSeeder::class,
             EncounterGroupSeeder::class,
             MaterialSeeder::class,
             ItemTemplateSeeder::class,

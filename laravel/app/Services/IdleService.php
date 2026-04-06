@@ -15,7 +15,8 @@ class IdleService
     public function __construct(
         private readonly SettingsService $settings,
         private readonly LootService $lootService,
-        private readonly NarratorService $narratorService
+        private readonly NarratorService $narratorService,
+        private readonly ReputationService $reputationService
     ) {}
 
     /**
@@ -133,6 +134,11 @@ class IdleService
         $victories = 0;
         $defeats = 0;
 
+        $eliteChance = $this->settings->get('MONSTER_ELITE_CHANCE', 8);
+        $eliteXpBonus = $this->settings->get('MONSTER_ELITE_XP_BONUS', 75);
+        $eliteLootBonus = $this->settings->get('MONSTER_ELITE_LOOT_BONUS', 75);
+        $elitePrefixes = DB::table('elite_prefixes')->get();
+
         for ($i = 0; $i < $combatsToSimulate; $i++) {
             // Sélectionner un groupe d'ennemis aléatoire pondéré
             $group = $this->selectEncounterGroup($encounterGroups);
@@ -142,10 +148,28 @@ class IdleService
                 continue;
             }
 
-            // Calculer puissance mob
+            // Roll élite pour chaque monstre
+            $isEliteEncounter = false;
+            $eliteXpMult = 100;
+            $eliteGoldMult = 100;
+            $eliteLootMult = 100;
+
             $mobPower = 0;
             foreach ($monsters as $monster) {
                 $mobStats = $monster->toStatArray();
+
+                if (!$elitePrefixes->isEmpty() && random_int(1, 100) <= $eliteChance) {
+                    $isEliteEncounter = true;
+                    $prefix = $elitePrefixes->random();
+                    // Appliquer multiplicateurs stat au power
+                    $mobStats['atq'] = intdiv($mobStats['atq'] * $prefix->atq_multiplier, 100);
+                    $mobStats['def'] = intdiv($mobStats['def'] * $prefix->def_multiplier, 100);
+                    $mobStats['max_hp'] = intdiv(($mobStats['max_hp'] ?? $mobStats['hp'] ?? 1) * $prefix->hp_multiplier, 100);
+                    $eliteXpMult = max($eliteXpMult, $prefix->xp_multiplier);
+                    $eliteGoldMult = max($eliteGoldMult, $prefix->gold_multiplier);
+                    $eliteLootMult = max($eliteLootMult, $prefix->loot_multiplier);
+                }
+
                 $mobPower += $this->calculatePower($mobStats);
             }
 
@@ -156,8 +180,7 @@ class IdleService
                 // XP et gold avec efficacité offline
                 $xp = 0;
                 $gold = 0;
-                $avgHeroLevel = intdiv(array_sum(array_column($teamStats, 'level' )) + $heroes->sum('level'), 2);
-                $avgHeroLevel = $heroes->avg('level') ?? 1;
+                $avgHeroLevel = (int) ($heroes->avg('level') ?? 1);
 
                 foreach ($monsters as $monster) {
                     $xpBase = $this->settings->get('XP_BASE_PER_KILL', 10)
@@ -165,13 +188,20 @@ class IdleService
                     $xp += $xpBase;
                     $gold += random_int($monster->gold_min, max($monster->gold_min, $monster->gold_max));
 
-                    // Loot (1 sur 3 combats en offline)
-                    if ($i % 3 === 0) {
+                    // Loot (1 sur 3 combats, ou toujours si élite)
+                    $shouldLoot = ($i % 3 === 0) || ($isEliteEncounter && random_int(1, 100) <= intdiv($this->settings->get('LOOT_DROP_CHANCE', 60) * $eliteLootMult, 100));
+                    if ($shouldLoot) {
                         $item = $this->lootService->rollLoot($zone, $monster, $user);
                         if ($item) {
                             $items[] = $item;
                         }
                     }
+                }
+
+                // Appliquer bonus élite
+                if ($isEliteEncounter) {
+                    $xp = intdiv($xp * $eliteXpMult, 100);
+                    $gold = intdiv($gold * $eliteGoldMult, 100);
                 }
 
                 // Appliquer efficacité offline
@@ -183,8 +213,12 @@ class IdleService
             }
         }
 
+        // Réputation : 1 point par victoire (cap par le service)
+        $repPerVictory = $this->settings->get('QUEST_REPUTATION_PER_QUEST', 10);
+        $repGained = intdiv($victories * $repPerVictory, 10); // 1 rep tous les 10 combats gagnés environ
+
         // Persister les résultats en transaction
-        DB::transaction(function () use ($user, $heroes, $totalXp, $totalGold, $items, $zone, $victories, $defeats, $now, $exploration, $events) {
+        DB::transaction(function () use ($user, $heroes, $totalXp, $totalGold, $items, $zone, $victories, $defeats, $now, $exploration, $events, $repGained) {
             $user->gold += $totalGold;
             $user->last_idle_calc_at = $now;
             $user->save();
@@ -203,6 +237,11 @@ class IdleService
                 $hero->save();
             }
 
+            // Réputation de zone
+            if ($repGained > 0) {
+                $this->reputationService->addReputation($user->id, $zone->id, $repGained);
+            }
+
             // Mettre à jour progression de zone
             UserZoneProgress::updateOrCreate(
                 ['user_id' => $user->id, 'zone_id' => $zone->id],
@@ -218,16 +257,17 @@ class IdleService
         });
 
         return [
-            'had_exploration' => true,
-            'elapsed_seconds' => $elapsed,
+            'had_exploration'   => true,
+            'elapsed_seconds'   => $elapsed,
             'combats_simulated' => $combatsToSimulate,
-            'victories' => $victories,
-            'defeats' => $defeats,
-            'xp_gained' => $totalXp,
-            'gold_gained' => $totalGold,
-            'items_gained' => $items,
-            'events' => $events,
-            'narrator_comment' => $this->narratorService->getComment('offline_return'),
+            'victories'         => $victories,
+            'defeats'           => $defeats,
+            'xp_gained'         => $totalXp,
+            'gold_gained'       => $totalGold,
+            'reputation_gained' => $repGained,
+            'items_gained'      => $items,
+            'events'            => $events,
+            'narrator_comment'  => $this->narratorService->getComment('offline_return'),
         ];
     }
 

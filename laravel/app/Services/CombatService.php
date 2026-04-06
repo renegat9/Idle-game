@@ -4,9 +4,13 @@ namespace App\Services;
 
 use App\Models\Hero;
 use App\Models\Monster;
+use Illuminate\Support\Facades\DB;
 
 class CombatService
 {
+    /** Cache des multiplicateurs élémentaires chargés depuis element_chart */
+    private ?array $elementChart = null;
+
     public function __construct(
         private readonly SettingsService $settings,
         private readonly TraitService $traitService
@@ -19,6 +23,9 @@ class CombatService
     public function resolveCombat(array $heroModels, array $monsterModels): array
     {
         $maxTurns = $this->settings->get('COMBAT_MAX_TURNS', 15);
+
+        // Réinitialiser le cache élémentaire pour ce combat
+        $this->elementChart = null;
 
         // Initialiser l'état de combat
         $state = [
@@ -74,6 +81,16 @@ class CombatService
         $heroes = [];
         foreach ($heroModels as $hero) {
             $stats = $hero->computedStats();
+
+            // Élément de l'arme équipée (slot 'weapon'), sinon physique
+            $element = 'physique';
+            if ($hero->relationLoaded('items')) {
+                $weapon = $hero->items->firstWhere('slot', 'weapon');
+                if ($weapon && !empty($weapon->element)) {
+                    $element = $weapon->element;
+                }
+            }
+
             $heroes[] = [
                 'hero_id' => $hero->id,
                 'name' => $hero->name,
@@ -84,7 +101,7 @@ class CombatService
                 'vit' => $stats['vit'],
                 'cha' => $stats['cha'],
                 'int' => $stats['int'],
-                'element' => 'physique',
+                'element' => $element,
                 'level' => $hero->level,
                 'is_alive' => $stats['current_hp'] > 0,
             ];
@@ -190,6 +207,13 @@ class CombatService
 
         $damage = $this->calculatePhysicalDamage($hero, $target, $variance);
 
+        // Modificateur élémentaire
+        $elemMult = $this->applyElementalMultiplier($hero['element'] ?? 'physique', $target['element'] ?? 'physique');
+        if ($elemMult !== 100) {
+            $damage = intdiv($damage * $elemMult, 100);
+            $damage = max($damage, $this->settings->get('MIN_DAMAGE', 1));
+        }
+
         // Critique ?
         $critChance = $this->calculateCritChance($hero);
         $isCrit = random_int(1, 100) <= $critChance;
@@ -240,6 +264,14 @@ class CombatService
         );
 
         $damage = $this->calculatePhysicalDamage($enemy, $target, $variance);
+
+        // Modificateur élémentaire
+        $elemMult = $this->applyElementalMultiplier($enemy['element'] ?? 'physique', $target['element'] ?? 'physique');
+        if ($elemMult !== 100) {
+            $damage = intdiv($damage * $elemMult, 100);
+            $damage = max($damage, $this->settings->get('MIN_DAMAGE', 1));
+        }
+
         $state['log'][] = $enemy['name'] . ' attaque ' . $target['name'] . ' pour ' . $damage . ' dégâts.';
 
         $target['current_hp'] = max(0, $target['current_hp'] - $damage);
@@ -247,6 +279,26 @@ class CombatService
             $target['is_alive'] = false;
             $state['log'][] = $target['name'] . ' est KO !';
         }
+    }
+
+    // ── Éléments ─────────────────────────────────────────────────────────────
+
+    /**
+     * Charge le tableau élémentaire une seule fois par combat.
+     * Retourne le multiplicateur (centièmes) de l'attaquant sur le défenseur.
+     * Défaut = 100 (neutre).
+     */
+    public function applyElementalMultiplier(string $attackerElement, string $defenderElement): int
+    {
+        if ($this->elementChart === null) {
+            $rows = DB::table('element_chart')->get(['attacker_element', 'defender_element', 'damage_multiplier']);
+            $this->elementChart = [];
+            foreach ($rows as $row) {
+                $this->elementChart[$row->attacker_element][$row->defender_element] = (int) $row->damage_multiplier;
+            }
+        }
+
+        return $this->elementChart[$attackerElement][$defenderElement] ?? 100;
     }
 
     // ── Formules de combat (tout en intdiv) ──────────────────────────────────

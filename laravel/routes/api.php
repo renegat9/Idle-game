@@ -15,6 +15,7 @@ use App\Http\Controllers\Game\WorldBossController;
 use App\Http\Controllers\Game\DungeonController;
 use App\Http\Controllers\Game\TalentController;
 use App\Http\Controllers\Game\ProfileController;
+use App\Http\Controllers\Game\ReputationController;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -82,6 +83,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // Profile
     Route::get('/profile', [ProfileController::class, 'index']);
     Route::patch('/profile', [ProfileController::class, 'update']);
+
+    // Réputation par zone
+    Route::get('/reputation', [ReputationController::class, 'index']);
+    Route::get('/reputation/{zoneId}', [ReputationController::class, 'show']);
 
     // Reference data
     Route::prefix('reference')->group(function () {

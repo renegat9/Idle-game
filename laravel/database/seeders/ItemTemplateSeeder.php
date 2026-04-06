@@ -13,6 +13,10 @@ class ItemTemplateSeeder extends Seeder
         $foretId   = DB::table('zones')->where('slug', 'foret_elfes')->value('id');
         $minesId   = DB::table('zones')->where('slug', 'mines_nain')->value('id');
         $maraisId  = DB::table('zones')->where('slug', 'marais_bureaucratie')->value('id');
+        $tourId    = DB::table('zones')->where('slug', 'tour_mage_distrait')->value('id');
+        $cimetId   = DB::table('zones')->where('slug', 'cimetiere_syndique')->value('id');
+        $volcanId  = DB::table('zones')->where('slug', 'volcan_dragon_retraite')->value('id');
+        $capitId   = DB::table('zones')->where('slug', 'capitale_incompetents')->value('id');
 
         $templates = [
             // ── Zone 1 : Prairie ──
@@ -71,6 +75,56 @@ class ItemTemplateSeeder extends Seeder
             [$maraisId, 'Armure du Haut Fonctionnaire', 'Protège contre les attaques physiques et les mémos non sollicités.', 'peu_commun', 'armure', 'ombre', null, 0, 38, 55, -5, 12, 0, 22, 185],
             [$maraisId, 'Heaume de l\'Inquisiteur Fiscal', 'Regarde vos ennemis avec soupçon. Ils s\'en rendent compte.', 'peu_commun', 'casque', 'ombre', null, 0, 25, 35, 0, 20, 15, 21, 150],
             [$maraisId, 'Anneau du Pacte Marécageux', 'Signé en triplicata. Pas moyen de s\'en défaire.', 'peu_commun', 'accessoire', 'ombre', null, 8, 8, 40, 5, 18, 15, 22, 170],
+
+            // ── Zone 5 : Tour du Mage Distrait ──
+            [$tourId, 'Baguette du Distrait', 'Lance des sorts. Pas toujours les bons. Rarement les bons.', 'commun', 'arme', 'foudre', json_encode(['mage', 'necromancien']), 12, 0, 0, 5, 0, 40, 30, 100],
+            [$tourId, 'Livre de Sorts Annoté', 'Les annotations sont illisibles. Même le Mage ne sait plus ce qu\'il a écrit.', 'commun', 'arme', 'physique', json_encode(['mage', 'barde']), 18, 0, 0, 0, 5, 35, 31, 110],
+            [$tourId, 'Robe des Apprentis Ratés', 'Toutes les taches de sort sont des médailles d\'honneur selon le Mage.', 'commun', 'armure', 'foudre', json_encode(['mage', 'necromancien', 'barde']), 0, 30, 45, 5, 5, 30, 30, 120],
+            [$tourId, 'Chapeau Pointu Légèrement Tordu', 'Tellement pointu qu\'il sert d\'arme. Involontairement.', 'commun', 'casque', 'foudre', null, 5, 15, 20, 0, 8, 25, 31, 100],
+            [$tourId, 'Bottes de l\'Apprenti Pressé', 'Courir vite dans une tour magique instable est une nécessité.', 'commun', 'bottes', 'physique', null, 0, 12, 15, 20, 0, 0, 30, 90],
+            [$tourId, 'Orbe de Foudre Capricieux', 'Génère de l\'électricité. Dont sur vous si vous n\'êtes pas concentré.', 'commun', 'accessoire', 'foudre', null, 8, 0, 30, 0, 5, 20, 31, 105],
+            [$tourId, 'Sceptre du Chaos Arcanique', 'Le Mage l\'a oublié dans un couloir. Il est mécontent que vous l\'ayez.', 'peu_commun', 'arme', 'foudre', json_encode(['mage', 'necromancien']), 20, 0, 0, 8, 0, 65, 33, 280],
+            [$tourId, 'Tunique de Magie Inversée', 'Chaque sort devient... différent. Gérard refuse de la toucher.', 'peu_commun', 'armure', 'glace', json_encode(['mage', 'barde', 'necromancien']), 0, 42, 65, 8, 10, 45, 34, 300],
+            [$tourId, 'Diadème du Savant Confus', 'Améliore l\'intelligence. Malheureusement aussi la confusion.', 'peu_commun', 'casque', 'foudre', null, 0, 22, 32, 0, 15, 52, 33, 260],
+            [$tourId, 'Anneau du Paradoxe', 'Porte chance ET malchance. Le résultat est imprévisible.', 'peu_commun', 'accessoire', 'physique', null, 10, 10, 60, 10, 20, 30, 34, 290],
+
+            // ── Zone 6 : Cimetière Syndiqué ──
+            [$cimetId, 'Faux du Syndicat Funèbre', 'Chaque coup respecte le droit du travail des morts-vivants.', 'commun', 'arme', 'ombre', json_encode(['necromancien']), 48, 0, 0, 0, 0, 30, 42, 200],
+            [$cimetId, 'Épée des Revenants', 'Forgée par des fantômes. Ils n\'arrivent pas à la tenir correctement.', 'commun', 'arme', 'ombre', json_encode(['guerrier', 'paladin']), 55, 5, 0, -3, 0, 15, 43, 210],
+            [$cimetId, 'Armure Fantôme', 'Mi-solide, mi-vapeur. Protège à 50% tout le temps ou à 100% une fois sur deux.', 'commun', 'armure', 'ombre', null, 0, 58, 80, -2, 5, 15, 42, 220],
+            [$cimetId, 'Heaume du Mort-Vivant Dignifié', 'Il avait une belle mort. Vous avez son casque maintenant.', 'commun', 'casque', 'ombre', null, 0, 28, 40, -2, 10, 18, 43, 190],
+            [$cimetId, 'Bottes de la Marche Funèbre', 'Silencieuses. Très. Personne ne vous entend arriver. Ni partir.', 'commun', 'bottes', 'ombre', null, 0, 18, 25, 22, 0, 0, 42, 170],
+            [$cimetId, 'Médaillon du Syndicat', 'Prouve que vous êtes en règle avec les morts-vivants. Important.', 'commun', 'accessoire', 'ombre', null, 5, 5, 60, 0, 20, 12, 43, 195],
+            [$cimetId, 'Grimoire des Ombres Syndicales', 'Les sorts nécessitent un préavis de 48h. C\'est dans le règlement.', 'peu_commun', 'arme', 'ombre', json_encode(['mage', 'necromancien', 'barde']), 25, 0, 0, 5, 0, 90, 45, 500],
+            [$cimetId, 'Armure du Délégué Fantôme', 'Protège et syndicalise en même temps. Bonus : pause syndicale bonus.', 'peu_commun', 'armure', 'ombre', null, 0, 80, 110, -3, 18, 25, 46, 550],
+            [$cimetId, 'Couronne des Âmes Perdues', 'Elles ne sont pas perdues, elles font grève.', 'peu_commun', 'casque', 'ombre', null, 0, 40, 60, 0, 28, 40, 45, 490],
+            [$cimetId, 'Phylactère du Comptable', 'Stocke la vie. En double entrée comptable.', 'peu_commun', 'accessoire', 'ombre', null, 12, 12, 100, 5, 25, 40, 46, 520],
+
+            // ── Zone 7 : Volcan du Dragon Retraité ──
+            [$volcanId, 'Épée de Magma', 'Encore chaude. Évitez de la saisir par la lame. Évitez tout court.', 'commun', 'arme', 'feu', json_encode(['guerrier', 'barbare']), 85, 0, 0, -5, 0, 0, 55, 380],
+            [$volcanId, 'Bâton de Lave Solidifiée', 'Très chaud. Pas une métaphore.', 'commun', 'arme', 'feu', json_encode(['mage', 'necromancien', 'pretre']), 20, 0, 0, 0, 0, 80, 56, 390],
+            [$volcanId, 'Armure d\'Obsidienne', 'Forgée dans un volcan par des créatures qui ne savent pas que c\'est chaud.', 'commun', 'armure', 'feu', null, 0, 90, 120, -8, 0, 0, 55, 400],
+            [$volcanId, 'Casque Ignifugé du Dragon', 'Le dragon l\'a usé. Il sentait la fumée. Il sent encore la fumée.', 'commun', 'casque', 'feu', null, 0, 42, 60, -3, 0, 0, 56, 360],
+            [$volcanId, 'Bottes de Cendres Volantes', 'Ultra légères car faites de cendres. Ultra chaudes aussi.', 'commun', 'bottes', 'feu', null, 0, 20, 30, 28, 0, 0, 55, 330],
+            [$volcanId, 'Amulette de l\'Éruption', 'Peut exploser. Gérard a demandé à ne pas en être informé.', 'commun', 'accessoire', 'feu', null, 15, 0, 80, 0, 8, 15, 56, 370],
+            [$volcanId, 'Épée du Phoenix Tombé', 'Un phénix est mort pour forger ça. Il est revenu. Il est en colère.', 'peu_commun', 'arme', 'feu', json_encode(['guerrier', 'paladin', 'barbare']), 115, 8, 0, -3, 0, 0, 58, 900],
+            [$volcanId, 'Manteau de Braise Vivante', 'Brûle légèrement les ennemis en approche. Et vous aussi parfois.', 'peu_commun', 'armure', 'feu', null, 0, 125, 175, -5, 0, 20, 59, 950],
+            [$volcanId, 'Crocs du Dragon Retraité', 'Il les a perdus naturellement. Il veut qu\'on lui rende. Non.', 'peu_commun', 'accessoire', 'feu', null, 20, 15, 150, 5, 12, 30, 58, 880],
+            [$volcanId, 'Heaume du Forgeron Damné', 'Sa dernière forge. Son chef-d\'œuvre. Vous êtes là à le porter.', 'peu_commun', 'casque', 'feu', null, 0, 60, 85, -4, 0, 35, 59, 870],
+
+            // ── Zone 8 : Capitale des Incompétents ──
+            [$capitId, 'Épée de Garde Corrompue', 'Chaque coup est légalement douteux. C\'est une caractéristique.', 'commun', 'arme', 'physique', json_encode(['guerrier', 'barbare']), 110, 0, 0, -2, 12, 0, 70, 550],
+            [$capitId, 'Dague de l\'Assassin Amateur', 'L\'assassin était amateur. La dague, elle, est professionnelle.', 'commun', 'arme', 'ombre', json_encode(['voleur', 'ranger']), 105, 0, 0, 18, 5, 10, 71, 560],
+            [$capitId, 'Tome du Mage de Rue', 'Volé, revendu, racheté. Ce livre a vécu plus que vous.', 'commun', 'arme', 'foudre', json_encode(['mage', 'barde']), 30, 0, 0, 10, 0, 120, 70, 570],
+            [$capitId, 'Armure de Garde Municipal', 'Lourde, solide, officiellement distribuée. Non-officiellement revendue.', 'commun', 'armure', 'physique', null, 0, 120, 165, -8, 8, 0, 70, 580],
+            [$capitId, 'Casque à Plumes du Capitaine', 'Impressionnant. Les plumes sont tombées. Les ennemis rient.', 'commun', 'casque', 'physique', null, 0, 55, 75, -3, 22, 0, 71, 520],
+            [$capitId, 'Bottes de Pavés Usés', 'Courir sur les pavés de la capitale use les semelles. Et les pieds.', 'commun', 'bottes', 'physique', null, 0, 25, 40, 32, 0, 0, 70, 490],
+            [$capitId, 'Écharpe du Marchand Douteux', 'Vendue à 10× sa valeur. Vous l\'avez quand même achetée.', 'commun', 'accessoire', 'physique', null, 10, 10, 100, 10, 30, 20, 71, 540],
+            [$capitId, 'Lame du Maître de Guilde', 'Forgée pour un maître. Vous l\'avez gagnée. Il est humilié.', 'peu_commun', 'arme', 'physique', json_encode(['guerrier', 'paladin', 'barbare']), 148, 12, 0, 5, 15, 0, 73, 1200],
+            [$capitId, 'Grimoire du Mage Urbain', 'Tous les sorts ont une variante d\'arnaque. C\'est une tradition locale.', 'peu_commun', 'arme', 'foudre', json_encode(['mage', 'necromancien', 'barde']), 40, 0, 0, 15, 0, 165, 74, 1250],
+            [$capitId, 'Armure du Héros Incompétent Officiel', 'Certifiée "Incompétence Garantie" par la Guilde. Port exigé.', 'peu_commun', 'armure', 'physique', null, 0, 165, 230, -5, 20, 0, 73, 1280],
+            [$capitId, 'Couronne du Candidat Battu', 'Il a perdu les élections. Vous avez sa couronne. Tout le monde perd.', 'peu_commun', 'casque', 'physique', null, 0, 75, 105, 0, 40, 30, 74, 1150],
+            [$capitId, 'Médaillon de l\'Immunité Diplomatique', 'Protège contre 1 attaque par combat. Non-opposable aux gobelins.', 'peu_commun', 'accessoire', 'physique', null, 18, 18, 180, 12, 35, 35, 73, 1200],
         ];
 
         $cols = ['zone_id', 'name', 'description', 'rarity', 'slot', 'element', 'allowed_classes', 'base_atq', 'base_def', 'base_hp', 'base_vit', 'base_cha', 'base_int', 'base_level', 'base_sell_value'];
