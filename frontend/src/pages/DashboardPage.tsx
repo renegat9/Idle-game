@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { dashboardApi, explorationApi } from '../api/game'
+import { dashboardApi, explorationApi, eventsApi } from '../api/game'
 import { useAuthStore } from '../store/authStore'
 import { useGameStore } from '../store/gameStore'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
+import type { SeasonalEvent } from '../types'
 
 export function DashboardPage() {
   const { updateUser } = useAuthStore()
@@ -11,20 +12,26 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [dashboard, setDashboard] = useState<any>(null)
   const [collecting, setCollecting] = useState(false)
+  const [activeEvents, setActiveEvents] = useState<SeasonalEvent[]>([])
+  const [eventModifiers, setEventModifiers] = useState<any>(null)
 
   useEffect(() => {
-    dashboardApi.get()
-      .then(({ data }) => {
-        setDashboard(data)
-        setHeroes(data.heroes)
-        setGold(data.user.gold)
-        updateUser(data.user)
-        if (data.offline_result) {
-          setOfflineResult(data.offline_result)
-        }
-        setExploring(data.exploration?.is_active ?? false, data.exploration?.zone_name)
-      })
-      .finally(() => setLoading(false))
+    Promise.all([
+      dashboardApi.get(),
+      eventsApi.current(),
+    ]).then(([dashRes, eventsRes]) => {
+      const data = dashRes.data
+      setDashboard(data)
+      setHeroes(data.heroes)
+      setGold(data.user.gold)
+      updateUser(data.user)
+      if (data.offline_result) {
+        setOfflineResult(data.offline_result)
+      }
+      setExploring(data.exploration?.is_active ?? false, data.exploration?.zone_name)
+      setActiveEvents(eventsRes.data.active_events ?? [])
+      setEventModifiers(eventsRes.data.modifiers)
+    }).finally(() => setLoading(false))
   }, [])
 
   const handleCollect = async () => {
@@ -47,6 +54,25 @@ export function DashboardPage() {
   return (
     <div>
       <h1 style={{ color: '#f9fafb', marginBottom: 8 }}>🏰 Tableau de Bord</h1>
+
+      {/* Seasonal event banner */}
+      {activeEvents.length > 0 && (
+        <div style={{ background: 'linear-gradient(135deg, #1c1f2e, #2d1b4e)', border: '1px solid #7c3aed', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <span style={{ fontSize: 20 }}>🎉</span>
+            <span style={{ color: '#c4b5fd', fontWeight: 'bold', fontSize: 16 }}>Événement actif : {activeEvents[0].name}</span>
+          </div>
+          <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 10px', fontStyle: 'italic' }}>{activeEvents[0].flavor_text}</p>
+          {eventModifiers && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {eventModifiers.xp_bonus_pct > 0 && <span style={{ background: '#22c55e22', color: '#4ade80', borderRadius: 6, padding: '2px 10px', fontSize: 12 }}>+{eventModifiers.xp_bonus_pct}% XP</span>}
+              {eventModifiers.gold_bonus_pct > 0 && <span style={{ background: '#f59e0b22', color: '#fbbf24', borderRadius: 6, padding: '2px 10px', fontSize: 12 }}>+{eventModifiers.gold_bonus_pct}% Or</span>}
+              {eventModifiers.loot_bonus_pct > 0 && <span style={{ background: '#3b82f622', color: '#60a5fa', borderRadius: 6, padding: '2px 10px', fontSize: 12 }}>+{eventModifiers.loot_bonus_pct}% Loot</span>}
+              {eventModifiers.rare_loot_bonus_pct > 0 && <span style={{ background: '#a855f722', color: '#c084fc', borderRadius: 6, padding: '2px 10px', fontSize: 12 }}>+{eventModifiers.rare_loot_bonus_pct}% Rare+</span>}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Narrateur */}
       {dashboard?.narrator_comment && <NarratorBubble comment={dashboard.narrator_comment} />}

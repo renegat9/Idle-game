@@ -13,13 +13,6 @@ type WorldBoss = {
   defeated_at: string | null
 }
 
-type Contribution = {
-  id: number
-  damage_dealt: number
-  hits_count: number
-  user: { id: number; name: string }
-}
-
 type BossStatus = {
   active_boss: WorldBoss | null
   my_contribution: { damage_dealt: number; hits_count: number; reward_claimed: boolean } | null

@@ -42,6 +42,7 @@ export const referenceApi = {
 
 export const questApi = {
   list: () => apiClient.get<{ quests: any[] }>('/quests'),
+  daily: () => apiClient.get<{ quests: any[]; date: string; refresh_at: string }>('/quests/daily'),
   start: (questId: number) => apiClient.post<any>(`/quests/${questId}/start`),
   choose: (userQuestId: number, choiceId: string, heroId?: number) =>
     apiClient.post<any>(`/user-quests/${userQuestId}/choose`, { choice_id: choiceId, hero_id: heroId }),
@@ -52,6 +53,9 @@ export const craftingApi = {
   fuse: (itemIds: number[]) => apiClient.post<any>('/crafting/fuse', { item_ids: itemIds }),
   dismantle: (itemId: number) => apiClient.post<any>('/crafting/dismantle', { item_id: itemId }),
   craft: (recipeId: number) => apiClient.post<any>('/crafting/craft', { recipe_id: recipeId }),
+  enchantments: () => apiClient.get<{ enchantments: any[] }>('/crafting/enchantments'),
+  enchant: (itemId: number, enchantmentSlug: string) =>
+    apiClient.post<any>('/crafting/enchant', { item_id: itemId, enchantment: enchantmentSlug }),
 }
 
 export const tavernApi = {
@@ -59,6 +63,22 @@ export const tavernApi = {
   hire: (recruitId: number) => apiClient.post<any>(`/tavern/hire/${recruitId}`),
   removeDebuff: (heroId: number, buffId: number) =>
     apiClient.post<any>('/tavern/remove-debuff', { hero_id: heroId, buff_id: buffId }),
+  music: (style?: string) =>
+    apiClient.get<{ style: string; file_path: string; prompt: string }>('/tavern/music', { params: style ? { style } : {} }),
+}
+
+export const reputationApi = {
+  all: () => apiClient.get<{ reputations: any[] }>('/reputation'),
+  zone: (zoneId: number) => apiClient.get<any>(`/reputation/${zoneId}`),
+}
+
+export const eventsApi = {
+  current: () => apiClient.get<{ active_events: any[]; modifiers: any; has_event: boolean }>('/events/current'),
+  all: () => apiClient.get<{ events: any[] }>('/events'),
+}
+
+export const musicApi = {
+  current: () => apiClient.get<{ style: string; file_path: string; context: string }>('/music/current'),
 }
 
 export const shopApi = {

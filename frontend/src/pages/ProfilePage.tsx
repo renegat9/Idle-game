@@ -47,7 +47,7 @@ type ProfileData = {
 }
 
 export function ProfilePage() {
-  const { user: authUser, updateUser } = useAuthStore()
+  const { updateUser } = useAuthStore()
   const [profile, setProfile]           = useState<ProfileData | null>(null)
   const [loading, setLoading]           = useState(true)
   const [saving, setSaving]             = useState(false)

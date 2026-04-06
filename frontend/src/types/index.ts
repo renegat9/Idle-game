@@ -73,6 +73,8 @@ export interface Hero {
   is_active: boolean
   deaths: number
   talent_points: number
+  talent_points_available: number
+  talent_reset_count: number
   race: HeroRace
   class: HeroClass
   trait: HeroTrait | null
@@ -124,6 +126,50 @@ export interface Trait {
   name: string
   description: string
   flavor_text: string
+}
+
+export interface Enchantment {
+  slug: string
+  name: string
+  description: string
+  tier: 'base' | 'avance' | 'elementaire'
+  gold_cost: number
+  materials: Array<{ slug: string; qty: number }>
+  gerard_comment: string
+}
+
+export interface DailyQuest {
+  user_daily_id: number
+  quest_id: number
+  title: string
+  description: string
+  type: string
+  reward_xp: number
+  reward_gold: number
+  status: 'available' | 'in_progress' | 'completed'
+}
+
+export interface ZoneReputation {
+  zone_id: number
+  zone_name: string
+  zone_slug: string
+  reputation: number
+  tier: string
+  loot_bonus: number
+}
+
+export interface SeasonalEvent {
+  slug: string
+  name: string
+  description: string
+  flavor_text: string
+  xp_bonus_pct: number
+  gold_bonus_pct: number
+  loot_bonus_pct: number
+  rare_loot_bonus_pct: number
+  quest_type_unlock: string | null
+  ends_day: number
+  ends_month: number
 }
 
 export interface OfflineResult {

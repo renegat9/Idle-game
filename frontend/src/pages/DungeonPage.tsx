@@ -107,7 +107,8 @@ export function DungeonPage() {
   if (loading) return <div style={{ color: '#94a3b8' }}>Chargement du donjon...</div>
 
   const room = status?.room_preview
-  const isFinished = status?.active === false && status?.on_cooldown === false && status?.dungeon_id !== undefined
+  // isFinished used implicitly by on_cooldown state display below
+  void (status?.active === false && status?.on_cooldown === false && status?.dungeon_id !== undefined)
 
   return (
     <div>

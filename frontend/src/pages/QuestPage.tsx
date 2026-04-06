@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { questApi } from '../api/game'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
 import { RarityBadge } from '../components/hero/RarityBadge'
+import type { DailyQuest } from '../types'
 
 type Quest = {
   id: number
@@ -40,21 +41,33 @@ type ActiveQuest = {
 
 export function QuestPage() {
   const [quests, setQuests] = useState<Quest[]>([])
+  const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([])
+  const [dailyRefreshAt, setDailyRefreshAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [tab, setTab] = useState<'zone' | 'daily'>('zone')
   const [activeQuest, setActiveQuest] = useState<ActiveQuest | null>(null)
   const [result, setResult] = useState<any>(null)
   const [acting, setActing] = useState(false)
 
   useEffect(() => {
-    loadQuests()
+    loadAll()
   }, [])
+
+  async function loadAll() {
+    try {
+      const [zoneRes, dailyRes] = await Promise.all([questApi.list(), questApi.daily()])
+      setQuests(zoneRes.data.quests)
+      setDailyQuests(dailyRes.data.quests)
+      setDailyRefreshAt(dailyRes.data.refresh_at)
+    } catch { /* ok */ }
+    setLoading(false)
+  }
 
   async function loadQuests() {
     try {
       const { data } = await questApi.list()
       setQuests(data.quests)
     } catch { /* ok */ }
-    setLoading(false)
   }
 
   async function startQuest(questId: number) {
@@ -92,7 +105,22 @@ export function QuestPage() {
 
   return (
     <div>
-      <h1 style={{ color: '#f1f5f9', marginBottom: 24, fontSize: 24 }}>📜 Quêtes</h1>
+      <h1 style={{ color: '#f1f5f9', marginBottom: 16, fontSize: 24 }}>📜 Quêtes</h1>
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24 }}>
+        <button onClick={() => setTab('zone')} style={{ background: tab === 'zone' ? '#7c3aed' : '#1e293b', color: tab === 'zone' ? 'white' : '#94a3b8', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 14 }}>
+          🗺️ Quêtes de zone
+        </button>
+        <button onClick={() => setTab('daily')} style={{ background: tab === 'daily' ? '#7c3aed' : '#1e293b', color: tab === 'daily' ? 'white' : '#94a3b8', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+          ☀️ Quotidiennes
+          {dailyQuests.filter(q => q.status === 'available').length > 0 && (
+            <span style={{ background: '#f59e0b', color: '#0f172a', borderRadius: '50%', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 'bold' }}>
+              {dailyQuests.filter(q => q.status === 'available').length}
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* Result panel */}
       {result && (
@@ -186,8 +214,60 @@ export function QuestPage() {
         </div>
       )}
 
-      {/* Quest list */}
-      {!activeQuest && (
+      {/* Daily quests tab */}
+      {!activeQuest && tab === 'daily' && (
+        <div>
+          {dailyRefreshAt && (
+            <p style={{ color: '#6b7280', fontSize: 13, marginBottom: 16 }}>
+              ⏰ Renouvellement : {new Date(dailyRefreshAt).toLocaleString('fr-FR')}
+            </p>
+          )}
+          {dailyQuests.length === 0 && (
+            <div style={{ color: '#6b7280', textAlign: 'center', padding: 40 }}>
+              Aucune quête quotidienne disponible. Revenez demain.
+            </div>
+          )}
+          <div style={{ display: 'grid', gap: 16 }}>
+            {dailyQuests.map(q => (
+              <div key={q.user_daily_id} style={{ background: '#1e293b', border: `1px solid ${q.status === 'completed' ? '#166534' : q.status === 'in_progress' ? '#92400e' : '#334155'}`, borderRadius: 12, padding: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div>
+                    <h3 style={{ color: '#f1f5f9', margin: '0 0 4px' }}>{q.title}</h3>
+                    <span style={{ fontSize: 11, background: '#f59e0b22', color: '#f59e0b', padding: '1px 6px', borderRadius: 4 }}>Quotidienne</span>
+                    <span style={{ color: { available: '#22c55e', in_progress: '#f59e0b', completed: '#6b7280' }[q.status] ?? '#6b7280', fontSize: 12, marginLeft: 8, fontWeight: 'bold' }}>
+                      {{ available: 'Disponible', in_progress: 'En cours', completed: '✅ Terminée' }[q.status] ?? q.status}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <span style={{ color: '#22c55e', fontSize: 13 }}>+{q.reward_xp} XP</span>
+                    <span style={{ color: '#fbbf24', fontSize: 13 }}>+{q.reward_gold} 💰</span>
+                  </div>
+                </div>
+                <p style={{ color: '#94a3b8', fontSize: 14, margin: '0 0 12px', lineHeight: 1.5 }}>{q.description}</p>
+                {q.status === 'available' && (
+                  <button
+                    onClick={() => startQuest(q.quest_id)}
+                    style={{ background: '#92400e', color: '#fde68a', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 14 }}
+                  >
+                    ☀️ Accepter
+                  </button>
+                )}
+                {q.status === 'in_progress' && (
+                  <button
+                    onClick={() => startQuest(q.quest_id)}
+                    style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 14 }}
+                  >
+                    ▶ Reprendre
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Zone Quest list */}
+      {!activeQuest && tab === 'zone' && (
         <div style={{ display: 'grid', gap: 16 }}>
           {quests.length === 0 && (
             <div style={{ color: '#6b7280', textAlign: 'center', padding: 40 }}>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { tavernApi } from '../api/game'
+import { tavernApi, musicApi } from '../api/game'
 import { useGameStore } from '../store/gameStore'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
 
@@ -20,6 +20,12 @@ type HeroDebuffs = {
   debuffs: Array<{ id: number; source: string; stat_affected: string; modifier_percent: number; remaining_combats: number }>
 }
 
+const STYLE_LABELS: Record<string, string> = {
+  taverne: '🍺 Ambiance Taverne', victoire_epique: '🏆 Victoire Épique',
+  defaite: '😢 Mélodie de la Défaite', exploration: '🗺️ Exploration',
+  boss: '⚔️ Combat de Boss', repos: '😴 Repos',
+}
+
 export function TavernPage() {
   useGameStore()
   const [recruits, setRecruits] = useState<Recruit[]>([])
@@ -28,8 +34,13 @@ export function TavernPage() {
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
+  const [currentTrack, setCurrentTrack] = useState<{ style: string; context: string } | null>(null)
+  const [selectedStyle, setSelectedStyle] = useState<string>('taverne')
 
-  useEffect(() => { loadTavern() }, [])
+  useEffect(() => {
+    loadTavern()
+    musicApi.current().then(({ data }) => setCurrentTrack(data)).catch(() => {})
+  }, [])
 
   async function loadTavern() {
     try {
@@ -80,6 +91,48 @@ export function TavernPage() {
       <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 14 }}>Recruter de nouveaux héros ou purifier les afflictions de votre équipe.</p>
 
       {narratorComment && <NarratorBubble comment={narratorComment} />}
+
+      {/* Music player */}
+      <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 20 }}>🎵</span>
+            <div>
+              <div style={{ color: '#f1f5f9', fontSize: 14, fontWeight: 'bold' }}>Ambiance musicale</div>
+              {currentTrack && (
+                <div style={{ color: '#94a3b8', fontSize: 12 }}>
+                  Contexte : {STYLE_LABELS[currentTrack.context] ?? currentTrack.context}
+                </div>
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {Object.keys(STYLE_LABELS).map(style => (
+              <button
+                key={style}
+                onClick={async () => {
+                  setSelectedStyle(style)
+                  const { data } = await tavernApi.music(style)
+                  setCurrentTrack({ style: data.style, context: style })
+                }}
+                style={{ background: selectedStyle === style ? '#4c1d95' : '#0f172a', color: selectedStyle === style ? '#c4b5fd' : '#6b7280', border: '1px solid #334155', padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}
+              >
+                {STYLE_LABELS[style]}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 24 }}>▶</span>
+          <div>
+            <div style={{ color: '#c4b5fd', fontSize: 13 }}>{STYLE_LABELS[selectedStyle]}</div>
+            <div style={{ color: '#475569', fontSize: 11 }}>
+              Piste : music/fallback/{selectedStyle}.mp3
+              <span style={{ marginLeft: 8, color: '#6b7280', fontStyle: 'italic' }}>— MusicFX non disponible publiquement, fallback statique activé</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {message && (
         <div style={{ background: message.ok ? '#052e16' : '#1c0505', border: `1px solid ${message.ok ? '#16a34a' : '#991b1b'}`, borderRadius: 8, padding: 12, marginBottom: 16 }}>

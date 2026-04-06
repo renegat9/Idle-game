@@ -1,25 +1,36 @@
 import { useEffect, useState } from 'react'
-import { zoneApi, explorationApi } from '../api/game'
+import { zoneApi, explorationApi, reputationApi } from '../api/game'
 import { useGameStore } from '../store/gameStore'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
-import type { Zone } from '../types'
+import type { Zone, ZoneReputation } from '../types'
 
 const ELEMENT_COLORS: Record<string, string> = {
   physique: '#9ca3af', feu: '#ef4444', glace: '#93c5fd',
   foudre: '#fbbf24', poison: '#4ade80', sacre: '#fef08a', ombre: '#a78bfa',
 }
 
+const REPUTATION_TIER_COLORS: Record<string, string> = {
+  étranger: '#6b7280', neutre: '#9ca3af', ami: '#22c55e',
+  honore: '#3b82f6', revere: '#a855f7', exalte: '#f59e0b',
+}
+
 export function MapPage() {
   const { setZones, setExploring } = useGameStore()
   const [zones, setLocalZones] = useState<Zone[]>([])
+  const [reputations, setReputations] = useState<Record<number, ZoneReputation>>({})
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState<number | null>(null)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    zoneApi.list().then(({ data }) => {
-      setLocalZones(data.zones)
-      setZones(data.zones)
+    Promise.all([zoneApi.list(), reputationApi.all()]).then(([zoneRes, repRes]) => {
+      setLocalZones(zoneRes.data.zones)
+      setZones(zoneRes.data.zones)
+      const repMap: Record<number, ZoneReputation> = {}
+      for (const rep of (repRes.data.reputations ?? [])) {
+        repMap[rep.zone_id] = rep
+      }
+      setReputations(repMap)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -85,7 +96,21 @@ export function MapPage() {
               )}
             </div>
 
-            <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 12px' }}>{zone.description}</p>
+            <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 10px' }}>{zone.description}</p>
+
+            {/* Reputation badge */}
+            {reputations[zone.id] && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 11, color: REPUTATION_TIER_COLORS[reputations[zone.id].tier] ?? '#9ca3af', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 6, padding: '2px 8px' }}>
+                  ⭐ {reputations[zone.id].tier} ({reputations[zone.id].reputation}/200)
+                </span>
+                {reputations[zone.id].loot_bonus > 0 && (
+                  <span style={{ fontSize: 11, color: '#a78bfa', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 6, padding: '2px 8px' }}>
+                    +{reputations[zone.id].loot_bonus}% loot
+                  </span>
+                )}
+              </div>
+            )}
 
             {zone.total_victories > 0 && (
               <p style={{ color: '#4b5563', fontSize: 11, margin: '0 0 8px' }}>
