@@ -181,6 +181,7 @@ class GameSettingsSeeder extends Seeder
             ['QUEST_DEBUFF_REMOVE_COST', 100, 'Or × niveau du héros pour retirer un debuff'],
             ['QUEST_POOL_SIZE_TARGET', 50, 'Quêtes à maintenir dans le pool par zone'],
             ['QUEST_POOL_REFILL_THRESHOLD', 20, 'Seuil pour déclencher la régénération du pool'],
+            ['DAILY_QUEST_COUNT', 3, 'Nombre de quêtes quotidiennes assignées par joueur'],
             ['REPUTATION_MAX', 200, 'Score de réputation maximum par zone'],
             ['NPC_RELATION_MAX', 100, 'Score de relation maximum par PNJ'],
             ['ENCHANT_ADVANCED_UNLOCKED', 0, '1 si les enchantements avancés (Magus) sont débloqués'],

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\GenerateLootImage;
 use App\Models\Item;
 use App\Models\ItemTemplate;
 use App\Models\Monster;
@@ -159,6 +160,17 @@ class LootService
         return $this->generateFallbackItem($zone, $rarity, $slot, $itemLevel, $variance, $user);
     }
 
+    /**
+     * Dispatch async image generation for Rare+ items.
+     */
+    private function dispatchImageJob(Item $item): void
+    {
+        $imageRarities = ['rare', 'epique', 'legendaire', 'wtf'];
+        if (in_array($item->rarity, $imageRarities)) {
+            GenerateLootImage::dispatch($item->id, $item->slot, $item->rarity);
+        }
+    }
+
     private function generateFromTemplate(ItemTemplate $template, int $itemLevel, int $variance, User $user): Item
     {
         $levelMult = $itemLevel;
@@ -176,7 +188,7 @@ class LootService
         $totalStats = $atq + $def + $hp + $vit + $cha + $int;
         $sellValue = max(1, intdiv($totalStats * $sellPercent, 100) + $template->base_sell_value);
 
-        return Item::create([
+        $item = Item::create([
             'user_id' => $user->id,
             'template_id' => $template->id,
             'name' => $template->name,
@@ -190,6 +202,10 @@ class LootService
             'sell_value' => $sellValue,
             'is_ai_generated' => false,
         ]);
+
+        $this->dispatchImageJob($item);
+
+        return $item;
     }
 
     /**
@@ -276,7 +292,7 @@ class LootService
         $totalStats = $atq + $def + $hp + $vit + $cha + $int;
         $sellValue = max(1, intdiv($totalStats * $sellPercent * $mult, 100));
 
-        return Item::create([
+        $item = Item::create([
             'user_id' => $user->id,
             'name' => $name,
             'description' => 'Trouvé dans ' . $zone->name . '. Gérard en serait jaloux.',
@@ -289,6 +305,10 @@ class LootService
             'sell_value' => $sellValue,
             'is_ai_generated' => false,
         ]);
+
+        $this->dispatchImageJob($item);
+
+        return $item;
     }
 
     public function calculateSellValue(Item $item): int

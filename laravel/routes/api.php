@@ -51,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Quests
     Route::get('/quests', [QuestController::class, 'index']);
+    Route::get('/quests/daily', [QuestController::class, 'daily']);
     Route::post('/quests/{questId}/start', [QuestController::class, 'start']);
     Route::post('/user-quests/{userQuestId}/choose', [QuestController::class, 'choose']);
 
@@ -64,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Taverne
     Route::get('/tavern', [TavernController::class, 'index']);
+    Route::get('/tavern/music', [TavernController::class, 'music']);
     Route::post('/tavern/hire/{recruitId}', [TavernController::class, 'hire']);
     Route::post('/tavern/remove-debuff', [TavernController::class, 'removeDebuff']);
 

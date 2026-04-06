@@ -497,4 +497,101 @@ class QuestService
         ];
         return $debuffs[$id] ?? ['stat' => 'all', 'percent' => 5, 'duration' => 10];
     }
+
+    // ─── Daily quests ─────────────────────────────────────────────────────────
+
+    /**
+     * Return the user's 3 daily quests for today.
+     * Assigns from the pre-generated pool if not yet assigned.
+     * Falls back to static zone quests if no daily pool exists.
+     *
+     * @return array{quests: array, date: string, refresh_at: string}
+     */
+    public function dailyQuests(User $user): array
+    {
+        $today   = today()->toDateString();
+        $zoneId  = $user->current_zone_id;
+        $limit   = $this->settings->get('DAILY_QUEST_COUNT', 3);
+
+        // Already assigned today — return them
+        $existing = DB::table('user_daily_quests as udq')
+            ->join('quests as q', 'q.id', '=', 'udq.quest_id')
+            ->where('udq.user_id', $user->id)
+            ->whereDate('udq.date', $today)
+            ->select('q.*', 'udq.id as user_daily_id', 'udq.status as daily_status')
+            ->get();
+
+        if ($existing->count() >= $limit) {
+            return $this->formatDailyResponse($existing, $today);
+        }
+
+        // Pick from pool (AI-generated daily quests for the zone)
+        $pool = Quest::where('type', 'daily')
+            ->where('zone_id', $zoneId)
+            ->whereDate('created_at', $today)
+            ->inRandomOrder()
+            ->limit($limit)
+            ->get();
+
+        // Fallback: use static zone quests if no AI pool
+        if ($pool->isEmpty()) {
+            $pool = Quest::where('zone_id', $zoneId)
+                ->where('type', 'zone')
+                ->inRandomOrder()
+                ->limit($limit)
+                ->get();
+        }
+
+        // Assign to user
+        $assigned = collect();
+        foreach ($pool as $quest) {
+            // Avoid duplicate assignment
+            $alreadyAssigned = DB::table('user_daily_quests')
+                ->where('user_id', $user->id)
+                ->where('quest_id', $quest->id)
+                ->whereDate('date', $today)
+                ->exists();
+
+            if ($alreadyAssigned) {
+                continue;
+            }
+
+            $udqId = DB::table('user_daily_quests')->insertGetId([
+                'user_id'  => $user->id,
+                'quest_id' => $quest->id,
+                'date'     => $today,
+                'status'   => 'available',
+            ]);
+
+            $assigned->push((object) array_merge(
+                (array) $quest->getAttributes(),
+                ['user_daily_id' => $udqId, 'daily_status' => 'available']
+            ));
+        }
+
+        // Merge with any already assigned today
+        $all = $existing->concat($assigned)->take($limit);
+
+        return $this->formatDailyResponse($all, $today);
+    }
+
+    private function formatDailyResponse(\Illuminate\Support\Collection $rows, string $today): array
+    {
+        $quests = $rows->map(fn($q) => [
+            'user_daily_id' => $q->user_daily_id,
+            'quest_id'      => $q->id,
+            'title'         => $q->title,
+            'description'   => $q->description ?? '',
+            'type'          => $q->type,
+            'reward_xp'     => $q->reward_xp,
+            'reward_gold'   => $q->reward_gold,
+            'status'        => $q->daily_status,
+        ])->values()->all();
+
+        return [
+            'quests'     => $quests,
+            'date'       => $today,
+            'refresh_at' => today()->addDay()->startOfDay()->toISOString(),
+        ];
+    }
 }

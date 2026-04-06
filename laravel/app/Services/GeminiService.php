@@ -107,6 +107,31 @@ class GeminiService
     }
 
     /**
+     * Generate an illustration for a loot item using Imagen.
+     * Saves the image to storage and returns the public path.
+     * Falls back to a static placeholder if AI is unavailable.
+     */
+    public function generateLootImage(int $itemId, string $slot, string $rarity): string
+    {
+        if (!$this->canCall('loot_image')) {
+            return $this->fallbackLootImage($slot, $rarity);
+        }
+
+        $prompt = $this->buildLootImagePrompt($slot, $rarity);
+
+        try {
+            $path = $this->callImageApi($prompt, 'loot_image', $itemId);
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateLootImage failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackLootImage($slot, $rarity);
+    }
+
+    /**
      * Generate a boss description and special mechanic text.
      * @return array{description: string, mechanic: string}
      */
@@ -194,6 +219,45 @@ class GeminiService
 
     // ─── Core HTTP ───────────────────────────────────────────────────────────
 
+    private function callImageApi(string $prompt, string $type, int $itemId): ?string
+    {
+        $apiKey = config('services.gemini.api_key');
+
+        $response = Http::timeout(30)
+            ->post(self::IMAGE_API_URL . "?key={$apiKey}", [
+                'instances' => [
+                    ['prompt' => $prompt],
+                ],
+                'parameters' => [
+                    'sampleCount' => 1,
+                    'aspectRatio' => '1:1',
+                ],
+            ]);
+
+        $this->logGeneration($type, substr($prompt, 0, 200), null, self::COST_IMAGE, $response->successful());
+
+        if (!$response->successful()) {
+            Log::warning('Gemini Imagen API error', ['status' => $response->status()]);
+            return null;
+        }
+
+        $b64 = data_get($response->json(), 'predictions.0.bytesBase64Encoded');
+        if (empty($b64)) {
+            return null;
+        }
+
+        $dir = storage_path('app/public/loot_images');
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+
+        $filename = "item_{$itemId}_" . time() . '.png';
+        $fullPath = $dir . '/' . $filename;
+        file_put_contents($fullPath, base64_decode($b64));
+
+        return 'storage/loot_images/' . $filename;
+    }
+
     private function callTextApi(string $prompt, string $type, int $maxTokens): ?string
     {
         $apiKey = config('services.gemini.api_key');
@@ -279,6 +343,33 @@ class GeminiService
             . "Crée un objet de type \"{$itemType}\", niveau {$level}, de rareté {$rarityFr}. "
             . "Le nom doit être humoristique et en français. La description en 1 phrase sarcastique. "
             . "Format JSON strict : {\"name\": \"...\", \"description\": \"...\"}";
+    }
+
+    private function buildLootImagePrompt(string $slot, string $rarity): string
+    {
+        $slotFr = match ($slot) {
+            'arme'        => 'weapon sword or staff',
+            'armure'      => 'armor breastplate',
+            'casque'      => 'helmet or hood',
+            'bottes'      => 'boots or greaves',
+            'accessoire'  => 'amulet or ring',
+            'truc_bizarre'=> 'mysterious glowing artifact',
+            default       => 'fantasy item',
+        };
+
+        $rarityStyle = match ($rarity) {
+            'commun'      => 'simple, worn, grey tones',
+            'peu_commun'  => 'slightly glowing, green tones',
+            'rare'        => 'magical glow, blue tones',
+            'epique'      => 'powerful aura, purple tones, ornate',
+            'legendaire'  => 'legendary golden glow, ornate engravings',
+            'wtf'         => 'absurd, rainbow glowing, bizarre shapes, surreal',
+            default       => 'fantasy style',
+        };
+
+        return "Fantasy RPG item illustration, {$slotFr}, {$rarityStyle}, "
+            . "pixel art style, dark background, centered, no text, square format, "
+            . "humorous medieval fantasy game style";
     }
 
     private function buildQuestPrompt(string $zoneSlug, int $zoneLevel): string
@@ -448,6 +539,19 @@ class GeminiService
             'description' => "{$bossName} est là. Il a l'air mécontent. Le Narrateur suggère de courir.",
             'mechanic'    => "Attaque très fort. Régulièrement. Sans s'arrêter.",
         ];
+    }
+
+    private function fallbackLootImage(string $slot, string $rarity): string
+    {
+        // Static placeholder images by slot + rarity tier
+        $rarityGroup = match ($rarity) {
+            'legendaire', 'wtf' => 'legendary',
+            'epique'            => 'epic',
+            'rare'              => 'rare',
+            default             => 'common',
+        };
+
+        return "images/placeholders/loot/{$slot}_{$rarityGroup}.png";
     }
 
     /** @return array{style: string, prompt: string, file_path: string} */

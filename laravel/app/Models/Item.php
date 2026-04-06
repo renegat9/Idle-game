@@ -15,7 +15,7 @@ class Item extends Model
         'user_id', 'equipped_by_hero_id', 'template_id',
         'name', 'description', 'rarity', 'slot', 'element',
         'item_level', 'atq', 'def', 'hp', 'vit', 'cha', 'int',
-        'sell_value', 'is_ai_generated',
+        'sell_value', 'is_ai_generated', 'image_url',
         'durability_current', 'durability_max', 'enchant_count',
     ];
 

@@ -26,6 +26,12 @@ class QuestController extends Controller
         return response()->json($result, 201);
     }
 
+    public function daily(Request $request): JsonResponse
+    {
+        $result = $this->questService->dailyQuests($request->user());
+        return response()->json($result);
+    }
+
     public function choose(Request $request, int $userQuestId): JsonResponse
     {
         $validated = $request->validate([

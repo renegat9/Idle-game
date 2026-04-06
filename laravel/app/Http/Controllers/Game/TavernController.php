@@ -9,6 +9,7 @@ use App\Models\Race;
 use App\Models\GameClass;
 use App\Models\Trait_;
 use App\Models\TavernRecruit;
+use App\Services\GeminiService;
 use App\Services\SettingsService;
 use App\Services\NarratorService;
 use Illuminate\Http\JsonResponse;
@@ -34,6 +35,7 @@ class TavernController extends Controller
     public function __construct(
         private readonly SettingsService $settings,
         private readonly NarratorService $narrator,
+        private readonly GeminiService $gemini,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -88,6 +90,31 @@ class TavernController extends Controller
             'recruits'    => $recruits->values(),
             'hero_debuffs'=> $heroDebuffs,
             'narrator_comment' => $this->narrator->getComment('tavern_visited', []),
+        ]);
+    }
+
+    /**
+     * Returns the current tavern music track.
+     * Style is driven by query param or defaults to 'taverne'.
+     * MusicFX is not publicly available — always returns static fallback.
+     *
+     * GET /api/tavern/music?style=victoire_epique
+     */
+    public function music(Request $request): JsonResponse
+    {
+        $validStyles = ['taverne', 'victoire_epique', 'defaite', 'exploration', 'boss', 'repos'];
+        $style = $request->query('style', 'taverne');
+
+        if (!in_array($style, $validStyles)) {
+            $style = 'taverne';
+        }
+
+        $track = $this->gemini->generateTavernMusic($style);
+
+        return response()->json([
+            'style'     => $track['style'],
+            'file_path' => $track['file_path'],
+            'prompt'    => $track['prompt'],
         ]);
     }
 
