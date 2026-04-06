@@ -9,6 +9,7 @@ type WorldBoss = {
   current_hp: number
   status: 'inactive' | 'active' | 'defeated'
   special_mechanic: string | null
+  description: string | null
   spawned_at: string | null
   defeated_at: string | null
 }
@@ -111,6 +112,11 @@ export function WorldBossPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
             <div>
               <h2 style={{ color: '#f1f5f9', margin: '0 0 4px', fontSize: 22 }}>{status.active_boss!.name}</h2>
+              {status.active_boss!.description && (
+                <p style={{ color: '#94a3b8', fontSize: 13, margin: '6px 0 4px', fontStyle: 'italic' }}>
+                  {status.active_boss!.description}
+                </p>
+              )}
               {status.active_boss!.special_mechanic && (
                 <span style={{ color: '#f59e0b', fontSize: 12, background: '#1c1005', padding: '2px 8px', borderRadius: 4 }}>
                   Mécanisme : {status.active_boss!.special_mechanic}

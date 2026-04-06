@@ -56,9 +56,9 @@ export function InventoryPage() {
       background: '#111827', border: '1px solid #1f2937', borderRadius: 8, padding: 12,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ color: '#f9fafb', fontSize: 14, fontWeight: 'bold' }}>{item.name}</div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+          <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
             <RarityBadge rarity={item.rarity} />
             <span style={{ background: '#1f2937', color: '#9ca3af', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
               {SLOT_LABELS[item.slot] ?? item.slot}
@@ -66,8 +66,21 @@ export function InventoryPage() {
             <span style={{ background: '#1f2937', color: '#9ca3af', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
               Niv.{item.item_level}
             </span>
+            {item.is_ai_generated && (
+              <span style={{ background: '#1e1b4b', color: '#818cf8', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>
+                ✨ IA
+              </span>
+            )}
           </div>
         </div>
+        {item.image_url && (
+          <img
+            src={`/api/storage/${item.image_url.replace('storage/', '')}`}
+            alt={item.name}
+            style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, marginLeft: 8, border: '1px solid #374151' }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+        )}
       </div>
 
       {item.description && (

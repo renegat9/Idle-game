@@ -60,6 +60,7 @@ export interface Item {
   sell_value: number
   equipped_by_hero_id: number | null
   is_ai_generated: boolean
+  image_url: string | null
   effects: { key: string; description: string }[]
 }
 
