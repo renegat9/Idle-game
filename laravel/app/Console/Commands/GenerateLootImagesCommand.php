@@ -14,7 +14,7 @@ class GenerateLootImagesCommand extends Command
                             {--force : Régénérer même si une image existe déjà}
                             {--delay=4 : Délai en secondes entre chaque génération (défaut: 4s)}';
 
-    protected $description = 'Génère les illustrations des objets loot via Imagen (Gemini).';
+    protected $description = 'Génère une image par combinaison slot+rareté via Imagen et l\'assigne à tous les items concernés.';
 
     private const SLOTS    = ['arme', 'armure', 'casque', 'bottes', 'accessoire', 'truc_bizarre'];
     private const RARITIES = ['commun', 'peu_commun', 'rare', 'epique', 'legendaire', 'wtf'];
@@ -26,7 +26,6 @@ class GenerateLootImagesCommand extends Command
         $force    = (bool) $this->option('force');
         $delay    = max(0, (int) $this->option('delay'));
 
-        // Validate inputs
         foreach ($slots as $slot) {
             if (!in_array($slot, self::SLOTS)) {
                 $this->error("Slot invalide : {$slot}. Valeurs : " . implode(', ', self::SLOTS));
@@ -45,18 +44,15 @@ class GenerateLootImagesCommand extends Command
             return self::FAILURE;
         }
 
-        $budget  = $gemini->budgetStatus();
+        $budget = $gemini->budgetStatus();
         $this->info("Budget IA : {$budget['used']}/{$budget['limit']} ({$budget['percent']}%)");
 
-        $total   = count($slots) * count($rarities);
-        $done    = 0;
-        $skipped = 0;
-        $failed  = 0;
-
-        // Fetch all item_templates that need images
+        // Trouver les combinaisons slot+rareté distinctes qui ont besoin d'une image
         $query = DB::table('item_templates')
             ->whereIn('slot', $slots)
-            ->whereIn('rarity', $rarities);
+            ->whereIn('rarity', $rarities)
+            ->select('slot', 'rarity')
+            ->distinct();
 
         if (!$force) {
             $query->where(function ($q) {
@@ -65,19 +61,22 @@ class GenerateLootImagesCommand extends Command
             });
         }
 
-        $items = $query->get(['id', 'slot', 'rarity', 'name']);
+        $combinations = $query->get();
 
-        if ($items->isEmpty()) {
-            $this->info($force ? 'Aucun objet trouvé pour ces critères.' : 'Tous les objets ont déjà une image. Utilisez --force pour régénérer.');
+        if ($combinations->isEmpty()) {
+            $this->info($force ? 'Aucune combinaison trouvée.' : 'Toutes les combinaisons ont déjà une image. Utilisez --force pour régénérer.');
             return self::SUCCESS;
         }
 
-        $total = $items->count();
-        $this->info("Objets à traiter : {$total} (délai : {$delay}s entre chaque)");
-        $bar = $this->output->createProgressBar($total);
+        $total = $combinations->count();
+        $this->info("Combinaisons slot+rareté à générer : {$total} (délai : {$delay}s entre chaque)");
+
+        $done   = 0;
+        $failed = 0;
+        $bar    = $this->output->createProgressBar($total);
         $bar->start();
 
-        foreach ($items as $i => $item) {
+        foreach ($combinations as $i => $combo) {
             if (!$gemini->canCall('loot_image')) {
                 $bar->finish();
                 $this->newLine();
@@ -85,11 +84,13 @@ class GenerateLootImagesCommand extends Command
                 break;
             }
 
-            $path = $gemini->generateLootImage($item->id, $item->slot, $item->rarity);
+            // Utiliser un id=0 car l'image est partagée (nom basé sur slot+rarity)
+            $path = $gemini->generateLootImage(0, $combo->slot, $combo->rarity);
 
-            // Toujours sauvegarder le chemin (même placeholder) pour ne pas retenter sans --force
+            // Assigner cette image à TOUS les items de cette combinaison
             DB::table('item_templates')
-                ->where('id', $item->id)
+                ->where('slot', $combo->slot)
+                ->where('rarity', $combo->rarity)
                 ->update(['image_path' => $path]);
 
             if (str_starts_with($path, 'images/placeholders/')) {
@@ -100,7 +101,6 @@ class GenerateLootImagesCommand extends Command
 
             $bar->advance();
 
-            // Délai entre les appels (sauf après le dernier)
             if ($delay > 0 && $i < $total - 1) {
                 sleep($delay);
             }

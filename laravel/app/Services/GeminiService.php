@@ -154,7 +154,8 @@ class GeminiService
         $prompt = $this->buildLootImagePrompt($slot, $rarity);
 
         try {
-            $path = $this->callImageApi($prompt, 'loot_image', $itemId);
+            $filename = ($itemId > 0 ? "item_{$itemId}" : "{$slot}_{$rarity}") . '_' . time() . '.png';
+            $path = $this->callImageApi($prompt, 'loot_image', $filename);
             if ($path !== null) {
                 return $path;
             }
@@ -253,7 +254,7 @@ class GeminiService
 
     // ─── Core HTTP ───────────────────────────────────────────────────────────
 
-    private function callImageApi(string $prompt, string $type, int $itemId): ?string
+    private function callImageApi(string $prompt, string $type, string $filename): ?string
     {
         $apiKey = config('services.gemini.api_key');
 
@@ -268,15 +269,17 @@ class GeminiService
                 ],
             ]);
 
-        $this->logGeneration($type, substr($prompt, 0, 200), null, self::COST_IMAGE, $response->successful());
+        $success = $response->successful();
+        $this->logGeneration($type, substr($prompt, 0, 200), null, self::COST_IMAGE, $success);
 
-        if (!$response->successful()) {
-            Log::warning('Gemini Imagen API error', ['status' => $response->status()]);
+        if (!$success) {
+            Log::warning('Gemini Imagen API error', ['status' => $response->status(), 'body' => $response->body()]);
             return null;
         }
 
         $b64 = data_get($response->json(), 'predictions.0.bytesBase64Encoded');
         if (empty($b64)) {
+            Log::warning('Gemini Imagen: réponse vide (bytesBase64Encoded absent)');
             return null;
         }
 
@@ -285,7 +288,6 @@ class GeminiService
             mkdir($dir, 0755, true);
         }
 
-        $filename = "item_{$itemId}_" . time() . '.png';
         $fullPath = $dir . '/' . $filename;
         file_put_contents($fullPath, base64_decode($b64));
 
