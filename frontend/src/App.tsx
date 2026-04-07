@@ -41,7 +41,6 @@ export default function App() {
 
         {/* Protected game routes */}
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/map" element={<MapPage />} />
