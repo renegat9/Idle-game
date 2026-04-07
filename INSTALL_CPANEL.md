@@ -249,25 +249,7 @@ php artisan event:cache
 
 ---
 
-## Étape 8 — Ajouter `services.gemini` dans la config
-
-Éditer `/home/votrecompte/donjon/config/services.php` et ajouter avant le `]` final :
-
-```php
-'gemini' => [
-    'api_key' => env('GEMINI_API_KEY'),
-],
-```
-
-Puis vider le cache de config :
-
-```bash
-php artisan config:cache
-```
-
----
-
-## Étape 9 — Configurer le Cron cPanel
+## Étape 8 — Configurer le Cron cPanel
 
 Dans **cPanel → Tâches Cron**, ajouter une seule entrée (toutes les minutes) :
 
@@ -294,7 +276,7 @@ Cette unique tâche cron déclenche automatiquement toutes les tâches planifié
 
 ---
 
-## Étape 10 — Configurer les jobs de queue (optionnel)
+## Étape 9 — Configurer les jobs de queue (optionnel)
 
 Les jobs asynchrones (génération d'images IA, quêtes daily) utilisent la queue database.
 
@@ -312,7 +294,7 @@ Si les images IA ne sont pas nécessaires, modifier `AI_ENABLED=0` dans `.env`.
 
 ---
 
-## Étape 11 — Vérification finale
+## Étape 10 — Vérification finale
 
 ```bash
 # Tester la configuration
