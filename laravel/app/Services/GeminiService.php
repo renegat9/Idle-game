@@ -653,7 +653,7 @@ class GeminiService
      */
     public function generateLegendaryHero(string $heroName, string $className, string $traitName): array
     {
-        if (!$this->isEnabled()) {
+        if (!$this->settings->get('AI_ENABLED', 0)) {
             return $this->fallbackLegendaryHero($heroName);
         }
 
