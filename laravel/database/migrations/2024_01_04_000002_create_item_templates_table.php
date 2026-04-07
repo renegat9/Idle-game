@@ -17,12 +17,12 @@ return new class extends Migration
             $table->enum('slot', ['arme', 'armure', 'casque', 'bottes', 'accessoire', 'truc_bizarre']);
             $table->enum('element', ['physique', 'feu', 'glace', 'foudre', 'poison', 'sacre', 'ombre'])->default('physique');
             $table->json('allowed_classes')->nullable();
-            $table->unsignedSmallInteger('base_atq')->default(0);
-            $table->unsignedSmallInteger('base_def')->default(0);
-            $table->unsignedSmallInteger('base_hp')->default(0);
-            $table->unsignedSmallInteger('base_vit')->default(0);
-            $table->unsignedSmallInteger('base_cha')->default(0);
-            $table->unsignedSmallInteger('base_int')->default(0);
+            $table->smallInteger('base_atq')->default(0);
+            $table->smallInteger('base_def')->default(0);
+            $table->smallInteger('base_hp')->default(0);
+            $table->smallInteger('base_vit')->default(0);
+            $table->smallInteger('base_cha')->default(0);
+            $table->smallInteger('base_int')->default(0);
             $table->unsignedSmallInteger('base_level')->default(1);
             $table->unsignedSmallInteger('base_sell_value')->default(5);
         });

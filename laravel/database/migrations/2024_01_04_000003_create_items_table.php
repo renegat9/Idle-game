@@ -19,12 +19,12 @@ return new class extends Migration
             $table->enum('slot', ['arme', 'armure', 'casque', 'bottes', 'accessoire', 'truc_bizarre']);
             $table->enum('element', ['physique', 'feu', 'glace', 'foudre', 'poison', 'sacre', 'ombre'])->default('physique');
             $table->unsignedTinyInteger('item_level')->default(1);
-            $table->unsignedSmallInteger('atq')->default(0);
-            $table->unsignedSmallInteger('def')->default(0);
-            $table->unsignedSmallInteger('hp')->default(0);
-            $table->unsignedSmallInteger('vit')->default(0);
-            $table->unsignedSmallInteger('cha')->default(0);
-            $table->unsignedSmallInteger('int')->default(0);
+            $table->smallInteger('atq')->default(0);
+            $table->smallInteger('def')->default(0);
+            $table->smallInteger('hp')->default(0);
+            $table->smallInteger('vit')->default(0);
+            $table->smallInteger('cha')->default(0);
+            $table->smallInteger('int')->default(0);
             $table->unsignedSmallInteger('sell_value')->default(5);
             $table->boolean('is_ai_generated')->default(false);
             $table->timestamp('obtained_at')->useCurrent();
