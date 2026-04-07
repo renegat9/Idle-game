@@ -141,6 +141,120 @@ class GeminiService
     }
 
     /**
+     * Generate a unique portrait for a hero based on race, class and trait.
+     * Returns the public path to the saved image (with transparent background).
+     */
+    public function generateHeroImage(int $heroId, string $raceName, string $classSlug, ?string $traitSlug): string
+    {
+        if (!$this->canCall('hero_image')) {
+            return $this->fallbackHeroImage($classSlug);
+        }
+
+        $prompt = $this->buildHeroImagePrompt($raceName, $classSlug, $traitSlug);
+
+        try {
+            $filename = "hero_{$heroId}_" . time() . '.png';
+            $path = $this->callImageApi($prompt, 'hero_image', $filename);
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateHeroImage failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackHeroImage($classSlug);
+    }
+
+    /**
+     * Generate a zone background illustration.
+     */
+    public function generateZoneBackground(int $zoneId, string $zoneSlug, string $element, string $description): string
+    {
+        if (!$this->canCall('zone_bg')) {
+            return $this->fallbackZoneBackground($element);
+        }
+
+        $prompt = $this->buildZoneBackgroundPrompt($zoneSlug, $element, $description);
+
+        try {
+            $filename = "zone_{$zoneSlug}_" . time() . '.jpg';
+            $path = $this->callImageApi($prompt, 'zone_bg', $filename, false);
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateZoneBackground failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackZoneBackground($element);
+    }
+
+    /**
+     * Generate an elite version of a monster using its base image as visual reference.
+     * If baseImagePath is null, generates from scratch with an elite prompt.
+     */
+    public function generateEliteMonsterImage(int $monsterId, string $monsterName, string $element, ?string $baseImagePath): string
+    {
+        if (!$this->canCall('elite_monster')) {
+            return $this->fallbackMonsterImage($element);
+        }
+
+        try {
+            $filename = "monster_{$monsterId}_elite_" . time() . '.png';
+
+            if ($baseImagePath !== null && file_exists(storage_path('app/public/' . str_replace('storage/', '', $baseImagePath)))) {
+                $path = $this->callImageApiWithReference(
+                    $baseImagePath,
+                    "Transform this monster into an elite version: more imposing, add golden or dark purple aura, "
+                    . "glowing eyes, more detailed armor or scales, same creature type but visibly more powerful and menacing. "
+                    . "Keep the same visual style. Solid #00FF00 bright green background, no shadows on background.",
+                    'elite_monster',
+                    $filename
+                );
+            } else {
+                $prompt = "Fantasy RPG elite monster portrait, {$monsterName}, {$element} element type, "
+                    . "imposing and menacing, golden crown or dark aura indicating elite status, glowing eyes, "
+                    . "detailed fantasy art style, pixel art inspired, solid #00FF00 bright green background, no shadows on background.";
+                $path = $this->callImageApi($prompt, 'elite_monster', $filename);
+            }
+
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateEliteMonsterImage failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackMonsterImage($element);
+    }
+
+    /**
+     * Generate a base image for a monster.
+     */
+    public function generateMonsterImage(int $monsterId, string $monsterName, string $element): string
+    {
+        if (!$this->canCall('monster_image')) {
+            return $this->fallbackMonsterImage($element);
+        }
+
+        $prompt = "Fantasy RPG monster portrait, {$monsterName}, {$element} element creature, "
+            . "menacing expression, detailed fantasy art style, pixel art inspired, "
+            . "solid #00FF00 bright green background, no shadows on background, centered, square format.";
+
+        try {
+            $filename = "monster_{$monsterId}_" . time() . '.png';
+            $path = $this->callImageApi($prompt, 'monster_image', $filename);
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateMonsterImage failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackMonsterImage($element);
+    }
+
+    /**
      * Generate an illustration for a loot item using Imagen.
      * Saves the image to storage and returns the public path.
      * Falls back to a static placeholder if AI is unavailable.
@@ -254,7 +368,11 @@ class GeminiService
 
     // ─── Core HTTP ───────────────────────────────────────────────────────────
 
-    private function callImageApi(string $prompt, string $type, string $filename): ?string
+    /**
+     * @param bool $removeGreenBg  Si true, supprime le fond #00FF00 et sauvegarde en PNG transparent.
+     *                             Si false, sauvegarde tel quel (pour les backgrounds de zone).
+     */
+    private function callImageApi(string $prompt, string $type, string $filename, bool $removeGreenBg = true): ?string
     {
         $apiKey = config('services.gemini.api_key');
 
@@ -290,15 +408,108 @@ class GeminiService
             return null;
         }
 
-        $dir = storage_path('app/public/loot_images');
+        return $this->saveImageData(base64_decode($b64), $filename, $removeGreenBg);
+    }
+
+    /**
+     * Appel image avec une image de référence (multimodal) — pour les élites.
+     */
+    private function callImageApiWithReference(string $referenceImagePath, string $prompt, string $type, string $filename): ?string
+    {
+        $apiKey = config('services.gemini.api_key');
+
+        $absPath = storage_path('app/public/' . str_replace('storage/', '', $referenceImagePath));
+        $b64Ref  = base64_encode(file_get_contents($absPath));
+        $mime    = str_ends_with($absPath, '.png') ? 'image/png' : 'image/jpeg';
+
+        $response = Http::timeout(60)
+            ->post(self::IMAGE_API_URL . "?key={$apiKey}", [
+                'contents' => [
+                    [
+                        'parts' => [
+                            ['inline_data' => ['mime_type' => $mime, 'data' => $b64Ref]],
+                            ['text' => $prompt],
+                        ],
+                    ],
+                ],
+                'generationConfig' => [
+                    'responseModalities' => ['IMAGE', 'TEXT'],
+                ],
+            ]);
+
+        $success = $response->successful();
+        $this->logGeneration($type, substr($prompt, 0, 200), null, self::COST_IMAGE, $success);
+
+        if (!$success) {
+            Log::warning('Gemini image ref API error', ['status' => $response->status(), 'body' => $response->body()]);
+            return null;
+        }
+
+        $parts = data_get($response->json(), 'candidates.0.content.parts', []);
+        foreach ($parts as $part) {
+            if (isset($part['inlineData']['data'])) {
+                return $this->saveImageData(base64_decode($part['inlineData']['data']), $filename, true);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Sauvegarde les bytes d'image, avec suppression optionnelle du fond vert chroma (#00FF00).
+     */
+    private function saveImageData(string $bytes, string $filename, bool $removeGreenBg): ?string
+    {
+        // Déduire le sous-dossier depuis le préfixe du nom de fichier
+        $subdir = match (true) {
+            str_starts_with($filename, 'hero_')    => 'heroes',
+            str_starts_with($filename, 'monster_') => 'monsters',
+            str_starts_with($filename, 'zone_')    => 'zones',
+            default                                => 'loot_images',
+        };
+
+        $dir = storage_path("app/public/{$subdir}");
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
-        $fullPath = $dir . '/' . $filename;
-        file_put_contents($fullPath, base64_decode($b64));
+        $fullPath = "{$dir}/{$filename}";
 
-        return 'storage/loot_images/' . $filename;
+        if ($removeGreenBg && function_exists('imagecreatefromstring')) {
+            $img = imagecreatefromstring($bytes);
+            if ($img !== false) {
+                $w = imagesx($img);
+                $h = imagesy($img);
+                $out = imagecreatetruecolor($w, $h);
+                imagealphablending($out, false);
+                imagesavealpha($out, true);
+                $transparent = imagecolorallocatealpha($out, 0, 0, 0, 127);
+                imagefill($out, 0, 0, $transparent);
+                imagealphablending($out, true);
+
+                // Seuil de détection du vert chroma (#00FF00 ± tolérance)
+                for ($x = 0; $x < $w; $x++) {
+                    for ($y = 0; $y < $h; $y++) {
+                        $rgb = imagecolorsforindex($img, imagecolorat($img, $x, $y));
+                        if ($rgb['green'] > 200 && $rgb['red'] < 80 && $rgb['blue'] < 80) {
+                            imagesetpixel($out, $x, $y, $transparent);
+                        } else {
+                            $c = imagecolorallocatealpha($out, $rgb['red'], $rgb['green'], $rgb['blue'], $rgb['alpha']);
+                            imagesetpixel($out, $x, $y, $c);
+                        }
+                    }
+                }
+
+                $pngFile = preg_replace('/\.(jpg|jpeg)$/i', '.png', $fullPath);
+                imagepng($out, $pngFile);
+                imagedestroy($img);
+                imagedestroy($out);
+                return "storage/{$subdir}/" . basename($pngFile);
+            }
+        }
+
+        file_put_contents($fullPath, $bytes);
+        return "storage/{$subdir}/{$filename}";
     }
 
     private function callTextApi(string $prompt, string $type, int $maxTokens): ?string
@@ -353,6 +564,54 @@ class GeminiService
     }
 
     // ─── Prompt builders ─────────────────────────────────────────────────────
+
+    private function buildHeroImagePrompt(string $raceName, string $classSlug, ?string $traitSlug): string
+    {
+        $classDesc = match ($classSlug) {
+            'guerrier'     => 'warrior in heavy armor, sword and shield',
+            'barbare'      => 'barbarian with war axe, fur cloak, muscular',
+            'mage'         => 'mage with magic staff, robes, glowing runes',
+            'necromancien' => 'necromancer in dark robes, skull motifs, purple energy',
+            'barde'        => 'bard with lute, colorful clothes, charismatic pose',
+            'pretre'       => 'priest with holy symbol, white and gold robes',
+            'voleur'       => 'rogue in dark leather armor, daggers, hood',
+            'ranger'       => 'ranger with bow, green cloak, forest attire',
+            default        => 'adventurer in fantasy attire',
+        };
+
+        $traitDesc = match ($traitSlug) {
+            'couard'        => 'slightly nervous expression, looking over shoulder',
+            'narcoleptique' => 'drowsy half-closed eyes, pillow tucked under arm',
+            'pyromane'      => 'singed eyebrows, manic grin, small flame in hand',
+            'kleptomane'    => 'pockets bulging, shifty eyes, coin purse in hand',
+            'maladroit'     => 'bandaged hands and knees, surprised expression',
+            default         => '',
+        };
+
+        return "Fantasy RPG character portrait, {$raceName} {$classDesc}"
+            . ($traitDesc ? ", {$traitDesc}" : '')
+            . ", humorous medieval fantasy style, pixel art inspired, detailed, "
+            . "solid #00FF00 bright green background, no shadows on background, centered, square format.";
+    }
+
+    private function buildZoneBackgroundPrompt(string $zoneSlug, string $element, string $description): string
+    {
+        $elementDesc = match ($element) {
+            'feu'      => 'volcanic, lava rivers, fire and embers',
+            'glace'    => 'frozen, ice crystals, blizzard atmosphere',
+            'foudre'   => 'stormy, lightning strikes, electric atmosphere',
+            'poison'   => 'toxic swamp, purple fog, corrupted vegetation',
+            'ombre'    => 'dark shadow realm, void darkness, ghostly mist',
+            'sacre'    => 'holy light rays, golden ambiance, divine atmosphere',
+            'physique' => 'stone dungeon, torchlight, medieval architecture',
+            default    => 'dark fantasy dungeon',
+        };
+
+        return "Dark fantasy RPG zone background illustration, {$elementDesc}, "
+            . "atmospheric and immersive, no characters or text, cinematic wide angle, "
+            . "painterly illustration style, moody lighting, {$description}, "
+            . "game background art, highly detailed environment.";
+    }
 
     private function buildNarrationPrompt(string $eventType, array $context): string
     {
@@ -645,7 +904,6 @@ class GeminiService
 
     private function fallbackLootImage(string $slot, string $rarity): string
     {
-        // Static placeholder images by slot + rarity tier
         $rarityGroup = match ($rarity) {
             'legendaire', 'wtf' => 'legendary',
             'epique'            => 'epic',
@@ -654,6 +912,21 @@ class GeminiService
         };
 
         return "images/placeholders/loot/{$slot}_{$rarityGroup}.png";
+    }
+
+    private function fallbackHeroImage(string $classSlug): string
+    {
+        return "images/placeholders/heroes/{$classSlug}.png";
+    }
+
+    private function fallbackMonsterImage(string $element): string
+    {
+        return "images/placeholders/monsters/{$element}.png";
+    }
+
+    private function fallbackZoneBackground(string $element): string
+    {
+        return "images/placeholders/zones/{$element}_bg.jpg";
     }
 
     /**
