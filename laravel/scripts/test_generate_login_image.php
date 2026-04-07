@@ -102,20 +102,37 @@ if (empty($b64)) {
     exit(1);
 }
 
-$ext = str_contains($mime, 'jpeg') ? 'jpg' : 'png';
-$outputFile = $outputDir . "/login_bg.{$ext}";
-
 echo "[DEBUG] MIME     : {$mime}\n";
 echo "[DEBUG] Base64   : " . strlen($b64) . " chars\n";
 
-// ─── Sauvegarde ───────────────────────────────────────────────────────────────
+// ─── Sauvegarde + compression JPEG ───────────────────────────────────────────
 
 if (!is_dir($outputDir)) {
     mkdir($outputDir, 0755, true);
 }
 
-file_put_contents($outputFile, base64_decode($b64));
+$rawBytes = base64_decode($b64);
 
-echo "[OK] Image sauvegardée : {$outputFile}\n";
-echo "[OK] Chemin public     : storage/ui/login_bg.{$ext}\n";
-echo "[OK] Taille            : " . number_format(filesize($outputFile) / 1024, 1) . " Ko\n";
+// Convertir en JPEG 85% pour réduire le poids (fond de page)
+if (function_exists('imagecreatefromstring')) {
+    $img = imagecreatefromstring($rawBytes);
+    if ($img !== false) {
+        $outputFile = $outputDir . '/login_bg.jpg';
+        imagejpeg($img, $outputFile, 85);
+        imagedestroy($img);
+        echo "[OK] Image sauvegardée (JPEG 85%) : {$outputFile}\n";
+        echo "[OK] Chemin public : storage/ui/login_bg.jpg\n";
+    } else {
+        $outputFile = $outputDir . '/login_bg.png';
+        file_put_contents($outputFile, $rawBytes);
+        echo "[WARN] Conversion JPEG échouée, sauvegardé en PNG\n";
+        echo "[OK] Chemin public : storage/ui/login_bg.png\n";
+    }
+} else {
+    $outputFile = $outputDir . '/login_bg.png';
+    file_put_contents($outputFile, $rawBytes);
+    echo "[WARN] Extension GD non disponible, sauvegardé en PNG\n";
+    echo "[OK] Chemin public : storage/ui/login_bg.png\n";
+}
+
+echo "[OK] Taille : " . number_format(filesize($outputFile) / 1024, 1) . " Ko\n";

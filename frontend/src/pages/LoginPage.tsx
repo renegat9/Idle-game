@@ -30,8 +30,16 @@ export function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 12, padding: 32, width: 360 }}>
+    <div style={{
+      minHeight: '100vh',
+      backgroundImage: 'url(/storage/ui/login_bg.png)',
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <div style={{ background: 'rgba(17,24,39,0.85)', border: '1px solid #1f2937', borderRadius: 12, padding: 32, width: 360, backdropFilter: 'blur(6px)' }}>
         <h1 style={{ color: '#7c3aed', textAlign: 'center', marginBottom: 8 }}>🏰</h1>
         <h2 style={{ color: '#f9fafb', textAlign: 'center', marginBottom: 4 }}>Le Donjon des Incompétents</h2>
         <p style={{ color: '#6b7280', textAlign: 'center', marginBottom: 24, fontSize: 13 }}>
