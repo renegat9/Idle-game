@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
 class GeminiService
 {
     private const TEXT_API_URL  = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-    private const IMAGE_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent';
+    private const IMAGE_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
 
     // Coût approximatif par appel (micro-centimes)
     private const COST_TEXT  = 10;

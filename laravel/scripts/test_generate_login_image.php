@@ -18,7 +18,7 @@ $dotenv->load();
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 $apiKey     = $_ENV['GEMINI_API_KEY'] ?? '';
-$model      = 'gemini-2.0-flash-preview-image-generation';
+$model      = 'gemini-2.5-flash-image';
 $apiUrl     = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
 $outputDir  = __DIR__ . '/../storage/app/public/ui';
 $outputFile = $outputDir . '/login_bg.png';
