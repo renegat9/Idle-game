@@ -11,7 +11,8 @@ class GenerateLootImagesCommand extends Command
     protected $signature = 'images:generate
                             {--slot= : Slot spécifique (arme, armure, casque, bottes, accessoire, truc_bizarre)}
                             {--rarity= : Rareté spécifique (commun, peu_commun, rare, epique, legendaire, wtf)}
-                            {--force : Régénérer même si une image existe déjà}';
+                            {--force : Régénérer même si une image existe déjà}
+                            {--delay=4 : Délai en secondes entre chaque génération (défaut: 4s)}';
 
     protected $description = 'Génère les illustrations des objets loot via Imagen (Gemini).';
 
@@ -23,6 +24,7 @@ class GenerateLootImagesCommand extends Command
         $slots    = $this->option('slot')   ? [$this->option('slot')]   : self::SLOTS;
         $rarities = $this->option('rarity') ? [$this->option('rarity')] : self::RARITIES;
         $force    = (bool) $this->option('force');
+        $delay    = max(0, (int) $this->option('delay'));
 
         // Validate inputs
         foreach ($slots as $slot) {
@@ -70,12 +72,14 @@ class GenerateLootImagesCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->info("Objets à traiter : {$items->count()}");
-        $bar = $this->output->createProgressBar($items->count());
+        $total = $items->count();
+        $this->info("Objets à traiter : {$total} (délai : {$delay}s entre chaque)");
+        $bar = $this->output->createProgressBar($total);
         $bar->start();
 
-        foreach ($items as $item) {
+        foreach ($items as $i => $item) {
             if (!$gemini->canCall('loot_image')) {
+                $bar->finish();
                 $this->newLine();
                 $this->warn('Budget IA dépassé, arrêt anticipé.');
                 break;
@@ -93,6 +97,11 @@ class GenerateLootImagesCommand extends Command
             }
 
             $bar->advance();
+
+            // Délai entre les appels (sauf après le dernier)
+            if ($delay > 0 && $i < $total - 1) {
+                sleep($delay);
+            }
         }
 
         $bar->finish();
