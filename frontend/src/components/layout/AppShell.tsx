@@ -65,6 +65,7 @@ export function AppShell() {
           <Link to="/forge" style={linkStyle}>Forge</Link>
           <Link to="/tavern" style={linkStyle}>Taverne</Link>
           <Link to="/shop" style={linkStyle}>Boutique</Link>
+          <Link to="/consumables" style={linkStyle}>Consommables</Link>
           <Link to="/dungeon" style={linkStyle}>Donjon</Link>
           <Link to="/talents" style={linkStyle}>Talents</Link>
           <Link to="/world-boss" style={linkStyle}>Boss Mondial</Link>

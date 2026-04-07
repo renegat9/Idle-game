@@ -32,6 +32,9 @@ class TavernController extends Controller
         'de la Prairie', 'au Grand Cœur (Petit Budget)', 'le Présomptueux',
     ];
 
+    // Probabilité qu'un recrutement soit légendaire (10%)
+    private const LEGENDARY_CHANCE = 10;
+
     public function __construct(
         private readonly SettingsService $settings,
         private readonly NarratorService $narrator,
@@ -234,21 +237,37 @@ class TavernController extends Controller
             $race  = $races->random();
             $class = $classes->random();
             $trait = $traits->random();
-            $name  = self::FIRST_NAMES[array_rand(self::FIRST_NAMES)]
-                   . ' ' . self::LAST_NAMES[array_rand(self::LAST_NAMES)];
+            $firstName = self::FIRST_NAMES[array_rand(self::FIRST_NAMES)];
+            $lastName  = self::LAST_NAMES[array_rand(self::LAST_NAMES)];
+            $name      = "{$firstName} {$lastName}";
 
-            $baseSlots = DB::table('heroes')->where('user_id', $userId)->count();
-            $hireCost  = 100 + ($baseSlots * 200) + rand(0, 50);
+            $baseSlots  = DB::table('heroes')->where('user_id', $userId)->count();
+            $isLegendary = rand(1, 100) <= self::LEGENDARY_CHANCE;
+            $hireCost   = $isLegendary
+                ? 500 + ($baseSlots * 500) + rand(0, 200)
+                : 100 + ($baseSlots * 200) + rand(0, 50);
+
+            $legendaryEpithet   = null;
+            $legendaryBackstory = null;
+
+            if ($isLegendary) {
+                $legendary = $this->gemini->generateLegendaryHero($firstName, $class->name, $trait->name);
+                $legendaryEpithet   = $legendary['epithet'];
+                $legendaryBackstory = $legendary['backstory'];
+            }
 
             TavernRecruit::create([
-                'user_id'    => $userId,
-                'race_id'    => $race->id,
-                'class_id'   => $class->id,
-                'trait_id'   => $trait->id,
-                'name'       => $name,
-                'hire_cost'  => $hireCost,
-                'is_hired'   => false,
-                'expires_at' => $expires,
+                'user_id'             => $userId,
+                'race_id'             => $race->id,
+                'class_id'            => $class->id,
+                'trait_id'            => $trait->id,
+                'name'                => $name,
+                'hire_cost'           => $hireCost,
+                'is_hired'            => false,
+                'expires_at'          => $expires,
+                'is_legendary'        => $isLegendary,
+                'legendary_epithet'   => $legendaryEpithet,
+                'legendary_backstory' => $legendaryBackstory,
             ]);
         }
     }
@@ -256,13 +275,16 @@ class TavernController extends Controller
     private function recruitResponse(TavernRecruit $r): array
     {
         return [
-            'id'         => $r->id,
-            'name'       => $r->name,
-            'hire_cost'  => $r->hire_cost,
-            'expires_at' => $r->expires_at,
-            'race'       => ['id' => $r->race->id, 'name' => $r->race->name, 'slug' => $r->race->slug],
-            'class'      => ['id' => $r->gameClass->id, 'name' => $r->gameClass->name, 'role' => $r->gameClass->role],
-            'trait'      => ['id' => $r->trait_->id, 'name' => $r->trait_->name, 'description' => $r->trait_->description],
+            'id'                  => $r->id,
+            'name'                => $r->name,
+            'hire_cost'           => $r->hire_cost,
+            'expires_at'          => $r->expires_at,
+            'is_legendary'        => (bool) $r->is_legendary,
+            'legendary_epithet'   => $r->legendary_epithet,
+            'legendary_backstory' => $r->legendary_backstory,
+            'race'                => ['id' => $r->race->id, 'name' => $r->race->name, 'slug' => $r->race->slug],
+            'class'               => ['id' => $r->gameClass->id, 'name' => $r->gameClass->name, 'role' => $r->gameClass->role],
+            'trait'               => ['id' => $r->trait_->id, 'name' => $r->trait_->name, 'description' => $r->trait_->description],
         ];
     }
 }

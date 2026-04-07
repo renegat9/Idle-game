@@ -8,6 +8,9 @@ type Recruit = {
   name: string
   hire_cost: number
   expires_at: string
+  is_legendary: boolean
+  legendary_epithet: string | null
+  legendary_backstory: string | null
   race: { id: number; name: string; slug: string }
   class: { id: number; name: string; role: string }
   trait: { id: number; name: string; description: string }
@@ -149,11 +152,35 @@ export function TavernPage() {
       )}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
         {recruits.map(r => (
-          <div key={r.id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 18 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <h3 style={{ color: '#f1f5f9', margin: 0, fontSize: 16 }}>{r.name}</h3>
-              <span style={{ color: '#fbbf24', fontSize: 14, fontWeight: 'bold' }}>{r.hire_cost} 💰</span>
+          <div key={r.id} style={{
+            background: r.is_legendary ? 'linear-gradient(135deg, #1e293b 0%, #1c1505 100%)' : '#1e293b',
+            border: r.is_legendary ? '2px solid #d97706' : '1px solid #334155',
+            borderRadius: 12, padding: 18,
+            boxShadow: r.is_legendary ? '0 0 12px rgba(217,119,6,0.3)' : 'none',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div>
+                <h3 style={{ color: r.is_legendary ? '#fcd34d' : '#f1f5f9', margin: 0, fontSize: 16 }}>{r.name}</h3>
+                {r.is_legendary && r.legendary_epithet && (
+                  <div style={{ color: '#d97706', fontSize: 12, marginTop: 2, fontStyle: 'italic' }}>
+                    ⭐ {r.legendary_epithet}
+                  </div>
+                )}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <span style={{ color: '#fbbf24', fontSize: 14, fontWeight: 'bold' }}>{r.hire_cost} 💰</span>
+                {r.is_legendary && (
+                  <div style={{ background: '#78350f', color: '#fde68a', fontSize: 10, borderRadius: 4, padding: '1px 6px', marginTop: 2 }}>
+                    LÉGENDAIRE
+                  </div>
+                )}
+              </div>
             </div>
+            {r.is_legendary && r.legendary_backstory && (
+              <p style={{ color: '#92400e', fontSize: 11, margin: '4px 0 8px', fontStyle: 'italic', background: '#1c1505', borderRadius: 4, padding: '4px 8px' }}>
+                {r.legendary_backstory}
+              </p>
+            )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
               <span style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#94a3b8' }}>
                 {r.race.name}
@@ -173,9 +200,14 @@ export function TavernPage() {
               <button
                 onClick={() => hire(r.id)}
                 disabled={acting}
-                style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '8px 16px', borderRadius: 8, cursor: acting ? 'not-allowed' : 'pointer', fontSize: 13, opacity: acting ? 0.6 : 1 }}
+                style={{
+                  background: r.is_legendary ? '#d97706' : '#7c3aed',
+                  color: 'white', border: 'none', padding: '8px 16px',
+                  borderRadius: 8, cursor: acting ? 'not-allowed' : 'pointer',
+                  fontSize: 13, opacity: acting ? 0.6 : 1,
+                }}
               >
-                Recruter
+                {r.is_legendary ? '⭐ Recruter (Légendaire)' : 'Recruter'}
               </button>
             </div>
           </div>

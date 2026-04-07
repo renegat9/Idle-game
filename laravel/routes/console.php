@@ -38,3 +38,8 @@ Schedule::command('world-boss:spawn')->cron('0 12 */3 * *')
 Schedule::command('zones:generate')->weekly()->mondays()->at('02:00')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Every 2 hours: NPCs auto-attack the world boss (simulates activity)
+Schedule::command('world-boss:auto-attack')->everyTwoHours()
+    ->withoutOverlapping()
+    ->runInBackground();

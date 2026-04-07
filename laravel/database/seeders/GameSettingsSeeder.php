@@ -133,6 +133,7 @@ class GameSettingsSeeder extends Seeder
             ['WORLD_BOSS_DAMAGE_SCALE', 10, 'Échelle de dégâts des attaques sur le boss mondial (team_power × scale / 100)'],
             ['WORLD_BOSS_ATTACK_COOLDOWN', 300, 'Cooldown entre deux attaques sur le boss mondial (secondes)'],
             ['WORLD_BOSS_REWARD_BASE', 500, 'Récompense de base en or pour participation au boss mondial'],
+            ['WORLD_BOSS_NPC_ATTACKS_PER_CYCLE', 5, 'Nombre d\'attaques NPC simulées toutes les 2h sur le boss mondial'],
 
             // IA et budget
             ['AI_DAILY_BUDGET_LIMIT', 1000, 'Limite de budget IA journalier (unités arbitraires)'],

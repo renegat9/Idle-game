@@ -24,6 +24,7 @@ class DatabaseSeeder extends Seeder
             RecipeSeeder::class,
             TalentSeeder::class,
             SeasonalEventSeeder::class,
+            ConsumableSeeder::class,
         ]);
     }
 }

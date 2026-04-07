@@ -647,6 +647,68 @@ class GeminiService
         return "images/placeholders/loot/{$slot}_{$rarityGroup}.png";
     }
 
+    /**
+     * Generates a legendary hero epithet and backstory.
+     * @return array{epithet: string, backstory: string}
+     */
+    public function generateLegendaryHero(string $heroName, string $className, string $traitName): array
+    {
+        if (!$this->isEnabled()) {
+            return $this->fallbackLegendaryHero($heroName);
+        }
+
+        try {
+            $prompt = "Tu es le Narrateur sarcastique du jeu 'Le Donjon des Incompétents'. "
+                . "Génère pour un héros légendaire (mais quand même incompétent) appelé '{$heroName}', "
+                . "classe '{$className}', avec le défaut '{$traitName}' :\n"
+                . "1. Un épithète court (5-8 mots, style 'le Presque-Grand', 'de la Catastrophe Évitée')\n"
+                . "2. Une biographie absurde de 1-2 phrases expliquant pourquoi il est 'légendaire' malgré son incompétence.\n"
+                . "Réponds UNIQUEMENT avec du JSON valide : {\"epithet\": \"...\", \"backstory\": \"...\"}";
+
+            $raw = $this->callTextApi($prompt);
+            $cleaned = preg_replace('/^```json\s*|\s*```$/m', '', trim($raw));
+            $data = json_decode($cleaned, true);
+
+            if (isset($data['epithet'], $data['backstory'])) {
+                $this->logGeneration('legendary_hero', strlen($prompt), strlen($raw));
+                return [
+                    'epithet'   => mb_substr($data['epithet'], 0, 100),
+                    'backstory' => mb_substr($data['backstory'], 0, 300),
+                ];
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateLegendaryHero failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackLegendaryHero($heroName);
+    }
+
+    /** @return array{epithet: string, backstory: string} */
+    private function fallbackLegendaryHero(string $heroName): array
+    {
+        $epithets = [
+            'le Presque-Légendaire',
+            'de la Renommée Discutable',
+            'qui Faillit Sauver le Monde',
+            'l\'À-peu-près Glorieux',
+            'du Passé Douteux',
+            'le Survivant Accidentel',
+        ];
+
+        $backstories = [
+            "{$heroName} a vaincu un dragon une fois. Le dragon dormait.",
+            "Les bardes chantent ses exploits. Ils ont exagéré BEAUCOUP.",
+            "{$heroName} a sauvé un village. Par erreur. En fuyant.",
+            "Autrefois célèbre, aujourd'hui dans votre taverne. C'est la vie.",
+            "Légendaire dans trois villages. Recherché dans quatre autres.",
+        ];
+
+        return [
+            'epithet'   => $epithets[array_rand($epithets)],
+            'backstory' => $backstories[array_rand($backstories)],
+        ];
+    }
+
     /** @return array{style: string, prompt: string, file_path: string} */
     private function fallbackTavernMusic(string $style): array
     {

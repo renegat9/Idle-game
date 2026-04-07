@@ -6,6 +6,8 @@ import { HeroCard } from '../components/hero/HeroCard'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
 import type { Hero, Race, GameClass, Trait } from '../types'
 
+type Synergy = { hero_name: string; slug: string; name: string; description: string }
+
 export function TeamPage() {
   const { setHeroes } = useGameStore()
   const [heroes, setLocalHeroes] = useState<Hero[]>([])
@@ -13,10 +15,13 @@ export function TeamPage() {
   const [classes, setClasses] = useState<GameClass[]>([])
   const [traits, setTraits] = useState<Trait[]>([])
   const [loading, setLoading] = useState(true)
+  const [synergies, setSynergies] = useState<Synergy[]>([])
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [form, setForm] = useState({ name: '', race_id: 0, class_id: 0, trait_id: 0 })
   const [narratorComment, setNarratorComment] = useState('')
   const [creating, setCreating] = useState(false)
+  const [dismissing, setDismissing] = useState<number | null>(null)
+  const [confirmDismiss, setConfirmDismiss] = useState<number | null>(null)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -25,12 +30,14 @@ export function TeamPage() {
       apiClient.get('/reference/races'),
       apiClient.get('/reference/classes'),
       apiClient.get('/reference/traits'),
-    ]).then(([heroRes, raceRes, classRes, traitRes]) => {
+      apiClient.get('/heroes/synergies'),
+    ]).then(([heroRes, raceRes, classRes, traitRes, synRes]) => {
       setLocalHeroes(heroRes.data.heroes)
       setHeroes(heroRes.data.heroes)
       setRaces(raceRes.data.races ?? [])
       setClasses(classRes.data.classes ?? [])
       setTraits(traitRes.data.traits ?? [])
+      setSynergies(synRes.data.active_synergies ?? [])
     }).finally(() => setLoading(false))
   }, [])
 
@@ -53,6 +60,23 @@ export function TeamPage() {
     }
   }
 
+  const handleDismiss = async (heroId: number) => {
+    setDismissing(heroId)
+    setError('')
+    try {
+      const { data } = await apiClient.delete(`/heroes/${heroId}`)
+      const updated = heroes.filter((h) => h.id !== heroId)
+      setLocalHeroes(updated)
+      setHeroes(updated)
+      setNarratorComment(data.narrator_comment)
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Erreur lors du renvoi.')
+    } finally {
+      setDismissing(null)
+      setConfirmDismiss(null)
+    }
+  }
+
   const selectStyle = { width: '100%', background: '#1f2937', border: '1px solid #374151', borderRadius: 6, padding: '8px 12px', color: '#f9fafb', fontSize: 14 }
   const inputStyle = { ...selectStyle }
 
@@ -71,11 +95,23 @@ export function TeamPage() {
       </div>
 
       {narratorComment && <NarratorBubble comment={narratorComment} />}
+      {error && <div style={{ color: '#fca5a5', background: '#450a0a', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>{error}</div>}
+
+      {synergies.length > 0 && (
+        <div style={{ background: '#0d1a0d', border: '1px solid #166534', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+          <div style={{ color: '#86efac', fontSize: 13, fontWeight: 'bold', marginBottom: 8 }}>✨ Synergies actives</div>
+          {synergies.map((s) => (
+            <div key={s.slug} style={{ marginBottom: 6 }}>
+              <span style={{ color: '#4ade80', fontSize: 12, fontWeight: 'bold' }}>{s.hero_name} — {s.name}</span>
+              <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>{s.description}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {showCreateForm && (
         <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 8, padding: 24, marginBottom: 24 }}>
           <h3 style={{ color: '#f9fafb', marginTop: 0 }}>Créer un Héros</h3>
-          {error && <div style={{ color: '#fca5a5', background: '#450a0a', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>{error}</div>}
           <form onSubmit={handleCreate}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
               <div>
@@ -122,7 +158,40 @@ export function TeamPage() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-          {heroes.map((hero) => <HeroCard key={hero.id} hero={hero} />)}
+          {heroes.map((hero) => (
+            <div key={hero.id} style={{ position: 'relative' }}>
+              <HeroCard hero={hero} />
+              <div style={{ marginTop: 8 }}>
+                {confirmDismiss === hero.id ? (
+                  <div style={{ background: '#1f0a0a', border: '1px solid #7f1d1d', borderRadius: 6, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+                    <span style={{ color: '#fca5a5', fontSize: 12 }}>Renvoyer {hero.name} définitivement ?</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => handleDismiss(hero.id)}
+                        disabled={dismissing === hero.id}
+                        style={{ background: '#dc2626', color: 'white', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}
+                      >
+                        {dismissing === hero.id ? '...' : 'Oui'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDismiss(null)}
+                        style={{ background: '#374151', color: '#d1d5db', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}
+                      >
+                        Non
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDismiss(hero.id)}
+                    style={{ width: '100%', background: 'transparent', color: '#6b7280', border: '1px solid #374151', borderRadius: 6, padding: '6px 0', cursor: 'pointer', fontSize: 12 }}
+                  >
+                    Renvoyer
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

@@ -10,11 +10,13 @@ class TavernRecruit extends Model
     protected $fillable = [
         'user_id', 'race_id', 'class_id', 'trait_id',
         'name', 'hire_cost', 'is_hired', 'expires_at',
+        'is_legendary', 'legendary_epithet', 'legendary_backstory',
     ];
 
     protected $casts = [
-        'is_hired'   => 'boolean',
-        'expires_at' => 'datetime',
+        'is_hired'     => 'boolean',
+        'is_legendary' => 'boolean',
+        'expires_at'   => 'datetime',
     ];
 
     public function race(): BelongsTo

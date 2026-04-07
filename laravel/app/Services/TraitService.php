@@ -157,6 +157,138 @@ class TraitService
         return $event;
     }
 
+    // ─── Synergies cachées ───────────────────────────────────────────────────
+
+    /**
+     * Registre des synergies classe + trait.
+     * Clé : "class_slug|trait_slug"
+     * Integer-only : tous les bonus en pourcentages entiers.
+     */
+    private const SYNERGY_REGISTRY = [
+        // Voleur + Kleptomane → vole encore plus de loot
+        'voleur|kleptomane' => [
+            'slug'        => 'voleur_kleptomane',
+            'name'        => 'Doigts de Fée (Usure Criminelle)',
+            'description' => 'Le Voleur Kleptomane ne résiste pas. Butin +50%, mais il "emprunte" aussi l\'équipement de ses alliés.',
+            'loot_bonus_pct'  => 50,
+            'atq_bonus_pct'   => 0,
+            'def_penalty_pct' => 5, // il "emprunte" aussi les affaires des alliés
+        ],
+        // Barbare + Pyromane → dégâts de zone massifs
+        'barbare|pyromane' => [
+            'slug'        => 'barbare_pyromane',
+            'name'        => 'Rage Incendiaire',
+            'description' => 'Le Barbare Pyromane met littéralement tout en feu. ATQ +30%, mais 10% de chances de brûler un allié.',
+            'loot_bonus_pct'   => 0,
+            'atq_bonus_pct'    => 30,
+            'self_damage_pct'  => 10,
+        ],
+        // Barde + Narcoleptique → berceuse surpuissante
+        'barde|narcoleptique' => [
+            'slug'        => 'barde_narcoleptique',
+            'name'        => 'Berceuse Mortelle',
+            'description' => 'Le Barde Narcoleptique endort TOUT le monde. Ennemis −40% VIT, alliés aussi −20% VIT. Magnifique.',
+            'loot_bonus_pct'       => 0,
+            'atq_bonus_pct'        => 0,
+            'enemy_vit_debuff_pct' => 40,
+            'ally_vit_debuff_pct'  => 20,
+        ],
+        // Prêtre + Couard → fuite sanctifiée (survivabilité extrême)
+        'pretre|couard' => [
+            'slug'        => 'pretre_couard',
+            'name'        => 'Retraite Bénie',
+            'description' => 'Le Prêtre Couard bénit chaque fuite. DEF +25%, et les soins critiques arrivent toujours en fuyant.',
+            'loot_bonus_pct'  => 0,
+            'atq_bonus_pct'   => 0,
+            'def_bonus_pct'   => 25,
+        ],
+        // Mage + Philosophe → contemplation infinie (INT × 2)
+        'mage|philosophe' => [
+            'slug'        => 'mage_philosophe',
+            'name'        => 'Paralysie Philosophique',
+            'description' => 'Le Mage Philosophe refuse d\'agir sans comprendre le sens profond de la magie. INT +40%, mais VIT −30%.',
+            'loot_bonus_pct'  => 0,
+            'atq_bonus_pct'   => 0,
+            'int_bonus_pct'   => 40,
+            'vit_penalty_pct' => 30,
+        ],
+        // Nécromancien + Pacifiste → armée morte très polie
+        'necromancien|pacifiste' => [
+            'slug'        => 'necromancien_pacifiste',
+            'name'        => 'Morts-Vivants Diplomates',
+            'description' => 'Le Nécromancien Pacifiste essaie de négocier avec ses propres squelettes. Loot +20%, dégâts −15%.',
+            'loot_bonus_pct'  => 20,
+            'atq_penalty_pct' => 15,
+        ],
+        // Ranger + Mythomane → tirs "légendaires" jamais vus
+        'ranger|mythomane' => [
+            'slug'        => 'ranger_mythomane',
+            'name'        => 'L\'Exploit Imaginaire',
+            'description' => 'Le Ranger Mythomane raconte ses exploits si souvent qu\'il finit par y croire. ATQ +20%, 15% d\'esquive.',
+            'loot_bonus_pct'  => 0,
+            'atq_bonus_pct'   => 20,
+            'dodge_bonus_pct' => 15,
+        ],
+    ];
+
+    /**
+     * Retourne la synérgie d'un héros s'il en a une, null sinon.
+     */
+    public function checkSynergy(Hero $hero): ?array
+    {
+        if (!$hero->gameClass || !$hero->trait_) {
+            return null;
+        }
+
+        $key = $hero->gameClass->slug . '|' . $hero->trait_->slug;
+
+        return self::SYNERGY_REGISTRY[$key] ?? null;
+    }
+
+    /**
+     * Agrège les bonus de synérgies de toute l'équipe.
+     * Retourne un tableau de modificateurs additifs (integer-only).
+     */
+    public function getTeamSynergyModifiers(\Illuminate\Support\Collection $heroes): array
+    {
+        $modifiers = [
+            'loot_bonus_pct'       => 0,
+            'atq_bonus_pct'        => 0,
+            'def_bonus_pct'        => 0,
+            'def_penalty_pct'      => 0,
+            'atq_penalty_pct'      => 0,
+            'int_bonus_pct'        => 0,
+            'vit_penalty_pct'      => 0,
+            'self_damage_pct'      => 0,
+            'enemy_vit_debuff_pct' => 0,
+            'ally_vit_debuff_pct'  => 0,
+            'dodge_bonus_pct'      => 0,
+            'active_synergies'     => [],
+        ];
+
+        foreach ($heroes as $hero) {
+            $synergy = $this->checkSynergy($hero);
+            if (!$synergy) {
+                continue;
+            }
+
+            $modifiers['active_synergies'][] = [
+                'hero_name'   => $hero->name,
+                'slug'        => $synergy['slug'],
+                'name'        => $synergy['name'],
+                'description' => $synergy['description'],
+            ];
+
+            foreach (['loot_bonus_pct', 'atq_bonus_pct', 'def_bonus_pct', 'def_penalty_pct', 'atq_penalty_pct',
+                      'int_bonus_pct', 'vit_penalty_pct', 'self_damage_pct',
+                      'enemy_vit_debuff_pct', 'ally_vit_debuff_pct', 'dodge_bonus_pct'] as $key) {
+                $modifiers[$key] += (int) ($synergy[$key] ?? 0);
+            }
+        }
+
+        return $modifiers;
+    }
+
     /**
      * Calcule l'impact d'un trait sur la puissance offline (simplification).
      */

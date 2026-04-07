@@ -18,6 +18,7 @@ use App\Http\Controllers\Game\ProfileController;
 use App\Http\Controllers\Game\ReputationController;
 use App\Http\Controllers\Game\MusicController;
 use App\Http\Controllers\Game\SeasonalEventController;
+use App\Http\Controllers\Game\ConsumableController;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
@@ -31,8 +32,10 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Heroes
     Route::get('/heroes', [HeroController::class, 'index']);
+    Route::get('/heroes/synergies', [HeroController::class, 'synergies']);
     Route::post('/heroes', [HeroController::class, 'store']);
     Route::post('/heroes/{hero}/equip', [HeroController::class, 'equip']);
+    Route::delete('/heroes/{hero}', [HeroController::class, 'dismiss']);
 
     // Talents
     Route::get('/heroes/{heroId}/talents', [TalentController::class, 'index']);
@@ -89,6 +92,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Profile
     Route::get('/profile', [ProfileController::class, 'index']);
     Route::patch('/profile', [ProfileController::class, 'update']);
+
+    // Consommables
+    Route::get('/consumables', [ConsumableController::class, 'index']);
+    Route::get('/consumables/catalog', [ConsumableController::class, 'catalog']);
+    Route::post('/consumables/{slug}/use', [ConsumableController::class, 'use']);
 
     // Réputation par zone
     Route::get('/reputation', [ReputationController::class, 'index']);

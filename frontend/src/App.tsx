@@ -15,6 +15,7 @@ import { DungeonPage } from './pages/DungeonPage'
 import { TalentsPage } from './pages/TalentsPage'
 import { WorldBossPage } from './pages/WorldBossPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { ConsumablesPage } from './pages/ConsumablesPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/dungeon" element={<DungeonPage />} />
           <Route path="/talents" element={<TalentsPage />} />
           <Route path="/world-boss" element={<WorldBossPage />} />
+          <Route path="/consumables" element={<ConsumablesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
 

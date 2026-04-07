@@ -81,6 +81,18 @@ class NarratorService
             'Bienvenue dans l\'équipe des incompétents. Tu seras chez toi.',
             'Un héros de plus. Les donjons du monde tremblent... de rire.',
         ],
+        'hero_dismissed' => [
+            'Bon débarras. Le Narrateur l\'avait vu venir.',
+            'Renvoyé. Il pleure dans un couloir, quelque part. C\'est bien fait.',
+            'Congédié avec la délicatesse habituelle. Le Narrateur approuve.',
+            'Un slot de libéré. Pour quelqu\'un d\'encore plus incompétent, sans doute.',
+            'Au revoir. N\'oublie pas d\'éteindre la lumière en partant.',
+        ],
+        'consumable_used' => [
+            'Consommable utilisé. Avec l\'élégance d\'un ogre qui mange une soupe.',
+            'Effet appliqué ! Le Narrateur note l\'amélioration temporaire.',
+            'Utilisé. Espérons que ça serve à quelque chose pour une fois.',
+        ],
         'exploration_started' => [
             'L\'équipe part en exploration. Le Narrateur prépare ses condoléances.',
             'En route vers l\'aventure ! Et probablement la catastrophe.',

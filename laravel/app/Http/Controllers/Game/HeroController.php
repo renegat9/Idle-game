@@ -10,6 +10,7 @@ use App\Models\Race;
 use App\Models\Trait_;
 use App\Services\NarratorService;
 use App\Services\SettingsService;
+use App\Services\TraitService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,8 @@ class HeroController extends Controller
 {
     public function __construct(
         private readonly SettingsService $settings,
-        private readonly NarratorService $narrator
+        private readonly NarratorService $narrator,
+        private readonly TraitService $traitService
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -90,6 +92,58 @@ class HeroController extends Controller
             'hero' => $this->heroResponse($hero),
             'narrator_comment' => $narratorComment,
         ], 201);
+    }
+
+    public function synergies(Request $request): JsonResponse
+    {
+        $heroes = $request->user()
+            ->heroes()
+            ->with(['gameClass', 'trait_'])
+            ->where('is_active', true)
+            ->get();
+
+        $mods = $this->traitService->getTeamSynergyModifiers($heroes);
+
+        return response()->json([
+            'active_synergies' => $mods['active_synergies'],
+            'team_bonuses' => [
+                'loot_bonus_pct'  => $mods['loot_bonus_pct'],
+                'atq_bonus_pct'   => $mods['atq_bonus_pct'],
+                'def_bonus_pct'   => $mods['def_bonus_pct'],
+            ],
+        ]);
+    }
+
+    public function dismiss(Request $request, Hero $hero): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($hero->user_id !== $user->id) {
+            return response()->json(['message' => 'Ce héros ne vous appartient pas.'], 403);
+        }
+
+        if ($user->heroes()->count() <= 1) {
+            return response()->json([
+                'message' => 'Vous ne pouvez pas renvoyer votre dernier héros. Qui ferait le travail ?',
+            ], 422);
+        }
+
+        $heroName = $hero->name;
+
+        DB::transaction(function () use ($hero) {
+            // Déséquiper tous ses objets
+            Item::where('equipped_by_hero_id', $hero->id)
+                ->update(['equipped_by_hero_id' => null]);
+            // Supprimer le héros
+            $hero->delete();
+        });
+
+        $narratorComment = $this->narrator->getComment('hero_dismissed', ['hero_name' => $heroName]);
+
+        return response()->json([
+            'message' => $heroName . ' a été renvoyé. ' . $narratorComment,
+            'narrator_comment' => $narratorComment,
+        ]);
     }
 
     public function equip(Request $request, Hero $hero): JsonResponse

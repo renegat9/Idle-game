@@ -111,3 +111,9 @@ export const profileApi = {
   update: (data: { narrator_frequency?: string; username?: string }) =>
     apiClient.patch<any>('/profile', data),
 }
+
+export const consumableApi = {
+  list: () => apiClient.get<{ consumables: any[] }>('/consumables'),
+  catalog: () => apiClient.get<{ catalog: any[] }>('/consumables/catalog'),
+  use: (slug: string) => apiClient.post<{ message: string; narrator_comment: string; result: any }>(`/consumables/${slug}/use`),
+}

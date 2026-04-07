@@ -27,9 +27,13 @@ class CombatService
         // Réinitialiser le cache élémentaire pour ce combat
         $this->elementChart = null;
 
+        // Calculer les synergies d'équipe (integer-only)
+        $heroCollection = collect($heroModels);
+        $synergyMods = $this->traitService->getTeamSynergyModifiers($heroCollection);
+
         // Initialiser l'état de combat
         $state = [
-            'heroes' => $this->initHeroes($heroModels),
+            'heroes' => $this->initHeroesWithSynergies($heroModels, $synergyMods),
             'enemies' => $this->initEnemies($monsterModels),
             'turn' => 0,
             'fled_heroes' => [],
@@ -44,7 +48,21 @@ class CombatService
             'xp_gained' => 0,
             'gold_gained' => 0,
             'loot_candidates' => [],
+            'synergy_mods' => $synergyMods,
         ];
+
+        // Log des synergies actives
+        foreach ($synergyMods['active_synergies'] as $syn) {
+            $state['log'][] = "✨ Synergie active : {$syn['hero_name']} — {$syn['name']}";
+        }
+
+        // Appliquer debuff de VIT ennemi (barde_narcoleptique)
+        if ($synergyMods['enemy_vit_debuff_pct'] > 0) {
+            foreach ($state['enemies'] as &$enemy) {
+                $enemy['vit'] = max(0, (int) ($enemy['vit'] * (100 - $synergyMods['enemy_vit_debuff_pct']) / 100));
+            }
+            unset($enemy);
+        }
 
         // Boucle de combat
         while ($state['turn'] < $maxTurns) {
@@ -78,11 +96,23 @@ class CombatService
 
     private function initHeroes(array $heroModels): array
     {
+        return $this->initHeroesWithSynergies($heroModels, []);
+    }
+
+    private function initHeroesWithSynergies(array $heroModels, array $synergyMods): array
+    {
         $heroes = [];
+        $atqBonus   = (int) ($synergyMods['atq_bonus_pct'] ?? 0);
+        $defBonus   = (int) ($synergyMods['def_bonus_pct'] ?? 0);
+        $defPenalty = (int) ($synergyMods['def_penalty_pct'] ?? 0);
+        $atqPenalty = (int) ($synergyMods['atq_penalty_pct'] ?? 0);
+        $intBonus   = (int) ($synergyMods['int_bonus_pct'] ?? 0);
+        $vitPenalty = (int) ($synergyMods['vit_penalty_pct'] ?? 0);
+        $allyVitDebuff = (int) ($synergyMods['ally_vit_debuff_pct'] ?? 0);
+
         foreach ($heroModels as $hero) {
             $stats = $hero->computedStats();
 
-            // Élément de l'arme équipée (slot 'weapon'), sinon physique
             $element = 'physique';
             if ($hero->relationLoaded('items')) {
                 $weapon = $hero->items->firstWhere('slot', 'weapon');
@@ -91,19 +121,33 @@ class CombatService
                 }
             }
 
+            // Appliquer les modificateurs de synérgies (integer-only)
+            $atq = (int) $stats['atq'];
+            $def = (int) $stats['def'];
+            $vit = (int) $stats['vit'];
+            $int = (int) $stats['int'];
+
+            if ($atqBonus > 0)    { $atq = intdiv($atq * (100 + $atqBonus), 100); }
+            if ($atqPenalty > 0)  { $atq = intdiv($atq * (100 - $atqPenalty), 100); }
+            if ($defBonus > 0)    { $def = intdiv($def * (100 + $defBonus), 100); }
+            if ($defPenalty > 0)  { $def = intdiv($def * (100 - $defPenalty), 100); }
+            if ($intBonus > 0)    { $int = intdiv($int * (100 + $intBonus), 100); }
+            if ($vitPenalty > 0)  { $vit = intdiv($vit * (100 - $vitPenalty), 100); }
+            if ($allyVitDebuff > 0) { $vit = intdiv($vit * (100 - $allyVitDebuff), 100); }
+
             $heroes[] = [
-                'hero_id' => $hero->id,
-                'name' => $hero->name,
+                'hero_id'    => $hero->id,
+                'name'       => $hero->name,
                 'current_hp' => $stats['current_hp'],
-                'max_hp' => $stats['max_hp'],
-                'atq' => $stats['atq'],
-                'def' => $stats['def'],
-                'vit' => $stats['vit'],
-                'cha' => $stats['cha'],
-                'int' => $stats['int'],
-                'element' => $element,
-                'level' => $hero->level,
-                'is_alive' => $stats['current_hp'] > 0,
+                'max_hp'     => $stats['max_hp'],
+                'atq'        => max(1, $atq),
+                'def'        => max(0, $def),
+                'vit'        => max(0, $vit),
+                'cha'        => (int) $stats['cha'],
+                'int'        => max(0, $int),
+                'element'    => $element,
+                'level'      => $hero->level,
+                'is_alive'   => $stats['current_hp'] > 0,
             ];
         }
         return $heroes;
@@ -452,22 +496,39 @@ class CombatService
             ? intdiv(array_sum(array_column($state['heroes'], 'level')), count($state['heroes']))
             : 1;
 
+        $synergyMods = $state['synergy_mods'] ?? [];
+        $lootBonusPct = (int) ($synergyMods['loot_bonus_pct'] ?? 0);
+
         if ($result === 'victory') {
             foreach ($monsterModels as $monster) {
                 $xpGained += $this->calculateXpForKill($monster->level, $avgHeroLevel);
-                $goldGained += random_int($monster->gold_min, max($monster->gold_min, $monster->gold_max));
+                $baseGold = random_int($monster->gold_min, max($monster->gold_min, $monster->gold_max));
+                $goldGained += $baseGold;
             }
         }
 
+        // Appliquer le bonus de loot des synergies (loot_bonus_pct)
+        if ($lootBonusPct > 0 && !empty($state['loot_candidates'])) {
+            // Ajouter des exemplaires supplémentaires selon le bonus (integer)
+            $extra = intdiv(count($state['loot_candidates']) * $lootBonusPct, 100);
+            $lootCandidates = $state['loot_candidates'];
+            for ($i = 0; $i < $extra; $i++) {
+                $lootCandidates[] = $lootCandidates[array_rand($lootCandidates)];
+            }
+        } else {
+            $lootCandidates = $state['loot_candidates'];
+        }
+
         return [
-            'result' => $result,
-            'turns' => $state['turn'],
-            'xp_gained' => $xpGained,
-            'gold_gained' => $goldGained,
-            'heroes_state' => $state['heroes'],
-            'trait_triggers' => $state['trait_triggers'],
-            'log' => $state['log'],
-            'loot_candidates' => $state['loot_candidates'],
+            'result'           => $result,
+            'turns'            => $state['turn'],
+            'xp_gained'        => $xpGained,
+            'gold_gained'      => $goldGained,
+            'heroes_state'     => $state['heroes'],
+            'trait_triggers'   => $state['trait_triggers'],
+            'log'              => $state['log'],
+            'loot_candidates'  => $lootCandidates,
+            'active_synergies' => $synergyMods['active_synergies'] ?? [],
         ];
     }
 }
