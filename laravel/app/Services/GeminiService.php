@@ -665,12 +665,13 @@ class GeminiService
                 . "2. Une biographie absurde de 1-2 phrases expliquant pourquoi il est 'légendaire' malgré son incompétence.\n"
                 . "Réponds UNIQUEMENT avec du JSON valide : {\"epithet\": \"...\", \"backstory\": \"...\"}";
 
-            $raw = $this->callTextApi($prompt);
-            $cleaned = preg_replace('/^```json\s*|\s*```$/m', '', trim($raw));
-            $data = json_decode($cleaned, true);
+            $raw = $this->callTextApi($prompt, 'legendary_hero', 200);
+            if ($raw === null) {
+                return $this->fallbackLegendaryHero($heroName);
+            }
+            $data = json_decode($this->extractJson($raw), true);
 
             if (isset($data['epithet'], $data['backstory'])) {
-                $this->logGeneration('legendary_hero', strlen($prompt), strlen($raw));
                 return [
                     'epithet'   => mb_substr($data['epithet'], 0, 100),
                     'backstory' => mb_substr($data['backstory'], 0, 300),
