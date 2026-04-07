@@ -27,6 +27,9 @@ NPM="/opt/cpanel/ea-nodejs22/bin/npm"
 [ ! -x "$NODE" ] && fail "Node.js introuvable : $NODE"
 [ ! -x "$NPM"  ] && fail "npm introuvable : $NPM"
 
+# Ajouter node au PATH pour que tsc/vite (#!/usr/bin/env node) fonctionnent
+export PATH="/opt/cpanel/ea-nodejs22/bin:$PATH"
+
 ok "Node.js : $($NODE --version)"
 ok "npm     : $($NPM --version)"
 
