@@ -16,6 +16,7 @@ import { TalentsPage } from './pages/TalentsPage'
 import { WorldBossPage } from './pages/WorldBossPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ConsumablesPage } from './pages/ConsumablesPage'
+import { LandingPage } from './pages/LandingPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
@@ -31,13 +32,16 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Landing page publique */}
+        <Route path="/" element={<RequireGuest><LandingPage /></RequireGuest>} />
+
         {/* Auth routes (redirect to dashboard if already logged in) */}
         <Route path="/login" element={<RequireGuest><LoginPage /></RequireGuest>} />
         <Route path="/register" element={<RequireGuest><RegisterPage /></RequireGuest>} />
 
         {/* Protected game routes */}
         <Route element={<RequireAuth><AppShell /></RequireAuth>}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/team" element={<TeamPage />} />
           <Route path="/map" element={<MapPage />} />
