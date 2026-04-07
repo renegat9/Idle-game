@@ -269,7 +269,7 @@ class GeminiService
 
         try {
             $filename = ($itemId > 0 ? "item_{$itemId}" : "{$slot}_{$rarity}") . '_' . time() . '.png';
-            $path = $this->callImageApi($prompt, 'loot_image', $filename);
+            $path = $this->callImageApi($prompt, 'loot_image', $filename, false);
             if ($path !== null) {
                 return $path;
             }
