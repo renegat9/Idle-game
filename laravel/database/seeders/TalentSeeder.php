@@ -8,7 +8,10 @@ class TalentSeeder extends Seeder
     public function run(): void
     {
         $ids = DB::table("classes")->pluck("id", "slug");
+        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        DB::table("hero_talents")->truncate();
         DB::table("talents")->truncate();
+        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
         $talents = [];
         $talents[] = ['class_id' => $ids['guerrier'], 'name' => 'Frappe Puissante', 'description' => 'Augmente les dégâts de base.', 'branch' => 'offensive', 'tier' => 1, 'position' => 1, 'cost' => 1, 'required_points_in_branch' => 0, 'talent_type' => 'passif', 'effect_data' => '{"stat": "atq", "bonus_percent": 8}', 'prerequisite_talent_id' => null];
         $talents[] = ['class_id' => $ids['guerrier'], 'name' => 'Expertise au Combat', 'description' => 'Améliore la précision des attaques.', 'branch' => 'offensive', 'tier' => 1, 'position' => 2, 'cost' => 1, 'required_points_in_branch' => 0, 'talent_type' => 'passif', 'effect_data' => '{"stat": "atq", "bonus_percent": 5}', 'prerequisite_talent_id' => null];
