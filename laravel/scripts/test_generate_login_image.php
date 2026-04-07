@@ -36,8 +36,11 @@ if (empty($apiKey)) {
     exit(1);
 }
 
-echo "[INFO] Prompt : {$prompt}\n";
-echo "[INFO] Appel Imagen API...\n";
+echo "[DEBUG] API URL  : {$apiUrl}\n";
+echo "[DEBUG] API Key  : " . substr($apiKey, 0, 8) . "...\n";
+echo "[DEBUG] Output   : {$outputFile}\n";
+echo "[INFO]  Prompt   : {$prompt}\n";
+echo "[INFO]  Appel Imagen API...\n";
 
 // ─── Appel API ────────────────────────────────────────────────────────────────
 
@@ -65,22 +68,29 @@ if ($curlErr) {
     exit(1);
 }
 
-echo "[INFO] HTTP {$httpCode}\n";
+echo "[DEBUG] HTTP {$httpCode}\n";
+echo "[DEBUG] Taille réponse : " . strlen($raw) . " octets\n";
 
 if ($httpCode !== 200) {
     echo "[ERREUR] Réponse API :\n{$raw}\n";
     exit(1);
 }
 
+echo "[DEBUG] Réponse brute (500 premiers chars) : " . substr($raw, 0, 500) . "\n";
+
 // ─── Traitement de la réponse ─────────────────────────────────────────────────
 
 $data = json_decode($raw, true);
-$b64  = $data['predictions'][0]['bytesBase64Encoded'] ?? null;
+echo "[DEBUG] Clés réponse : " . implode(', ', array_keys($data ?? [])) . "\n";
+
+$b64 = $data['predictions'][0]['bytesBase64Encoded'] ?? null;
 
 if (empty($b64)) {
-    echo "[ERREUR] Aucune image dans la réponse :\n{$raw}\n";
+    echo "[ERREUR] bytesBase64Encoded absent. Réponse complète :\n" . json_encode($data, JSON_PRETTY_PRINT) . "\n";
     exit(1);
 }
+
+echo "[DEBUG] Taille base64 : " . strlen($b64) . " chars\n";
 
 // ─── Sauvegarde ───────────────────────────────────────────────────────────────
 
