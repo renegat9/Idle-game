@@ -6,13 +6,46 @@ interface HeroCardProps {
   selected?: boolean
 }
 
+const CLASS_ANIM: Record<string, string> = {
+  guerrier:      'anim-shake',
+  barbare:       'anim-shake',
+  mage:          'anim-float',
+  necromancien:  'anim-ghost',
+  barde:         'anim-sway',
+  pretre:        'anim-breathe',
+  voleur:        'anim-breathe',
+  ranger:        'anim-breathe',
+}
+
+const CLASS_EMOJI: Record<string, string> = {
+  guerrier:     '🗡️',
+  barbare:      '🪓',
+  mage:         '🔮',
+  necromancien: '💀',
+  barde:        '🎵',
+  pretre:       '✝️',
+  voleur:       '🗝️',
+  ranger:       '🏹',
+}
+
 export function HeroCard({ hero, onClick, selected }: HeroCardProps) {
-  const stats = hero.computed_stats
-  const hpPercent = stats.max_hp > 0 ? Math.round((stats.current_hp / stats.max_hp) * 100) : 0
+  const stats      = hero.computed_stats
+  const hpPercent  = stats.max_hp > 0 ? Math.round((stats.current_hp / stats.max_hp) * 100) : 0
+  const animClass  = CLASS_ANIM[hero.class.slug] ?? 'anim-breathe'
+  const classEmoji = CLASS_EMOJI[hero.class.slug] ?? '⚔️'
+
+  const glowClass = selected
+    ? 'glow-selected'
+    : hpPercent <= 25
+      ? 'glow-hp-danger'
+      : hpPercent <= 50
+        ? 'glow-hp-warning'
+        : ''
 
   return (
     <div
       onClick={onClick}
+      className={glowClass}
       style={{
         background: selected ? '#1e1b4b' : '#111827',
         border: `2px solid ${selected ? '#7c3aed' : '#374151'}`,
@@ -22,8 +55,14 @@ export function HeroCard({ hero, onClick, selected }: HeroCardProps) {
         transition: 'border-color 0.2s',
       }}
     >
+      {/* Avatar animé */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <h3 style={{ margin: 0, color: '#f9fafb', fontSize: 16 }}>{hero.name}</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className={animClass} style={{ fontSize: 28, display: 'inline-block' }}>
+            {classEmoji}
+          </span>
+          <h3 style={{ margin: 0, color: '#f9fafb', fontSize: 16 }}>{hero.name}</h3>
+        </div>
         <span style={{ background: '#374151', color: '#d1d5db', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>
           Niv. {hero.level}
         </span>
