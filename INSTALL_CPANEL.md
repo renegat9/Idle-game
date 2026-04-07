@@ -116,6 +116,8 @@ $app->run(Request::capture());
 Remplacer le contenu de `public_html/.htaccess` par :
 
 ```apache
+DirectoryIndex index.html index.php
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
