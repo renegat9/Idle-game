@@ -1,7 +1,8 @@
 #!/bin/bash
-# generate_images.sh — Génère les images loot via Imagen (Gemini)
+# generate_images.sh — Génère les images loot via Gemini
 # Usage :
 #   bash generate_images.sh                        # tous les slots, toutes les raretés
+#   bash generate_images.sh --list                 # voir l'état sans générer
 #   bash generate_images.sh --slot=arme            # un slot spécifique
 #   bash generate_images.sh --rarity=legendaire    # une rareté spécifique
 #   bash generate_images.sh --slot=arme --rarity=epique --force
