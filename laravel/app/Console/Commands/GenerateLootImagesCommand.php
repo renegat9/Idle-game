@@ -87,12 +87,14 @@ class GenerateLootImagesCommand extends Command
 
             $path = $gemini->generateLootImage($item->id, $item->slot, $item->rarity);
 
+            // Toujours sauvegarder le chemin (même placeholder) pour ne pas retenter sans --force
+            DB::table('item_templates')
+                ->where('id', $item->id)
+                ->update(['image_path' => $path]);
+
             if (str_starts_with($path, 'images/placeholders/')) {
                 $failed++;
             } else {
-                DB::table('item_templates')
-                    ->where('id', $item->id)
-                    ->update(['image_path' => $path]);
                 $done++;
             }
 
