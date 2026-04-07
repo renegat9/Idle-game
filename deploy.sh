@@ -21,23 +21,13 @@ info() { echo -e "${YELLOW}[INFO]${NC} $1"; }
 fail() { echo -e "${RED}[ERREUR]${NC} $1"; exit 1; }
 
 # ─── Node.js ──────────────────────────────────────────────────────────────────
-info "Recherche de Node.js..."
-NODE=""
-for candidate in \
-    "$(which node 2>/dev/null)" \
-    "/usr/local/bin/node" \
-    "$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | sort -V | tail -1)/bin/node"
-do
-    if [ -x "$candidate" ]; then
-        NODE="$candidate"
-        break
-    fi
-done
+NODE="/opt/cpanel/ea-nodejs22/bin/node"
+NPM="/opt/cpanel/ea-nodejs22/bin/npm"
 
-[ -z "$NODE" ] && fail "Node.js introuvable. Installe-le via cPanel → Setup Node.js App ou NVM."
+[ ! -x "$NODE" ] && fail "Node.js introuvable : $NODE"
+[ ! -x "$NPM"  ] && fail "npm introuvable : $NPM"
 
-NPM="$(dirname $NODE)/npm"
-ok "Node.js : $($NODE --version) ($NODE)"
+ok "Node.js : $($NODE --version)"
 ok "npm     : $($NPM --version)"
 
 # ─── Build frontend ───────────────────────────────────────────────────────────
