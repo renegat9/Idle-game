@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
 class GeminiService
 {
     private const TEXT_API_URL  = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-    private const IMAGE_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict';
+    private const IMAGE_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent';
 
     // Coût approximatif par appel (micro-centimes)
     private const COST_TEXT  = 10;
@@ -258,14 +258,13 @@ class GeminiService
     {
         $apiKey = config('services.gemini.api_key');
 
-        $response = Http::timeout(30)
+        $response = Http::timeout(60)
             ->post(self::IMAGE_API_URL . "?key={$apiKey}", [
-                'instances' => [
-                    ['prompt' => $prompt],
+                'contents' => [
+                    ['parts' => [['text' => $prompt]]],
                 ],
-                'parameters' => [
-                    'sampleCount' => 1,
-                    'aspectRatio' => '1:1',
+                'generationConfig' => [
+                    'responseModalities' => ['IMAGE', 'TEXT'],
                 ],
             ]);
 
@@ -273,13 +272,21 @@ class GeminiService
         $this->logGeneration($type, substr($prompt, 0, 200), null, self::COST_IMAGE, $success);
 
         if (!$success) {
-            Log::warning('Gemini Imagen API error', ['status' => $response->status(), 'body' => $response->body()]);
+            Log::warning('Gemini image API error', ['status' => $response->status(), 'body' => $response->body()]);
             return null;
         }
 
-        $b64 = data_get($response->json(), 'predictions.0.bytesBase64Encoded');
+        $parts = data_get($response->json(), 'candidates.0.content.parts', []);
+        $b64   = null;
+        foreach ($parts as $part) {
+            if (isset($part['inlineData']['data'])) {
+                $b64 = $part['inlineData']['data'];
+                break;
+            }
+        }
+
         if (empty($b64)) {
-            Log::warning('Gemini Imagen: réponse vide (bytesBase64Encoded absent)');
+            Log::warning('Gemini image: aucune inlineData dans la réponse', ['body' => $response->body()]);
             return null;
         }
 

@@ -1,6 +1,7 @@
 <?php
 /**
- * Script de test — génère une image de fond pour la page de login via Imagen.
+ * Script de test — génère une image de fond pour la page de login.
+ * Utilise gemini-2.0-flash-preview-image-generation via generateContent.
  *
  * Usage :
  *   php scripts/test_generate_login_image.php
@@ -14,10 +15,11 @@ require_once __DIR__ . '/../vendor/autoload.php';
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/..');
 $dotenv->load();
 
-// ─── Config ──────────────────────────────────────────────────────────────────
+// ─── Config ───────────────────────────────────────────────────────────────────
 
-$apiKey = $_ENV['GEMINI_API_KEY'] ?? '';
-$apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict';
+$apiKey     = $_ENV['GEMINI_API_KEY'] ?? '';
+$model      = 'gemini-2.0-flash-preview-image-generation';
+$apiUrl     = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
 $outputDir  = __DIR__ . '/../storage/app/public/ui';
 $outputFile = $outputDir . '/login_bg.png';
 $publicPath = 'storage/ui/login_bg.png';
@@ -29,24 +31,28 @@ $prompt = 'Dark fantasy dungeon entrance at night, torchlight flickering on ston
     . 'cinematic wide shot, dramatic lighting, painterly illustration style, '
     . 'no text, no characters, atmospheric, medieval fantasy RPG game background';
 
-// ─── Vérifications ───────────────────────────────────────────────────────────
+// ─── Vérifications ────────────────────────────────────────────────────────────
 
 if (empty($apiKey)) {
     echo "[ERREUR] GEMINI_API_KEY manquant dans .env\n";
     exit(1);
 }
 
-echo "[DEBUG] API URL  : {$apiUrl}\n";
+echo "[DEBUG] Modèle   : {$model}\n";
 echo "[DEBUG] API Key  : " . substr($apiKey, 0, 8) . "...\n";
 echo "[DEBUG] Output   : {$outputFile}\n";
 echo "[INFO]  Prompt   : {$prompt}\n";
-echo "[INFO]  Appel Imagen API...\n";
+echo "[INFO]  Appel API...\n";
 
 // ─── Appel API ────────────────────────────────────────────────────────────────
 
 $payload = json_encode([
-    'instances'  => [['prompt' => $prompt]],
-    'parameters' => ['sampleCount' => 1, 'aspectRatio' => '16:9'],
+    'contents' => [
+        ['parts' => [['text' => $prompt]]],
+    ],
+    'generationConfig' => [
+        'responseModalities' => ['IMAGE', 'TEXT'],
+    ],
 ]);
 
 $ch = curl_init("{$apiUrl}?key={$apiKey}");
@@ -76,21 +82,31 @@ if ($httpCode !== 200) {
     exit(1);
 }
 
-echo "[DEBUG] Réponse brute (500 premiers chars) : " . substr($raw, 0, 500) . "\n";
-
 // ─── Traitement de la réponse ─────────────────────────────────────────────────
 
-$data = json_decode($raw, true);
-echo "[DEBUG] Clés réponse : " . implode(', ', array_keys($data ?? [])) . "\n";
+$data  = json_decode($raw, true);
+$parts = $data['candidates'][0]['content']['parts'] ?? [];
+$b64   = null;
+$mime  = 'image/png';
 
-$b64 = $data['predictions'][0]['bytesBase64Encoded'] ?? null;
+foreach ($parts as $part) {
+    if (isset($part['inlineData']['data'])) {
+        $b64  = $part['inlineData']['data'];
+        $mime = $part['inlineData']['mimeType'] ?? 'image/png';
+        break;
+    }
+}
 
 if (empty($b64)) {
-    echo "[ERREUR] bytesBase64Encoded absent. Réponse complète :\n" . json_encode($data, JSON_PRETTY_PRINT) . "\n";
+    echo "[ERREUR] Aucune image dans la réponse. Contenu :\n" . json_encode($data, JSON_PRETTY_PRINT) . "\n";
     exit(1);
 }
 
-echo "[DEBUG] Taille base64 : " . strlen($b64) . " chars\n";
+$ext = str_contains($mime, 'jpeg') ? 'jpg' : 'png';
+$outputFile = $outputDir . "/login_bg.{$ext}";
+
+echo "[DEBUG] MIME     : {$mime}\n";
+echo "[DEBUG] Base64   : " . strlen($b64) . " chars\n";
 
 // ─── Sauvegarde ───────────────────────────────────────────────────────────────
 
@@ -101,5 +117,5 @@ if (!is_dir($outputDir)) {
 file_put_contents($outputFile, base64_decode($b64));
 
 echo "[OK] Image sauvegardée : {$outputFile}\n";
-echo "[OK] Chemin public     : {$publicPath}\n";
+echo "[OK] Chemin public     : storage/ui/login_bg.{$ext}\n";
 echo "[OK] Taille            : " . number_format(filesize($outputFile) / 1024, 1) . " Ko\n";
