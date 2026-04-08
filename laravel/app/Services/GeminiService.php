@@ -664,17 +664,27 @@ class GeminiService
                 imagesavealpha($out, true);
                 $transparent = imagecolorallocatealpha($out, 0, 0, 0, 127);
                 imagefill($out, 0, 0, $transparent);
-                imagealphablending($out, true);
 
-                // Seuil de détection du vert chroma (#00FF00 ± tolérance)
+                // Détection par ratio : le vert doit dominer nettement sur R et B.
+                // Plus robuste que les seuils absolus face aux artefacts JPEG.
                 for ($x = 0; $x < $w; $x++) {
                     for ($y = 0; $y < $h; $y++) {
                         $rgb = imagecolorsforindex($img, imagecolorat($img, $x, $y));
-                        if ($rgb['green'] > 200 && $rgb['red'] < 80 && $rgb['blue'] < 80) {
-                            imagesetpixel($out, $x, $y, $transparent);
+                        $r = $rgb['red'];
+                        $g = $rgb['green'];
+                        $b = $rgb['blue'];
+
+                        // Pixel considéré "vert chroma" si :
+                        //  - vert > 100 (lumineux)
+                        //  - vert > rouge * 1.4  ET  vert > bleu * 1.4  (dominant)
+                        //  - rouge < 160  ET  bleu < 160  (pas blanc/jaune)
+                        if ($g > 100 && $g > $r * 1.4 && $g > $b * 1.4 && $r < 160 && $b < 160) {
+                            // Antialiasing : proportionnel à combien le pixel est "vert"
+                            $greenness = min(127, (int)(($g - max($r, $b)) / 2));
+                            $alpha = $greenness + $rgb['alpha'];
+                            imagesetpixel($out, $x, $y, imagecolorallocatealpha($out, $r, $g, $b, min(127, $alpha)));
                         } else {
-                            $c = imagecolorallocatealpha($out, $rgb['red'], $rgb['green'], $rgb['blue'], $rgb['alpha']);
-                            imagesetpixel($out, $x, $y, $c);
+                            imagesetpixel($out, $x, $y, imagecolorallocatealpha($out, $r, $g, $b, $rgb['alpha']));
                         }
                     }
                 }
@@ -773,7 +783,8 @@ class GeminiService
         return "Fantasy RPG character portrait, {$raceName} {$classDesc}"
             . ($traitDesc ? ", {$traitDesc}" : '')
             . ", humorous medieval fantasy style, pixel art inspired, detailed, "
-            . "solid #00FF00 bright green background, no shadows on background, centered, square format.";
+            . "isolated on pure solid #00FF00 green background, no gradients, no shadows, no vignette on background, "
+            . "character centered, square format.";
     }
 
     private function buildZoneBackgroundPrompt(string $zoneSlug, string $element, string $description): string
