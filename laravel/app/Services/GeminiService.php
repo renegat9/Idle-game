@@ -376,13 +376,12 @@ class GeminiService
 
         $json       = $response->json();
         $prediction = data_get($json, 'predictions.0', []);
-        $b64Audio   = $prediction['audioContent'] ?? null;
+        $b64Audio   = $prediction['bytesBase64Encoded'] ?? $prediction['audioContent'] ?? null;
         unset($json, $response);
 
         if (empty($b64Audio)) {
-            throw new \RuntimeException(
-                'Vertex AI audioContent absent. Clés reçues : [' . implode(', ', array_keys($prediction)) . ']'
-            );
+            Log::warning('Vertex AI Lyria : audio absent', ['prediction_keys' => array_keys($prediction)]);
+            return null;
         }
 
         return $this->saveMusicBytes(base64_decode($b64Audio), $style, 'wav');
