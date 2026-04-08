@@ -385,16 +385,14 @@ class GeminiService
         Log::info('Vertex AI Lyria response OK', ['status' => $response->status()]);
 
         $json     = $response->json();
-        $b64Audio = data_get($json, 'predictions.0.audioContent');
-        unset($response);
+        // Vertex AI peut retourner la clé audioContent ou bytesBase64Encoded selon le modèle
+        $prediction = data_get($json, 'predictions.0', []);
+        $b64Audio   = $prediction['audioContent'] ?? $prediction['bytesBase64Encoded'] ?? null;
+        unset($json, $response);
 
         if (empty($b64Audio)) {
-            Log::warning('Vertex AI Lyria : audioContent vide ou structure inattendue', [
-                'keys_received' => array_keys($json ?? []),
-                'predictions'   => json_encode(array_map(
-                    fn($p) => array_keys($p ?? []),
-                    data_get($json, 'predictions', [])
-                )),
+            Log::warning('Vertex AI Lyria : audio introuvable dans la réponse', [
+                'prediction_keys' => array_keys($prediction),
             ]);
             return null;
         }

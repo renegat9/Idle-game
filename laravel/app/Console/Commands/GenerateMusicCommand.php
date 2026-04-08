@@ -150,12 +150,21 @@ class GenerateMusicCommand extends Command
             ]);
 
             $this->line("  <fg=gray>[debug] HTTP status : " . $response->status() . "</>");
-            $body = $response->json();
-            // Tronquer audioContent s'il existe (trop long)
-            if (isset($body['predictions'][0]['audioContent'])) {
-                $body['predictions'][0]['audioContent'] = substr($body['predictions'][0]['audioContent'], 0, 50) . '...[tronqué]';
+
+            $body       = $response->json();
+            $prediction = $body['predictions'][0] ?? [];
+
+            // Afficher les clés seulement (pas les valeurs — l'audio est énorme)
+            $keys = array_map(function ($key) use ($prediction) {
+                $len = is_string($prediction[$key]) ? strlen($prediction[$key]) . ' chars' : gettype($prediction[$key]);
+                return "{$key} ({$len})";
+            }, array_keys($prediction));
+
+            $this->line("  <fg=gray>[debug] Clés prediction[0] : " . implode(', ', $keys) . "</>");
+
+            if (empty($prediction)) {
+                $this->line("  <fg=gray>[debug] Réponse complète (clés) : " . implode(', ', array_keys($body ?? [])) . "</>");
             }
-            $this->line("  <fg=gray>[debug] Réponse : " . json_encode($body, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "</>");
         } catch (\Throwable $e) {
             $this->error("  [debug] Exception HTTP : " . $e->getMessage());
         }
