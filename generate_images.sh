@@ -1,13 +1,14 @@
 #!/bin/bash
-# generate_images.sh — Génère toutes les images du jeu via Gemini
+# generate_images.sh — Génère toutes les images et musiques du jeu via Gemini / Lyria
 #
 # Usage :
-#   bash generate_images.sh                   # tout générer (loot + héros + zones + monstres)
+#   bash generate_images.sh                   # tout générer (loot + héros + zones + monstres + musique)
 #   bash generate_images.sh --loot            # items loot uniquement
 #   bash generate_images.sh --heroes          # portraits héros uniquement
 #   bash generate_images.sh --zones           # backgrounds zones uniquement
 #   bash generate_images.sh --monsters        # monstres base + élite uniquement
 #   bash generate_images.sh --monsters-elite  # élites uniquement (utilise image de base)
+#   bash generate_images.sh --music           # pistes musicales uniquement (Lyria 3)
 #   bash generate_images.sh --list            # voir l'état sans générer
 #   bash generate_images.sh --force           # régénérer tout
 #   bash generate_images.sh --delay=6         # délai personnalisé
@@ -26,7 +27,7 @@ SLOTS="arme armure casque bottes accessoire truc_bizarre"
 [ ! -f "$ARTISAN" ] && echo -e "${RED}[ERREUR]${NC} artisan introuvable : $ARTISAN" && exit 1
 
 # ── Parse options ─────────────────────────────────────────────────────────────
-DO_LOOT=false DO_HEROES=false DO_ZONES=false DO_MONSTERS=false DO_ELITE_ONLY=false
+DO_LOOT=false DO_HEROES=false DO_ZONES=false DO_MONSTERS=false DO_ELITE_ONLY=false DO_MUSIC=false
 LIST=false FORCE="" DELAY=""
 
 for arg in "$@"; do
@@ -36,6 +37,7 @@ for arg in "$@"; do
         --zones)          DO_ZONES=true ;;
         --monsters)       DO_MONSTERS=true ;;
         --monsters-elite) DO_MONSTERS=true; DO_ELITE_ONLY=true ;;
+        --music)          DO_MUSIC=true ;;
         --list)           LIST=true ;;
         --force)          FORCE="--force" ;;
         --delay=*)        DELAY="$arg" ;;
@@ -43,8 +45,8 @@ for arg in "$@"; do
 done
 
 # Si aucune cible spécifiée → tout faire
-if ! $DO_LOOT && ! $DO_HEROES && ! $DO_ZONES && ! $DO_MONSTERS; then
-    DO_LOOT=true; DO_HEROES=true; DO_ZONES=true; DO_MONSTERS=true
+if ! $DO_LOOT && ! $DO_HEROES && ! $DO_ZONES && ! $DO_MONSTERS && ! $DO_MUSIC; then
+    DO_LOOT=true; DO_HEROES=true; DO_ZONES=true; DO_MONSTERS=true; DO_MUSIC=true
 fi
 
 LIST_FLAG=$($LIST && echo "--list" || echo "")
@@ -76,6 +78,12 @@ if $DO_MONSTERS; then
     echo -e "\n${YELLOW}══ IMAGES MONSTRES ══${NC}"
     ELITE_FLAG=$($DO_ELITE_ONLY && echo "--elite" || echo "")
     $PHP "$ARTISAN" images:monsters $ELITE_FLAG $FORCE $DELAY $LIST_FLAG || true
+fi
+
+# ── Musique ───────────────────────────────────────────────────────────────────
+if $DO_MUSIC; then
+    echo -e "\n${YELLOW}══ PISTES MUSICALES (Lyria 3) ══${NC}"
+    $PHP "$ARTISAN" images:music $FORCE $DELAY $LIST_FLAG || true
 fi
 
 echo -e "\n${GREEN}[OK]${NC} Génération terminée."

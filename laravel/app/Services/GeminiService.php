@@ -19,6 +19,7 @@ class GeminiService
 {
     private const TEXT_API_URL  = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
     private const IMAGE_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
+    private const MUSIC_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent';
 
     // Coût approximatif par appel (micro-centimes)
     private const COST_TEXT  = 10;
@@ -311,17 +312,87 @@ class GeminiService
     }
 
     /**
-     * Generate a music prompt for the tavern ambiance.
-     * Returns a music style label + prompt for MusicFX (or placeholder if unavailable).
+     * Génère une piste musicale via Lyria 3 (Gemini API) pour le style donné.
+     * Sauvegarde en storage/music/generated/ et retourne le chemin.
      * @return array{style: string, prompt: string, file_path: string}
      */
     public function generateTavernMusic(string $style): array
     {
-        // Music generation uses MusicFX which isn't publicly available via standard API
-        // Always use fallback music from the static library
-        $this->logGeneration('music', "style={$style}", null, null, false);
+        if (!$this->canCall('music')) {
+            return $this->fallbackTavernMusic($style);
+        }
+
+        $prompt = $this->buildMusicPrompt($style);
+
+        try {
+            $apiKey = config('services.gemini.api_key');
+
+            $response = Http::timeout(90)
+                ->post(self::MUSIC_API_URL . "?key={$apiKey}", [
+                    'contents' => [
+                        ['parts' => [['text' => $prompt]]],
+                    ],
+                    'generationConfig' => [
+                        'responseModalities' => ['AUDIO'],
+                        'responseMimeType'   => 'audio/mp3',
+                    ],
+                ]);
+
+            $success = $response->successful();
+            $this->logGeneration('music', substr($prompt, 0, 200), null, self::COST_MUSIC, $success);
+
+            if (!$success) {
+                Log::warning('Lyria music API error', ['status' => $response->status(), 'body' => substr($response->body(), 0, 500)]);
+                return $this->fallbackTavernMusic($style);
+            }
+
+            // Extraire l'audio base64 de la réponse
+            $b64Audio = null;
+            foreach (data_get($response->json(), 'candidates.0.content.parts', []) as $part) {
+                if (isset($part['inlineData']['data'])) {
+                    $b64Audio = $part['inlineData']['data'];
+                    break;
+                }
+            }
+            unset($response);
+
+            if ($b64Audio === null) {
+                return $this->fallbackTavernMusic($style);
+            }
+
+            $dir = storage_path('app/public/music/generated');
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+
+            $filename = "music_{$style}_" . time() . '.mp3';
+            file_put_contents("{$dir}/{$filename}", base64_decode($b64Audio));
+            unset($b64Audio);
+
+            return [
+                'style'     => $style,
+                'prompt'    => $prompt,
+                'file_path' => "storage/music/generated/{$filename}",
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateTavernMusic failed', ['error' => $e->getMessage()]);
+        }
 
         return $this->fallbackTavernMusic($style);
+    }
+
+    private function buildMusicPrompt(string $style): string
+    {
+        $prompts = [
+            'victoire_epique' => 'Epic victorious orchestral fanfare, heroic brass section, triumphant drums, soaring strings, 30 seconds, fantasy RPG style, grand and uplifting',
+            'defaite'         => 'Somber melancholic medieval lute melody, slow and mournful, minor key, quiet sadness, 30 seconds, fantasy game defeat music',
+            'exploration'     => 'Adventurous lighthearted fantasy exploration music, flute and strings, moderate tempo, curious and whimsical, dungeon RPG atmosphere, 30 seconds',
+            'taverne'         => 'Lively medieval tavern music, upbeat folk fiddle and acoustic guitar, cheerful and energetic, slightly comedic, fantasy RPG inn ambiance, 30 seconds',
+            'boss'            => 'Intense dark fantasy boss battle music, heavy drums, dramatic choir, ominous brass, fast paced and threatening, 30 seconds',
+            'repos'           => 'Peaceful calm fantasy camp music, soft acoustic guitar, gentle ambient sounds, relaxing and cozy, RPG rest theme, 30 seconds',
+        ];
+
+        return $prompts[$style] ?? 'Medieval fantasy RPG background music, atmospheric and adventurous, 30 seconds';
     }
 
     // ─── Budget check ────────────────────────────────────────────────────────
