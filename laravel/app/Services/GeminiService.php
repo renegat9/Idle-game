@@ -416,11 +416,18 @@ class GeminiService
      */
     private function callImageApiWithReference(string $referenceImagePath, string $prompt, string $type, string $filename): ?string
     {
-        $apiKey = config('services.gemini.api_key');
+        // Monter la limite mémoire tôt : on va encoder l'image de référence + décoder la réponse + GD
+        $prevMemLimit = ini_get('memory_limit');
+        ini_set('memory_limit', '512M');
 
+        $apiKey  = config('services.gemini.api_key');
         $absPath = storage_path('app/public/' . str_replace('storage/', '', $referenceImagePath));
-        $b64Ref  = base64_encode(file_get_contents($absPath));
         $mime    = str_ends_with($absPath, '.png') ? 'image/png' : 'image/jpeg';
+
+        // Encoder la référence et libérer les bytes bruts immédiatement
+        $refRaw = file_get_contents($absPath);
+        $b64Ref = base64_encode($refRaw);
+        unset($refRaw);
 
         $response = Http::timeout(60)
             ->post(self::IMAGE_API_URL . "?key={$apiKey}", [
@@ -437,22 +444,39 @@ class GeminiService
                 ],
             ]);
 
+        unset($b64Ref); // Libérer le base64 de référence après envoi
+
         $success = $response->successful();
         $this->logGeneration($type, substr($prompt, 0, 200), null, self::COST_IMAGE, $success);
 
         if (!$success) {
             Log::warning('Gemini image ref API error', ['status' => $response->status(), 'body' => $response->body()]);
+            ini_set('memory_limit', $prevMemLimit);
             return null;
         }
 
-        $parts = data_get($response->json(), 'candidates.0.content.parts', []);
-        foreach ($parts as $part) {
+        // Extraire le base64 de l'image retournée, puis libérer la réponse complète
+        $b64Image = null;
+        foreach (data_get($response->json(), 'candidates.0.content.parts', []) as $part) {
             if (isset($part['inlineData']['data'])) {
-                return $this->saveImageData(base64_decode($part['inlineData']['data']), $filename, true);
+                $b64Image = $part['inlineData']['data'];
+                break;
             }
         }
+        unset($response);
 
-        return null;
+        if ($b64Image === null) {
+            ini_set('memory_limit', $prevMemLimit);
+            return null;
+        }
+
+        $bytes = base64_decode($b64Image);
+        unset($b64Image);
+
+        // saveImageData va faire le traitement GD (memory_limit déjà à 512M)
+        $result = $this->saveImageData($bytes, $filename, true);
+        ini_set('memory_limit', $prevMemLimit);
+        return $result;
     }
 
     /**
