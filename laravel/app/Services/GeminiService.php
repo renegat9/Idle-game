@@ -476,7 +476,13 @@ class GeminiService
         $fullPath = "{$dir}/{$filename}";
 
         if ($removeGreenBg && function_exists('imagecreatefromstring')) {
+            // Augmenter la limite mémoire temporairement pour GD (images HD)
+            $prevMemLimit = ini_get('memory_limit');
+            ini_set('memory_limit', '512M');
+
             $img = imagecreatefromstring($bytes);
+            unset($bytes); // Libérer les bytes bruts immédiatement
+
             if ($img !== false) {
                 $w = imagesx($img);
                 $h = imagesy($img);
@@ -504,8 +510,11 @@ class GeminiService
                 imagepng($out, $pngFile);
                 imagedestroy($img);
                 imagedestroy($out);
+                ini_set('memory_limit', $prevMemLimit);
                 return "storage/{$subdir}/" . basename($pngFile);
             }
+
+            ini_set('memory_limit', $prevMemLimit);
         }
 
         file_put_contents($fullPath, $bytes);
