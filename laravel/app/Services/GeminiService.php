@@ -17,9 +17,10 @@ use Illuminate\Support\Facades\Log;
  */
 class GeminiService
 {
-    private const TEXT_API_URL  = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-    private const IMAGE_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
-    private const MUSIC_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent';
+    private const TEXT_API_URL       = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    private const IMAGE_API_URL      = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
+    private const MUSIC_GEMINI_URL   = 'https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent';
+    private const MUSIC_VERTEX_URL   = 'https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/lyria-002:predict';
 
     // Coût approximatif par appel (micro-centimes)
     private const COST_TEXT  = 10;
@@ -312,8 +313,8 @@ class GeminiService
     }
 
     /**
-     * Génère une piste musicale via Lyria 3 (Gemini API) pour le style donné.
-     * Sauvegarde en storage/music/generated/ et retourne le chemin.
+     * Génère une piste musicale pour le style donné.
+     * Priorité : Vertex AI Lyria 2 (si VERTEX_AI_API_KEY configuré) → Lyria 3 Gemini API → fallback statique.
      * @return array{style: string, prompt: string, file_path: string}
      */
     public function generateTavernMusic(string $style): array
@@ -325,60 +326,112 @@ class GeminiService
         $prompt = $this->buildMusicPrompt($style);
 
         try {
-            $apiKey = config('services.gemini.api_key');
+            $path = config('services.vertex_ai.api_key')
+                ? $this->callMusicVertexAI($prompt, $style)
+                : $this->callMusicGemini($prompt, $style);
 
-            $response = Http::timeout(90)
-                ->post(self::MUSIC_API_URL . "?key={$apiKey}", [
-                    'contents' => [
-                        ['parts' => [['text' => $prompt]]],
-                    ],
-                    'generationConfig' => [
-                        'responseModalities' => ['AUDIO'],
-                        'responseMimeType'   => 'audio/mp3',
-                    ],
-                ]);
-
-            $success = $response->successful();
-            $this->logGeneration('music', substr($prompt, 0, 200), null, self::COST_MUSIC, $success);
-
-            if (!$success) {
-                Log::warning('Lyria music API error', ['status' => $response->status(), 'body' => substr($response->body(), 0, 500)]);
-                return $this->fallbackTavernMusic($style);
+            if ($path !== null) {
+                return ['style' => $style, 'prompt' => $prompt, 'file_path' => $path];
             }
-
-            // Extraire l'audio base64 de la réponse
-            $b64Audio = null;
-            foreach (data_get($response->json(), 'candidates.0.content.parts', []) as $part) {
-                if (isset($part['inlineData']['data'])) {
-                    $b64Audio = $part['inlineData']['data'];
-                    break;
-                }
-            }
-            unset($response);
-
-            if ($b64Audio === null) {
-                return $this->fallbackTavernMusic($style);
-            }
-
-            $dir = storage_path('app/public/music/generated');
-            if (!is_dir($dir)) {
-                mkdir($dir, 0755, true);
-            }
-
-            $filename = "music_{$style}_" . time() . '.mp3';
-            file_put_contents("{$dir}/{$filename}", base64_decode($b64Audio));
-            unset($b64Audio);
-
-            return [
-                'style'     => $style,
-                'prompt'    => $prompt,
-                'file_path' => "storage/music/generated/{$filename}",
-            ];
         } catch (\Throwable $e) {
             Log::warning('GeminiService::generateTavernMusic failed', ['error' => $e->getMessage()]);
         }
 
         return $this->fallbackTavernMusic($style);
+    }
+
+    /**
+     * Lyria 2 via Vertex AI (clé API + project_id requis).
+     * Retourne le chemin relatif storage/ ou null en cas d'échec.
+     */
+    private function callMusicVertexAI(string $prompt, string $style): ?string
+    {
+        $apiKey    = config('services.vertex_ai.api_key');
+        $projectId = config('services.vertex_ai.project_id');
+        $location  = config('services.vertex_ai.location', 'us-central1');
+
+        if (!$projectId) {
+            Log::warning('Vertex AI : VERTEX_AI_PROJECT_ID manquant');
+            return null;
+        }
+
+        $url = sprintf(self::MUSIC_VERTEX_URL, $location, $projectId, $location)
+             . "?key={$apiKey}";
+
+        $response = Http::timeout(90)
+            ->post($url, [
+                'instances'  => [['prompt' => $prompt]],
+                'parameters' => ['sample_count' => 1],
+            ]);
+
+        $success = $response->successful();
+        $this->logGeneration('music', substr($prompt, 0, 200), null, self::COST_MUSIC, $success);
+
+        if (!$success) {
+            Log::warning('Vertex AI Lyria error', ['status' => $response->status(), 'body' => substr($response->body(), 0, 500)]);
+            return null;
+        }
+
+        $b64Audio = data_get($response->json(), 'predictions.0.audioContent');
+        unset($response);
+
+        if (empty($b64Audio)) {
+            return null;
+        }
+
+        return $this->saveMusicBytes(base64_decode($b64Audio), $style, 'wav');
+    }
+
+    /**
+     * Lyria 3 via Gemini API (même clé que le reste).
+     * Retourne le chemin relatif storage/ ou null en cas d'échec.
+     */
+    private function callMusicGemini(string $prompt, string $style): ?string
+    {
+        $apiKey = config('services.gemini.api_key');
+
+        $response = Http::timeout(90)
+            ->post(self::MUSIC_GEMINI_URL . "?key={$apiKey}", [
+                'contents'        => [['parts' => [['text' => $prompt]]]],
+                'generationConfig' => [
+                    'responseModalities' => ['AUDIO'],
+                    'responseMimeType'   => 'audio/mp3',
+                ],
+            ]);
+
+        $success = $response->successful();
+        $this->logGeneration('music', substr($prompt, 0, 200), null, self::COST_MUSIC, $success);
+
+        if (!$success) {
+            Log::warning('Lyria 3 Gemini error', ['status' => $response->status(), 'body' => substr($response->body(), 0, 500)]);
+            return null;
+        }
+
+        $b64Audio = null;
+        foreach (data_get($response->json(), 'candidates.0.content.parts', []) as $part) {
+            if (isset($part['inlineData']['data'])) {
+                $b64Audio = $part['inlineData']['data'];
+                break;
+            }
+        }
+        unset($response);
+
+        if ($b64Audio === null) {
+            return null;
+        }
+
+        return $this->saveMusicBytes(base64_decode($b64Audio), $style, 'mp3');
+    }
+
+    private function saveMusicBytes(string $bytes, string $style, string $ext): string
+    {
+        $dir = storage_path('app/public/music/generated');
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
+        }
+        $filename = "music_{$style}_" . time() . ".{$ext}";
+        file_put_contents("{$dir}/{$filename}", $bytes);
+        return "storage/music/generated/{$filename}";
     }
 
     private function buildMusicPrompt(string $style): string
