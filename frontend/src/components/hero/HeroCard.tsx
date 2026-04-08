@@ -55,12 +55,21 @@ export function HeroCard({ hero, onClick, selected }: HeroCardProps) {
         transition: 'border-color 0.2s',
       }}
     >
-      {/* Avatar animé */}
+      {/* Avatar animé — image Gemini si disponible, sinon emoji */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className={animClass} style={{ fontSize: 28, display: 'inline-block' }}>
-            {classEmoji}
-          </span>
+          {hero.image_path ? (
+            <img
+              src={`/${hero.image_path}`}
+              alt={hero.name}
+              className={animClass}
+              style={{ width: 40, height: 40, objectFit: 'contain', imageRendering: 'auto' }}
+            />
+          ) : (
+            <span className={animClass} style={{ fontSize: 28, display: 'inline-block' }}>
+              {classEmoji}
+            </span>
+          )}
           <h3 style={{ margin: 0, color: '#f9fafb', fontSize: 16 }}>{hero.name}</h3>
         </div>
         <span style={{ background: '#374151', color: '#d1d5db', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>

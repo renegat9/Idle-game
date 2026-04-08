@@ -6,6 +6,7 @@ type RoomPreview = {
   type: 'combat' | 'treasure' | 'trap' | 'rest' | 'boss'
   monster_name?: string
   monster_level?: number
+  monster_image_path?: string
   description?: string
 }
 
@@ -199,10 +200,19 @@ export function DungeonPage() {
                 }
               </h2>
               {room.monster_name && (
-                <p style={{ color: '#94a3b8', margin: '0 0 16px', fontSize: 14 }}>
-                  Ennemi : <strong style={{ color: '#f1f5f9' }}>{room.monster_name}</strong>
-                  {room.monster_level && <span> (Niv. {room.monster_level})</span>}
-                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                  {room.monster_image_path && (
+                    <img
+                      src={`/${room.monster_image_path}`}
+                      alt={room.monster_name}
+                      style={{ width: 56, height: 56, objectFit: 'contain', imageRendering: 'auto' }}
+                    />
+                  )}
+                  <p style={{ color: '#94a3b8', margin: 0, fontSize: 14 }}>
+                    Ennemi : <strong style={{ color: '#f1f5f9' }}>{room.monster_name}</strong>
+                    {room.monster_level && <span> (Niv. {room.monster_level})</span>}
+                  </p>
+                </div>
               )}
               {room.description && (
                 <p style={{ color: '#6b7280', margin: '0 0 16px', fontSize: 13, fontStyle: 'italic' }}>

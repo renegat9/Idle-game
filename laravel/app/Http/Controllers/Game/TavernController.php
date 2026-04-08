@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Game;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\GenerateHeroImage;
 use App\Models\Hero;
 use App\Models\HeroBuff;
 use App\Models\Race;
@@ -170,6 +171,8 @@ class TavernController extends Controller
                 'talent_points'    => 0,
                 'slot_index'       => $slotIndex,
                 'is_active'        => true,
+                // Réutiliser l'image déjà générée pour le recrutement
+                'image_path'       => $recruit->image_path,
             ]);
         });
 
@@ -256,7 +259,7 @@ class TavernController extends Controller
                 $legendaryBackstory = $legendary['backstory'];
             }
 
-            TavernRecruit::create([
+            $recruit = TavernRecruit::create([
                 'user_id'             => $userId,
                 'race_id'             => $race->id,
                 'class_id'            => $class->id,
@@ -269,6 +272,15 @@ class TavernController extends Controller
                 'legendary_epithet'   => $legendaryEpithet,
                 'legendary_backstory' => $legendaryBackstory,
             ]);
+
+            // Générer l'image du recrutement en async
+            GenerateHeroImage::dispatch(
+                $recruit->id,
+                $race->name,
+                $class->slug,
+                $trait->slug,
+                'tavern_recruits',
+            );
         }
     }
 
@@ -282,6 +294,7 @@ class TavernController extends Controller
             'is_legendary'        => (bool) $r->is_legendary,
             'legendary_epithet'   => $r->legendary_epithet,
             'legendary_backstory' => $r->legendary_backstory,
+            'image_path'          => $r->image_path,
             'race'                => ['id' => $r->race->id, 'name' => $r->race->name, 'slug' => $r->race->slug],
             'class'               => ['id' => $r->gameClass->id, 'name' => $r->gameClass->name, 'role' => $r->gameClass->role],
             'trait'               => ['id' => $r->trait_->id, 'name' => $r->trait_->name, 'description' => $r->trait_->description],

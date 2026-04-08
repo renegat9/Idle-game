@@ -73,6 +73,7 @@ export interface Hero {
   slot_index: number
   is_active: boolean
   deaths: number
+  image_path: string | null
   talent_points: number
   talent_points_available: number
   talent_reset_count: number
