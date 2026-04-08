@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\GeminiService;
 use App\Services\SettingsService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Http;
 
 class GenerateMusicCommand extends Command
 {
@@ -99,12 +100,19 @@ class GenerateMusicCommand extends Command
 
             $this->line("  🎵 Génération : <fg=cyan>{$style}</> ...");
 
-            $result = $gemini->generateTavernMusic($style);
+            try {
+                $result = $gemini->generateTavernMusic($style);
+            } catch (\Throwable $e) {
+                $this->error("  EXCEPTION : " . $e->getMessage());
+                $this->error("  " . $e->getFile() . ':' . $e->getLine());
+                continue;
+            }
 
             if (str_starts_with($result['file_path'], 'storage/music/generated/')) {
                 $this->line("  <fg=green>✓ {$style}</> → {$result['file_path']}");
             } else {
-                $this->line("  <fg=yellow>⚠ {$style}</> → fallback ({$result['file_path']}) — voir laravel.log");
+                $this->line("  <fg=yellow>⚠ fallback</> → {$result['file_path']}");
+                $this->callVertexDebug();
             }
 
             if ($i < count($styles) - 1) {
@@ -115,5 +123,41 @@ class GenerateMusicCommand extends Command
         $this->line('');
         $this->info('Terminé.');
         return 0;
+    }
+
+    /**
+     * Appel Vertex AI brut pour voir la réponse exacte dans le terminal.
+     */
+    private function callVertexDebug(): void
+    {
+        $apiKey    = config('services.vertex_ai.api_key');
+        $projectId = config('services.vertex_ai.project_id');
+        $location  = config('services.vertex_ai.location', 'us-central1');
+
+        if (empty($apiKey) || empty($projectId)) {
+            $this->warn('  [debug] Vertex AI non configuré, pas de debug disponible.');
+            return;
+        }
+
+        $url = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$projectId}/locations/{$location}/publishers/google/models/lyria-002:predict?key={$apiKey}";
+
+        $this->line("  <fg=gray>[debug] URL : {$url}</>");
+
+        try {
+            $response = Http::timeout(90)->post($url, [
+                'instances'  => [['prompt' => 'test tavern music']],
+                'parameters' => ['sample_count' => 1],
+            ]);
+
+            $this->line("  <fg=gray>[debug] HTTP status : " . $response->status() . "</>");
+            $body = $response->json();
+            // Tronquer audioContent s'il existe (trop long)
+            if (isset($body['predictions'][0]['audioContent'])) {
+                $body['predictions'][0]['audioContent'] = substr($body['predictions'][0]['audioContent'], 0, 50) . '...[tronqué]';
+            }
+            $this->line("  <fg=gray>[debug] Réponse : " . json_encode($body, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "</>");
+        } catch (\Throwable $e) {
+            $this->error("  [debug] Exception HTTP : " . $e->getMessage());
+        }
     }
 }
