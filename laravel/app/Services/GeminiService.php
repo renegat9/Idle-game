@@ -385,9 +385,7 @@ class GeminiService
         Log::info('Vertex AI Lyria response OK', ['status' => $response->status()]);
 
         $json     = $response->json();
-        // Vertex AI peut retourner la clé audioContent ou bytesBase64Encoded selon le modèle
-        $prediction = data_get($json, 'predictions.0', []);
-        $b64Audio   = $prediction['audioContent'] ?? $prediction['bytesBase64Encoded'] ?? null;
+        $b64Audio = data_get($json, 'predictions.0.audioContent');
         unset($json, $response);
 
         if (empty($b64Audio)) {

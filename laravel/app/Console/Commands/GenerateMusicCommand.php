@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Services\GeminiService;
 use App\Services\SettingsService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Http;
 
 class GenerateMusicCommand extends Command
 {
@@ -28,13 +27,12 @@ class GenerateMusicCommand extends Command
 
     public function handle(GeminiService $gemini, SettingsService $settings): int
     {
-        // ── Diagnostic de configuration ──────────────────────────────────────
-        $aiEnabled  = $settings->get('AI_ENABLED', 0);
-        $geminiKey  = config('services.gemini.api_key');
-        $vertexKey  = config('services.vertex_ai.api_key');
-        $projectId  = config('services.vertex_ai.project_id');
-        $location   = config('services.vertex_ai.location', 'us-central1');
-        $budget     = $settings->get('AI_DAILY_BUDGET_LIMIT', 1000);
+        $aiEnabled = $settings->get('AI_ENABLED', 0);
+        $geminiKey = config('services.gemini.api_key');
+        $vertexKey = config('services.vertex_ai.api_key');
+        $projectId = config('services.vertex_ai.project_id');
+        $location  = config('services.vertex_ai.location', 'us-central1');
+        $budget    = $settings->get('AI_DAILY_BUDGET_LIMIT', 1000);
 
         $this->line('');
         $this->line('<fg=cyan>── Configuration ──────────────────────────────</fg=cyan>');
@@ -57,7 +55,6 @@ class GenerateMusicCommand extends Command
             return 1;
         }
 
-        // ── Liste ou génération ───────────────────────────────────────────────
         $styles = self::STYLES;
 
         if ($this->option('style')) {
@@ -112,7 +109,7 @@ class GenerateMusicCommand extends Command
                 $this->line("  <fg=green>✓ {$style}</> → {$result['file_path']}");
             } else {
                 $this->line("  <fg=yellow>⚠ fallback</> → {$result['file_path']}");
-                $this->callVertexDebug();
+                $this->warn("  Voir laravel.log pour les détails de l'erreur.");
             }
 
             if ($i < count($styles) - 1) {
@@ -123,50 +120,5 @@ class GenerateMusicCommand extends Command
         $this->line('');
         $this->info('Terminé.');
         return 0;
-    }
-
-    /**
-     * Appel Vertex AI brut pour voir la réponse exacte dans le terminal.
-     */
-    private function callVertexDebug(): void
-    {
-        $apiKey    = config('services.vertex_ai.api_key');
-        $projectId = config('services.vertex_ai.project_id');
-        $location  = config('services.vertex_ai.location', 'us-central1');
-
-        if (empty($apiKey) || empty($projectId)) {
-            $this->warn('  [debug] Vertex AI non configuré, pas de debug disponible.');
-            return;
-        }
-
-        $url = "https://{$location}-aiplatform.googleapis.com/v1/projects/{$projectId}/locations/{$location}/publishers/google/models/lyria-002:predict?key={$apiKey}";
-
-        $this->line("  <fg=gray>[debug] URL : {$url}</>");
-
-        try {
-            $response = Http::timeout(90)->post($url, [
-                'instances'  => [['prompt' => 'test tavern music']],
-                'parameters' => ['sample_count' => 1],
-            ]);
-
-            $this->line("  <fg=gray>[debug] HTTP status : " . $response->status() . "</>");
-
-            $body       = $response->json();
-            $prediction = $body['predictions'][0] ?? [];
-
-            // Afficher les clés seulement (pas les valeurs — l'audio est énorme)
-            $keys = array_map(function ($key) use ($prediction) {
-                $len = is_string($prediction[$key]) ? strlen($prediction[$key]) . ' chars' : gettype($prediction[$key]);
-                return "{$key} ({$len})";
-            }, array_keys($prediction));
-
-            $this->line("  <fg=gray>[debug] Clés prediction[0] : " . implode(', ', $keys) . "</>");
-
-            if (empty($prediction)) {
-                $this->line("  <fg=gray>[debug] Réponse complète (clés) : " . implode(', ', array_keys($body ?? [])) . "</>");
-            }
-        } catch (\Throwable $e) {
-            $this->error("  [debug] Exception HTTP : " . $e->getMessage());
-        }
     }
 }
