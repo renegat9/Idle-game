@@ -476,23 +476,18 @@ class GeminiService
     public function canCall(string $type): bool
     {
         if (!$this->settings->get('AI_ENABLED', 0)) {
-            Log::debug("GeminiService::canCall({$type}) → false (AI_ENABLED=0)");
+            Log::warning("GeminiService::canCall({$type}) bloqué : AI_ENABLED=0 dans game_settings");
             return false;
         }
 
-        // Accepter soit la clé Gemini soit la clé Vertex AI selon le type d'appel
         $geminiKey = config('services.gemini.api_key');
         $vertexKey = config('services.vertex_ai.api_key');
-        $isMusicType = $type === 'music';
-
-        if ($isMusicType) {
-            $hasKey = !empty($vertexKey) || !empty($geminiKey);
-        } else {
-            $hasKey = !empty($geminiKey);
-        }
+        $hasKey    = ($type === 'music')
+            ? (!empty($vertexKey) || !empty($geminiKey))
+            : !empty($geminiKey);
 
         if (!$hasKey) {
-            Log::debug("GeminiService::canCall({$type}) → false (clé API manquante)");
+            Log::warning("GeminiService::canCall({$type}) bloqué : clé API manquante (GEMINI_API_KEY / VERTEX_AI_API_KEY)");
             return false;
         }
 
@@ -502,7 +497,7 @@ class GeminiService
             ->sum('cost_estimate');
 
         if ($todayUsage >= $dailyLimit) {
-            Log::debug("GeminiService::canCall({$type}) → false (budget {$todayUsage}/{$dailyLimit})");
+            Log::warning("GeminiService::canCall({$type}) bloqué : budget journalier dépassé ({$todayUsage}/{$dailyLimit})");
             return false;
         }
 
