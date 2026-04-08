@@ -38,9 +38,19 @@ class HeroController extends Controller
     public function store(Request $request): JsonResponse
     {
         $user = $request->user();
+        $heroCount = $user->heroes()->count();
+
+        // Ce endpoint est réservé à la création du premier héros (gratuite).
+        // Les héros suivants passent par la Taverne (POST /tavern/hire/:id).
+        if ($heroCount > 0) {
+            return response()->json([
+                'message' => 'Vous avez déjà un héros. Recrutez les suivants à la Taverne.',
+            ], 422);
+        }
+
         $maxSlots = $this->settings->get('HERO_MAX_SLOTS', 5);
 
-        if ($user->heroes()->count() >= $maxSlots) {
+        if ($heroCount >= $maxSlots) {
             return response()->json([
                 'message' => 'Équipe complète. Le Narrateur vous suggère de renvoyer quelqu\'un. Méchamment.',
             ], 422);
