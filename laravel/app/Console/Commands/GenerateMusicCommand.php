@@ -97,19 +97,12 @@ class GenerateMusicCommand extends Command
 
             $this->line("  🎵 Génération : <fg=cyan>{$style}</> ...");
 
-            try {
-                $result = $gemini->generateTavernMusic($style);
-            } catch (\Throwable $e) {
-                $this->error("  EXCEPTION : " . $e->getMessage());
-                $this->error("  " . $e->getFile() . ':' . $e->getLine());
-                continue;
-            }
+            $result = $gemini->generateTavernMusic($style);
 
             if (str_starts_with($result['file_path'], 'storage/music/generated/')) {
                 $this->line("  <fg=green>✓ {$style}</> → {$result['file_path']}");
             } else {
                 $this->line("  <fg=yellow>⚠ fallback</> → {$result['file_path']}");
-                $this->warn("  Voir laravel.log pour les détails de l'erreur.");
             }
 
             if ($i < count($styles) - 1) {

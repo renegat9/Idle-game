@@ -325,22 +325,14 @@ class GeminiService
 
         $prompt = $this->buildMusicPrompt($style);
 
-        try {
-            $useVertex = !empty(config('services.vertex_ai.api_key'));
-            Log::info("GeminiService::generateTavernMusic({$style}) via " . ($useVertex ? 'Vertex AI Lyria 2' : 'Gemini Lyria 3'));
+        $useVertex = !empty(config('services.vertex_ai.api_key'));
 
-            $path = $useVertex
-                ? $this->callMusicVertexAI($prompt, $style)
-                : $this->callMusicGemini($prompt, $style);
+        $path = $useVertex
+            ? $this->callMusicVertexAI($prompt, $style)
+            : $this->callMusicGemini($prompt, $style);
 
-            if ($path !== null) {
-                Log::info("GeminiService::generateTavernMusic({$style}) OK → {$path}");
-                return ['style' => $style, 'prompt' => $prompt, 'file_path' => $path];
-            }
-
-            Log::warning("GeminiService::generateTavernMusic({$style}) → null, fallback statique");
-        } catch (\Throwable $e) {
-            Log::warning('GeminiService::generateTavernMusic failed', ['style' => $style, 'error' => $e->getMessage()]);
+        if ($path !== null) {
+            return ['style' => $style, 'prompt' => $prompt, 'file_path' => $path];
         }
 
         return $this->fallbackTavernMusic($style);
@@ -382,15 +374,15 @@ class GeminiService
             return null;
         }
 
-        Log::info('Vertex AI Lyria response OK', ['status' => $response->status()]);
-
-        $json     = $response->json();
-        $b64Audio = data_get($json, 'predictions.0.audioContent');
+        $json       = $response->json();
+        $prediction = data_get($json, 'predictions.0', []);
+        $b64Audio   = $prediction['audioContent'] ?? null;
         unset($json, $response);
 
         if (empty($b64Audio)) {
-            Log::warning('Vertex AI Lyria : audio introuvable dans la réponse', [
+            Log::warning('Vertex AI Lyria : audioContent absent', [
                 'prediction_keys' => array_keys($prediction),
+                'http_status'     => $response->status() ?? '?',
             ]);
             return null;
         }
@@ -442,11 +434,19 @@ class GeminiService
     private function saveMusicBytes(string $bytes, string $style, string $ext): string
     {
         $dir = storage_path('app/public/music/generated');
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
+
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new \RuntimeException("Impossible de créer le dossier : {$dir}");
         }
+
         $filename = "music_{$style}_" . time() . ".{$ext}";
-        file_put_contents("{$dir}/{$filename}", $bytes);
+        $fullPath = "{$dir}/{$filename}";
+
+        $written = file_put_contents($fullPath, $bytes);
+        if ($written === false) {
+            throw new \RuntimeException("Impossible d'écrire le fichier : {$fullPath}");
+        }
+
         return "storage/music/generated/{$filename}";
     }
 
