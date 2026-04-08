@@ -382,7 +382,6 @@ class GeminiService
         if (empty($b64Audio)) {
             Log::warning('Vertex AI Lyria : audioContent absent', [
                 'prediction_keys' => array_keys($prediction),
-                'http_status'     => $response->status() ?? '?',
             ]);
             return null;
         }
