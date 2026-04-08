@@ -326,15 +326,21 @@ class GeminiService
         $prompt = $this->buildMusicPrompt($style);
 
         try {
-            $path = config('services.vertex_ai.api_key')
+            $useVertex = !empty(config('services.vertex_ai.api_key'));
+            Log::info("GeminiService::generateTavernMusic({$style}) via " . ($useVertex ? 'Vertex AI Lyria 2' : 'Gemini Lyria 3'));
+
+            $path = $useVertex
                 ? $this->callMusicVertexAI($prompt, $style)
                 : $this->callMusicGemini($prompt, $style);
 
             if ($path !== null) {
+                Log::info("GeminiService::generateTavernMusic({$style}) OK → {$path}");
                 return ['style' => $style, 'prompt' => $prompt, 'file_path' => $path];
             }
+
+            Log::warning("GeminiService::generateTavernMusic({$style}) → null, fallback statique");
         } catch (\Throwable $e) {
-            Log::warning('GeminiService::generateTavernMusic failed', ['error' => $e->getMessage()]);
+            Log::warning('GeminiService::generateTavernMusic failed', ['style' => $style, 'error' => $e->getMessage()]);
         }
 
         return $this->fallbackTavernMusic($style);
@@ -368,10 +374,15 @@ class GeminiService
         $this->logGeneration('music', substr($prompt, 0, 200), null, self::COST_MUSIC, $success);
 
         if (!$success) {
-            Log::warning('Vertex AI Lyria error', ['status' => $response->status(), 'body' => substr($response->body(), 0, 500)]);
+            Log::warning('Vertex AI Lyria error', [
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 1000),
+                'url'    => $url,
+            ]);
             return null;
         }
 
+        Log::info('Vertex AI Lyria response OK', ['status' => $response->status()]);
         $b64Audio = data_get($response->json(), 'predictions.0.audioContent');
         unset($response);
 
@@ -456,11 +467,23 @@ class GeminiService
     public function canCall(string $type): bool
     {
         if (!$this->settings->get('AI_ENABLED', 0)) {
+            Log::debug("GeminiService::canCall({$type}) → false (AI_ENABLED=0)");
             return false;
         }
 
-        $apiKey = config('services.gemini.api_key');
-        if (empty($apiKey)) {
+        // Accepter soit la clé Gemini soit la clé Vertex AI selon le type d'appel
+        $geminiKey = config('services.gemini.api_key');
+        $vertexKey = config('services.vertex_ai.api_key');
+        $isMusicType = $type === 'music';
+
+        if ($isMusicType) {
+            $hasKey = !empty($vertexKey) || !empty($geminiKey);
+        } else {
+            $hasKey = !empty($geminiKey);
+        }
+
+        if (!$hasKey) {
+            Log::debug("GeminiService::canCall({$type}) → false (clé API manquante)");
             return false;
         }
 
@@ -469,7 +492,12 @@ class GeminiService
             ->whereDate('created_at', today())
             ->sum('cost_estimate');
 
-        return $todayUsage < $dailyLimit;
+        if ($todayUsage >= $dailyLimit) {
+            Log::debug("GeminiService::canCall({$type}) → false (budget {$todayUsage}/{$dailyLimit})");
+            return false;
+        }
+
+        return true;
     }
 
     /**
