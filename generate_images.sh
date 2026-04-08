@@ -74,7 +74,7 @@ fi
 # ── Monstres ──────────────────────────────────────────────────────────────────
 if $DO_MONSTERS; then
     echo -e "\n${YELLOW}══ IMAGES MONSTRES ══${NC}"
-    ELITE_FLAG=$($DO_ELITE_ONLY && echo "--elite" || echo "--all")
+    ELITE_FLAG=$($DO_ELITE_ONLY && echo "--elite" || echo "")
     $PHP "$ARTISAN" images:monsters $ELITE_FLAG $FORCE $DELAY $LIST_FLAG || true
 fi
 

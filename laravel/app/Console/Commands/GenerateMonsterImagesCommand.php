@@ -62,8 +62,8 @@ class GenerateMonsterImagesCommand extends Command
                 break;
             }
 
-            $needsBase  = $all || (!$eliteOnly && ($force || empty($monster->image_path) || str_starts_with($monster->image_path ?? '', 'images/placeholders/')));
-            $needsElite = $all || $eliteOnly || ($force || empty($monster->elite_image_path) || str_starts_with($monster->elite_image_path ?? '', 'images/placeholders/'));
+            $needsBase  = !$eliteOnly && ($all || $force || empty($monster->image_path) || str_starts_with($monster->image_path ?? '', 'images/placeholders/'));
+            $needsElite = ($eliteOnly || $all || $force || empty($monster->elite_image_path) || str_starts_with($monster->elite_image_path ?? '', 'images/placeholders/'));
 
             // ── Image de base ─────────────────────────────────────────────────
             if ($needsBase) {
