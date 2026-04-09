@@ -1217,18 +1217,18 @@ class GeminiService
     private function fallbackTavernMusic(string $style): array
     {
         $tracks = [
-            'victoire_epique'  => 'music/fallback/victory.mp3',
-            'defaite'          => 'music/fallback/defeat.mp3',
-            'exploration'      => 'music/fallback/exploration.mp3',
-            'taverne'          => 'music/fallback/tavern.mp3',
-            'boss'             => 'music/fallback/boss.mp3',
-            'repos'            => 'music/fallback/rest.mp3',
+            'victoire_epique'  => 'music/fallback/victory.ogg',
+            'defaite'          => 'music/fallback/defeat.ogg',
+            'exploration'      => 'music/fallback/exploration.ogg',
+            'taverne'          => 'music/fallback/tavern.ogg',
+            'boss'             => 'music/fallback/boss.ogg',
+            'repos'            => 'music/fallback/rest.ogg',
         ];
 
         return [
             'style'     => $style,
             'prompt'    => "fallback:{$style}",
-            'file_path' => $tracks[$style] ?? 'music/fallback/tavern.mp3',
+            'file_path' => $tracks[$style] ?? 'music/fallback/tavern.ogg',
         ];
     }
 

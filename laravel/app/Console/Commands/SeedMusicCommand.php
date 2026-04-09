@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
  *
  * Inserts fallback entries in tavern_music for all 6 styles.
  * Run once after migrations. Each style gets one row pointing to
- * public/music/fallback/<style>.mp3 — place the actual MP3 files there.
+ * public/music/fallback/<style>.ogg — place the actual OGG files there.
  */
 class SeedMusicCommand extends Command
 {
@@ -18,12 +18,12 @@ class SeedMusicCommand extends Command
     protected $description = 'Seed tavern_music table with fallback track entries';
 
     private const TRACKS = [
-        'taverne'         => 'music/fallback/taverne.mp3',
-        'victoire_epique' => 'music/fallback/victoire_epique.mp3',
-        'defaite'         => 'music/fallback/defaite.mp3',
-        'exploration'     => 'music/fallback/exploration.mp3',
-        'boss'            => 'music/fallback/boss.mp3',
-        'repos'           => 'music/fallback/repos.mp3',
+        'taverne'         => 'music/fallback/taverne.ogg',
+        'victoire_epique' => 'music/fallback/victoire_epique.ogg',
+        'defaite'         => 'music/fallback/defaite.ogg',
+        'exploration'     => 'music/fallback/exploration.ogg',
+        'boss'            => 'music/fallback/boss.ogg',
+        'repos'           => 'music/fallback/repos.ogg',
     ];
 
     public function handle(): int
@@ -56,7 +56,7 @@ class SeedMusicCommand extends Command
         }
 
         $this->newLine();
-        $this->info('Pour que la musique fonctionne, placez les fichiers MP3 dans :');
+        $this->info('Pour que la musique fonctionne, placez les fichiers OGG dans :');
         $this->line('  ' . public_path('music/fallback/'));
 
         return 0;
