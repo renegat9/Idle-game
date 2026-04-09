@@ -17,6 +17,24 @@ const CLASS_ANIM: Record<string, string> = {
   ranger:        'anim-breathe',
 }
 
+const RARITY_COLOR: Record<string, string> = {
+  commun:      '#9ca3af',
+  peu_commun:  '#4ade80',
+  rare:        '#60a5fa',
+  epique:      '#a78bfa',
+  legendaire:  '#fbbf24',
+  wtf:         '#f472b6',
+}
+
+const SLOT_EMOJI: Record<string, string> = {
+  arme:         '⚔️',
+  armure:       '🛡️',
+  casque:       '⛑️',
+  bottes:       '👢',
+  accessoire:   '💍',
+  truc_bizarre: '🎲',
+}
+
 const CLASS_EMOJI: Record<string, string> = {
   guerrier:     '🗡️',
   barbare:      '🪓',
@@ -101,7 +119,8 @@ export function HeroCard({ hero, onClick, selected }: HeroCardProps) {
         </div>
       </div>
 
-      {/* Stats principales */}
+      {/* Stats principales (totales avec équipement) */}
+      <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 4 }}>Stats totales (avec équipement)</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4, fontSize: 12 }}>
         {[
           ['ATQ', stats.atq, '#ef4444'],
@@ -116,6 +135,37 @@ export function HeroCard({ hero, onClick, selected }: HeroCardProps) {
           </div>
         ))}
       </div>
+
+      {/* Équipement */}
+      {hero.equipped_items && hero.equipped_items.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 10, color: '#4b5563', marginBottom: 4 }}>Équipement</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {hero.equipped_items.map((item) => {
+              const bonuses = [
+                item.atq > 0 && `+${item.atq} ATQ`,
+                item.def > 0 && `+${item.def} DEF`,
+                item.hp  > 0 && `+${item.hp} PV`,
+                item.vit > 0 && `+${item.vit} VIT`,
+                item.cha > 0 && `+${item.cha} CHA`,
+                item.int > 0 && `+${item.int} INT`,
+              ].filter(Boolean).join(' ')
+
+              return (
+                <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1f2937', borderRadius: 4, padding: '3px 6px' }}>
+                  <span style={{ fontSize: 12 }}>{SLOT_EMOJI[item.slot] ?? '📦'}</span>
+                  <span style={{ color: RARITY_COLOR[item.rarity] ?? '#9ca3af', fontSize: 11, fontWeight: 'bold', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.name}
+                  </span>
+                  {bonuses && (
+                    <span style={{ color: '#6b7280', fontSize: 10, whiteSpace: 'nowrap' }}>{bonuses}</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* XP */}
       <div style={{ marginTop: 8 }}>
