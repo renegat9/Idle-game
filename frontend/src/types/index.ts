@@ -98,6 +98,7 @@ export interface Zone {
   boss_defeated: boolean
   total_victories: number
   is_current: boolean
+  background_image_path?: string | null
 }
 
 export interface Race {

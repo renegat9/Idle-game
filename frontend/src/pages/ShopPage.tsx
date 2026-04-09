@@ -19,6 +19,7 @@ type ShopItem = {
   sell_value: number
   shop_price: number
   expires_at: string
+  image_url?: string | null
 }
 
 const RARITY_LABEL: Record<string, string> = {
@@ -118,7 +119,7 @@ export function ShopPage() {
             >
               {/* Item header */}
               <div style={{ padding: '14px 16px 0', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <ItemImage slot={item.slot} rarity={item.rarity} size={64} />
+                <ItemImage slot={item.slot} rarity={item.rarity} imageUrl={item.image_url} size={64} name={item.name} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                     <h3 className="game-title" style={{ margin: 0, fontSize: 14, color: '#f9fafb', lineHeight: 1.3 }}>

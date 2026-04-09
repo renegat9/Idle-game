@@ -2,9 +2,9 @@ interface ZoneBackgroundProps {
   element: string
   isActive?: boolean
   isLocked?: boolean
+  imagePath?: string | null
 }
 
-// Large decorative emoji per element type
 export const ELEMENT_ICON: Record<string, string> = {
   physique: '⚔️',
   feu:      '🔥',
@@ -45,7 +45,7 @@ const ELEMENT_ACCENT: Record<string, string> = {
   ombre:    'rgba(167,139,250,0.08)',
 }
 
-export function ZoneBackground({ element, isActive, isLocked }: ZoneBackgroundProps) {
+export function ZoneBackground({ element, isActive, isLocked, imagePath }: ZoneBackgroundProps) {
   const gradient = ELEMENT_GRADIENT[element] ?? ELEMENT_GRADIENT.physique
   const accent   = ELEMENT_ACCENT[element] ?? 'transparent'
   const icon     = ELEMENT_ICON[element] ?? '⚔️'
@@ -54,34 +54,49 @@ export function ZoneBackground({ element, isActive, isLocked }: ZoneBackgroundPr
     <div style={{
       position: 'absolute',
       inset: 0,
-      background: gradient,
       overflow: 'hidden',
       opacity: isLocked ? 0.5 : 1,
     }}>
-      {/* Large decorative background icon */}
-      <div style={{
-        position: 'absolute',
-        right: -10,
-        top: -10,
-        fontSize: 80,
-        opacity: 0.06,
-        lineHeight: 1,
-        userSelect: 'none',
-        filter: 'blur(2px)',
-      }}>
-        {icon}
-      </div>
+      {imagePath ? (
+        /* Real Gemini-generated zone background */
+        <>
+          <img
+            src={`/${imagePath}`}
+            alt=""
+            style={{
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%',
+              objectFit: 'cover',
+              opacity: 0.35,
+            }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+          {/* Dark overlay to keep text readable */}
+          <div style={{ position: 'absolute', inset: 0, background: gradient, opacity: 0.65 }} />
+        </>
+      ) : (
+        /* CSS gradient fallback */
+        <div style={{ position: 'absolute', inset: 0, background: gradient }}>
+          <div style={{
+            position: 'absolute', right: -10, top: -10,
+            fontSize: 80, opacity: 0.06, lineHeight: 1,
+            userSelect: 'none', filter: 'blur(2px)',
+          }}>
+            {icon}
+          </div>
+        </div>
+      )}
+
       {/* Accent radial glow */}
       <div style={{
-        position: 'absolute',
-        inset: 0,
+        position: 'absolute', inset: 0,
         background: `radial-gradient(ellipse at 30% 50%, ${accent}, transparent 70%)`,
       }} />
+
       {/* Active pulse overlay */}
       {isActive && (
         <div style={{
-          position: 'absolute',
-          inset: 0,
+          position: 'absolute', inset: 0,
           background: 'rgba(34,197,94,0.04)',
           animation: 'explore-pulse 2s ease-in-out infinite',
         }} />

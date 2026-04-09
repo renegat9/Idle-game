@@ -82,7 +82,7 @@ export function MapPage() {
               style={{ minHeight: 200 }}
             >
               {/* Thematic background */}
-              <ZoneBackground element={zone.dominant_element} isActive={zone.is_current} isLocked={!zone.is_unlocked} />
+              <ZoneBackground element={zone.dominant_element} isActive={zone.is_current} isLocked={!zone.is_unlocked} imagePath={zone.background_image_path} />
 
               {/* Zone content */}
               <div className="zone-content" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

@@ -144,9 +144,10 @@ export function ItemImage({ slot, rarity, imageUrl, size = 64, name }: ItemImage
     >
       {imageUrl ? (
         <img
-          src={imageUrl}
+          src={imageUrl.startsWith('http') ? imageUrl : `/${imageUrl}`}
           alt={name ?? slot}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
         />
       ) : svgFn ? (
         <div style={{ width: size - 12, height: size - 12 }}>

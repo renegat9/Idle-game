@@ -98,6 +98,7 @@ class InventoryController extends Controller
             'sell_value' => $item->sell_value,
             'equipped_by_hero_id' => $item->equipped_by_hero_id,
             'is_ai_generated' => $item->is_ai_generated,
+            'image_url' => $item->image_url,
             'effects' => $item->effects->map(fn($e) => [
                 'key' => $e->effect_key,
                 'description' => $e->description,
