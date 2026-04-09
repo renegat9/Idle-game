@@ -428,7 +428,7 @@ class GeminiService
                 'contents'        => [['parts' => [['text' => $prompt]]]],
                 'generationConfig' => [
                     'responseModalities' => ['AUDIO'],
-                    'responseMimeType'   => 'audio/ogg',
+                    'responseMimeType'   => 'audio/mp3',
                 ],
             ]);
 
@@ -453,7 +453,7 @@ class GeminiService
             return null;
         }
 
-        return $this->saveMusicBytes(base64_decode($b64Audio), $style, 'ogg');
+        return $this->saveMusicBytes(base64_decode($b64Audio), $style, 'mp3');
     }
 
     private function saveMusicBytes(string $bytes, string $style, string $ext): string

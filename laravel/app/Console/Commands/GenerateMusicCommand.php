@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Services\GeminiService;
 use App\Services\SettingsService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class GenerateMusicCommand extends Command
 {
@@ -71,7 +72,8 @@ class GenerateMusicCommand extends Command
             $this->table(['Style', 'Fichier'], array_map(function ($s) use ($dir) {
                 $files = array_merge(
                     glob("{$dir}/music_{$s}_*.wav") ?: [],
-                    glob("{$dir}/music_{$s}_*.mp3") ?: []
+                    glob("{$dir}/music_{$s}_*.mp3") ?: [],
+                    glob("{$dir}/music_{$s}_*.ogg") ?: []
                 );
                 return [$s, $files ? basename(end($files)) . ' ✓' : '— (manquant)'];
             }, $styles));
@@ -87,7 +89,8 @@ class GenerateMusicCommand extends Command
         foreach ($styles as $i => $style) {
             $existing = array_merge(
                 glob("{$dir}/music_{$style}_*.wav") ?: [],
-                glob("{$dir}/music_{$style}_*.mp3") ?: []
+                glob("{$dir}/music_{$style}_*.mp3") ?: [],
+                glob("{$dir}/music_{$style}_*.ogg") ?: []
             );
 
             if (!empty($existing) && !$force) {
@@ -95,7 +98,10 @@ class GenerateMusicCommand extends Command
                 continue;
             }
 
-            $this->line("  🎵 Génération : <fg=cyan>{$style}</> ...");
+            // Clear tavern_music cache so generateTavernMusic() calls the AI
+            DB::table('tavern_music')->where('style', $style)->delete();
+
+            $this->line("  Génération : <fg=cyan>{$style}</> ...");
 
             $result = $gemini->generateTavernMusic($style);
 
