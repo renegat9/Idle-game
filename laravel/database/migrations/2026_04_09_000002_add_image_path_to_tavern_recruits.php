@@ -9,14 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tavern_recruits', function (Blueprint $table) {
-            $table->string('image_path')->nullable()->after('legendary_backstory');
+            if (!Schema::hasColumn('tavern_recruits', 'image_path')) {
+                $table->string('image_path')->nullable()->after('legendary_backstory');
+            }
         });
     }
 
     public function down(): void
     {
         Schema::table('tavern_recruits', function (Blueprint $table) {
-            $table->dropColumn('image_path');
+            if (Schema::hasColumn('tavern_recruits', 'image_path')) {
+                $table->dropColumn('image_path');
+            }
         });
     }
 };
