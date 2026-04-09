@@ -220,17 +220,42 @@ class GeminiService
     }
 
     /**
-     * Generate a music prompt for the tavern ambiance.
-     * Returns a music style label + prompt for MusicFX (or placeholder if unavailable).
+     * Return the music track for the given style.
+     * Checks the tavern_music table first (cached/generated tracks),
+     * then falls back to static placeholder paths and persists the entry.
      * @return array{style: string, prompt: string, file_path: string}
      */
     public function generateTavernMusic(string $style): array
     {
-        // Music generation uses MusicFX which isn't publicly available via standard API
-        // Always use fallback music from the static library
+        // Return cached track if it exists
+        $cached = DB::table('tavern_music')->where('style', $style)->latest('created_at')->first();
+        if ($cached) {
+            DB::table('tavern_music')->where('id', $cached->id)->increment('play_count');
+            return [
+                'style'     => $cached->style,
+                'prompt'    => $cached->prompt_used,
+                'file_path' => $cached->file_path,
+            ];
+        }
+
+        // No cached track — use static fallback and persist it so future calls hit the cache
+        $fallback = $this->fallbackTavernMusic($style);
+
+        try {
+            DB::table('tavern_music')->insert([
+                'style'       => $style,
+                'prompt_used' => $fallback['prompt'],
+                'file_path'   => $fallback['file_path'],
+                'play_count'  => 1,
+                'created_at'  => now(),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService: failed to persist tavern music', ['error' => $e->getMessage()]);
+        }
+
         $this->logGeneration('music', "style={$style}", null, null, false);
 
-        return $this->fallbackTavernMusic($style);
+        return $fallback;
     }
 
     // ─── Budget check ────────────────────────────────────────────────────────

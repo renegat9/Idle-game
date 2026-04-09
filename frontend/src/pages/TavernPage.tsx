@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { tavernApi, musicApi } from '../api/game'
 import { useGameStore } from '../store/gameStore'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
@@ -43,12 +43,14 @@ export function TavernPage() {
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
-  const [currentTrack, setCurrentTrack] = useState<{ style: string; context: string } | null>(null)
+  const [currentTrack, setCurrentTrack] = useState<{ style: string; context: string; file_path: string } | null>(null)
   const [selectedStyle, setSelectedStyle] = useState<string>('taverne')
+  const [playing, setPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement>(null)
 
   useEffect(() => {
     loadTavern()
-    musicApi.current().then(({ data }) => setCurrentTrack(data)).catch(() => {})
+    musicApi.current().then(({ data }) => setCurrentTrack({ style: data.style, context: data.context, file_path: data.file_path })).catch(() => {})
   }, [])
 
   async function loadTavern() {
@@ -103,17 +105,10 @@ export function TavernPage() {
 
       {/* Music player */}
       <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 20 }}>🎵</span>
-            <div>
-              <div style={{ color: '#f1f5f9', fontSize: 14, fontWeight: 'bold' }}>Ambiance musicale</div>
-              {currentTrack && (
-                <div style={{ color: '#94a3b8', fontSize: 12 }}>
-                  Contexte : {STYLE_LABELS[currentTrack.context] ?? currentTrack.context}
-                </div>
-              )}
-            </div>
+            <div style={{ color: '#f1f5f9', fontSize: 14, fontWeight: 'bold' }}>Ambiance musicale</div>
           </div>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {Object.keys(STYLE_LABELS).map(style => (
@@ -122,7 +117,13 @@ export function TavernPage() {
                 onClick={async () => {
                   setSelectedStyle(style)
                   const { data } = await tavernApi.music(style)
-                  setCurrentTrack({ style: data.style, context: style })
+                  const track = { style: data.style, context: style, file_path: data.file_path }
+                  setCurrentTrack(track)
+                  if (audioRef.current) {
+                    audioRef.current.src = `/${data.file_path}`
+                    audioRef.current.load()
+                    audioRef.current.play().then(() => setPlaying(true)).catch(() => {})
+                  }
                 }}
                 style={{ background: selectedStyle === style ? '#4c1d95' : '#0f172a', color: selectedStyle === style ? '#c4b5fd' : '#6b7280', border: '1px solid #334155', padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}
               >
@@ -131,15 +132,41 @@ export function TavernPage() {
             ))}
           </div>
         </div>
-        <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 24 }}>▶</span>
-          <div>
+
+        {/* Controls */}
+        <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={() => {
+              if (!audioRef.current) return
+              if (playing) {
+                audioRef.current.pause()
+                setPlaying(false)
+              } else {
+                if (!audioRef.current.src && currentTrack) {
+                  audioRef.current.src = `/${currentTrack.file_path}`
+                  audioRef.current.load()
+                }
+                audioRef.current.play().then(() => setPlaying(true)).catch(() => {})
+              }
+            }}
+            style={{ background: '#4c1d95', color: 'white', border: 'none', borderRadius: 6, width: 36, height: 36, fontSize: 16, cursor: 'pointer', flexShrink: 0 }}
+          >
+            {playing ? '⏸' : '▶'}
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ color: '#c4b5fd', fontSize: 13 }}>{STYLE_LABELS[selectedStyle]}</div>
-            <div style={{ color: '#475569', fontSize: 11 }}>
-              Piste : music/fallback/{selectedStyle}.mp3
-              <span style={{ marginLeft: 8, color: '#6b7280', fontStyle: 'italic' }}>— MusicFX non disponible publiquement, fallback statique activé</span>
+            <div style={{ color: '#475569', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {currentTrack ? currentTrack.file_path : `music/fallback/${selectedStyle}.mp3`}
             </div>
           </div>
+          <audio
+            ref={audioRef}
+            loop
+            onEnded={() => setPlaying(false)}
+            onPause={() => setPlaying(false)}
+            onPlay={() => setPlaying(true)}
+            style={{ display: 'none' }}
+          />
         </div>
       </div>
 
