@@ -379,7 +379,7 @@ class QuestService
 
         $lootItem = null;
         if ($quest->reward_loot_rarity) {
-            $lootItem = $this->loot->rollLoot($user, 1, $quest->reward_loot_rarity);
+            $lootItem = $this->loot->rollQuestLoot($user, $quest->reward_loot_rarity);
         }
 
         return [

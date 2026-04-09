@@ -17,8 +17,10 @@ use Illuminate\Support\Facades\Log;
  */
 class GeminiService
 {
-    private const TEXT_API_URL  = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
-    private const IMAGE_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict';
+    private const TEXT_API_URL       = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    private const IMAGE_API_URL      = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent';
+    private const MUSIC_GEMINI_URL   = 'https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent';
+    private const MUSIC_VERTEX_URL   = 'https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/lyria-002:predict';
 
     // Coût approximatif par appel (micro-centimes)
     private const COST_TEXT  = 10;
@@ -141,6 +143,120 @@ class GeminiService
     }
 
     /**
+     * Generate a unique portrait for a hero based on race, class and trait.
+     * Returns the public path to the saved image (with transparent background).
+     */
+    public function generateHeroImage(int $heroId, string $raceName, string $classSlug, ?string $traitSlug): string
+    {
+        if (!$this->canCall('hero_image')) {
+            return $this->fallbackHeroImage($classSlug);
+        }
+
+        $prompt = $this->buildHeroImagePrompt($raceName, $classSlug, $traitSlug);
+
+        try {
+            $filename = "hero_{$heroId}_" . time() . '.png';
+            $path = $this->callImageApi($prompt, 'hero_image', $filename);
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateHeroImage failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackHeroImage($classSlug);
+    }
+
+    /**
+     * Generate a zone background illustration.
+     */
+    public function generateZoneBackground(int $zoneId, string $zoneSlug, string $element, string $description): string
+    {
+        if (!$this->canCall('zone_bg')) {
+            return $this->fallbackZoneBackground($element);
+        }
+
+        $prompt = $this->buildZoneBackgroundPrompt($zoneSlug, $element, $description);
+
+        try {
+            $filename = "zone_{$zoneSlug}_" . time() . '.jpg';
+            $path = $this->callImageApi($prompt, 'zone_bg', $filename, false);
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateZoneBackground failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackZoneBackground($element);
+    }
+
+    /**
+     * Generate an elite version of a monster using its base image as visual reference.
+     * If baseImagePath is null, generates from scratch with an elite prompt.
+     */
+    public function generateEliteMonsterImage(int $monsterId, string $monsterName, string $element, ?string $baseImagePath): string
+    {
+        if (!$this->canCall('elite_monster')) {
+            return $this->fallbackMonsterImage($element);
+        }
+
+        try {
+            $filename = "monster_{$monsterId}_elite_" . time() . '.png';
+
+            if ($baseImagePath !== null && file_exists(storage_path('app/public/' . str_replace('storage/', '', $baseImagePath)))) {
+                $path = $this->callImageApiWithReference(
+                    $baseImagePath,
+                    "Transform this monster into an elite version: more imposing, add golden or dark purple aura, "
+                    . "glowing eyes, more detailed armor or scales, same creature type but visibly more powerful and menacing. "
+                    . "Keep the same visual style. Solid #00FF00 bright green background, no shadows on background.",
+                    'elite_monster',
+                    $filename
+                );
+            } else {
+                $prompt = "Fantasy RPG elite monster portrait, {$monsterName}, {$element} element type, "
+                    . "imposing and menacing, golden crown or dark aura indicating elite status, glowing eyes, "
+                    . "detailed fantasy art style, pixel art inspired, solid #00FF00 bright green background, no shadows on background.";
+                $path = $this->callImageApi($prompt, 'elite_monster', $filename);
+            }
+
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateEliteMonsterImage failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackMonsterImage($element);
+    }
+
+    /**
+     * Generate a base image for a monster.
+     */
+    public function generateMonsterImage(int $monsterId, string $monsterName, string $element): string
+    {
+        if (!$this->canCall('monster_image')) {
+            return $this->fallbackMonsterImage($element);
+        }
+
+        $prompt = "Fantasy RPG monster portrait, {$monsterName}, {$element} element creature, "
+            . "menacing expression, detailed fantasy art style, pixel art inspired, "
+            . "solid #00FF00 bright green background, no shadows on background, centered, square format.";
+
+        try {
+            $filename = "monster_{$monsterId}_" . time() . '.png';
+            $path = $this->callImageApi($prompt, 'monster_image', $filename);
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateMonsterImage failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackMonsterImage($element);
+    }
+
+    /**
      * Generate an illustration for a loot item using Imagen.
      * Saves the image to storage and returns the public path.
      * Falls back to a static placeholder if AI is unavailable.
@@ -154,7 +270,8 @@ class GeminiService
         $prompt = $this->buildLootImagePrompt($slot, $rarity);
 
         try {
-            $path = $this->callImageApi($prompt, 'loot_image', $itemId);
+            $filename = ($itemId > 0 ? "item_{$itemId}" : "{$slot}_{$rarity}") . '_' . time() . '.png';
+            $path = $this->callImageApi($prompt, 'loot_image', $filename, false);
             if ($path !== null) {
                 return $path;
             }
@@ -221,13 +338,13 @@ class GeminiService
 
     /**
      * Return the music track for the given style.
-     * Checks the tavern_music table first (cached/generated tracks),
-     * then falls back to static placeholder paths and persists the entry.
+     * Priority: tavern_music cache → Vertex AI Lyria → Gemini Lyria → static fallback.
+     * Every resolved track is persisted to tavern_music for future cache hits.
      * @return array{style: string, prompt: string, file_path: string}
      */
     public function generateTavernMusic(string $style): array
     {
-        // Return cached track if it exists
+        // 1. Return cached track if it exists
         $cached = DB::table('tavern_music')->where('style', $style)->latest('created_at')->first();
         if ($cached) {
             DB::table('tavern_music')->where('id', $cached->id)->increment('play_count');
@@ -238,14 +355,31 @@ class GeminiService
             ];
         }
 
-        // No cached track — use static fallback and persist it so future calls hit the cache
-        $fallback = $this->fallbackTavernMusic($style);
+        // 2. Try AI generation if configured
+        $filePath = null;
+        $prompt   = '';
+        if ($this->canCall('music')) {
+            $prompt    = $this->buildMusicPrompt($style);
+            $useVertex = !empty(config('services.vertex_ai.api_key'));
+            $filePath  = $useVertex
+                ? $this->callMusicVertexAI($prompt, $style)
+                : $this->callMusicGemini($prompt, $style);
+        }
 
+        // 3. Fall back to static placeholder
+        if ($filePath === null) {
+            $fallback = $this->fallbackTavernMusic($style);
+            $filePath = $fallback['file_path'];
+            $prompt   = $fallback['prompt'];
+            $this->logGeneration('music', "style={$style}", null, null, false);
+        }
+
+        // 4. Persist to cache
         try {
             DB::table('tavern_music')->insert([
                 'style'       => $style,
-                'prompt_used' => $fallback['prompt'],
-                'file_path'   => $fallback['file_path'],
+                'prompt_used' => $prompt,
+                'file_path'   => $filePath,
                 'play_count'  => 1,
                 'created_at'  => now(),
             ]);
@@ -253,9 +387,130 @@ class GeminiService
             Log::warning('GeminiService: failed to persist tavern music', ['error' => $e->getMessage()]);
         }
 
-        $this->logGeneration('music', "style={$style}", null, null, false);
+        return ['style' => $style, 'prompt' => $prompt, 'file_path' => $filePath];
+    }
 
-        return $fallback;
+    /**
+     * Lyria 2 via Vertex AI (clé API + project_id requis).
+     * Retourne le chemin relatif storage/ ou null en cas d'échec.
+     */
+    private function callMusicVertexAI(string $prompt, string $style): ?string
+    {
+        $apiKey    = config('services.vertex_ai.api_key');
+        $projectId = config('services.vertex_ai.project_id');
+        $location  = config('services.vertex_ai.location', 'us-central1');
+
+        if (!$projectId) {
+            Log::warning('Vertex AI : VERTEX_AI_PROJECT_ID manquant');
+            return null;
+        }
+
+        $url = sprintf(self::MUSIC_VERTEX_URL, $location, $projectId, $location)
+             . "?key={$apiKey}";
+
+        $response = Http::timeout(90)
+            ->post($url, [
+                'instances'  => [['prompt' => $prompt]],
+                'parameters' => ['sample_count' => 1],
+            ]);
+
+        $success = $response->successful();
+        $this->logGeneration('music', substr($prompt, 0, 200), null, self::COST_MUSIC, $success);
+
+        if (!$success) {
+            Log::warning('Vertex AI Lyria error', [
+                'status' => $response->status(),
+                'body'   => substr($response->body(), 0, 1000),
+                'url'    => $url,
+            ]);
+            return null;
+        }
+
+        $json       = $response->json();
+        $prediction = data_get($json, 'predictions.0', []);
+        $b64Audio   = $prediction['bytesBase64Encoded'] ?? $prediction['audioContent'] ?? null;
+        unset($json, $response);
+
+        if (empty($b64Audio)) {
+            Log::warning('Vertex AI Lyria : audio absent', ['prediction_keys' => array_keys($prediction)]);
+            return null;
+        }
+
+        return $this->saveMusicBytes(base64_decode($b64Audio), $style, 'wav');
+    }
+
+    /**
+     * Lyria 3 via Gemini API (même clé que le reste).
+     * Retourne le chemin relatif storage/ ou null en cas d'échec.
+     */
+    private function callMusicGemini(string $prompt, string $style): ?string
+    {
+        $apiKey = config('services.gemini.api_key');
+
+        $response = Http::timeout(90)
+            ->post(self::MUSIC_GEMINI_URL . "?key={$apiKey}", [
+                'contents'        => [['parts' => [['text' => $prompt]]]],
+                'generationConfig' => [
+                    'responseModalities' => ['AUDIO'],
+                    'responseMimeType'   => 'audio/mp3',
+                ],
+            ]);
+
+        $success = $response->successful();
+        $this->logGeneration('music', substr($prompt, 0, 200), null, self::COST_MUSIC, $success);
+
+        if (!$success) {
+            Log::warning('Lyria 3 Gemini error', ['status' => $response->status(), 'body' => substr($response->body(), 0, 500)]);
+            return null;
+        }
+
+        $b64Audio = null;
+        foreach (data_get($response->json(), 'candidates.0.content.parts', []) as $part) {
+            if (isset($part['inlineData']['data'])) {
+                $b64Audio = $part['inlineData']['data'];
+                break;
+            }
+        }
+        unset($response);
+
+        if ($b64Audio === null) {
+            return null;
+        }
+
+        return $this->saveMusicBytes(base64_decode($b64Audio), $style, 'mp3');
+    }
+
+    private function saveMusicBytes(string $bytes, string $style, string $ext): string
+    {
+        $dir = storage_path('app/public/music/generated');
+
+        if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new \RuntimeException("Impossible de créer le dossier : {$dir}");
+        }
+
+        $filename = "music_{$style}_" . time() . ".{$ext}";
+        $fullPath = "{$dir}/{$filename}";
+
+        $written = file_put_contents($fullPath, $bytes);
+        if ($written === false) {
+            throw new \RuntimeException("Impossible d'écrire le fichier : {$fullPath}");
+        }
+
+        return "storage/music/generated/{$filename}";
+    }
+
+    private function buildMusicPrompt(string $style): string
+    {
+        $prompts = [
+            'victoire_epique' => 'Epic victorious orchestral fanfare, heroic brass section, triumphant drums, soaring strings, 30 seconds, fantasy RPG style, grand and uplifting',
+            'defaite'         => 'Somber melancholic medieval lute melody, slow and mournful, minor key, quiet sadness, 30 seconds, fantasy game defeat music',
+            'exploration'     => 'Adventurous lighthearted fantasy exploration music, flute and strings, moderate tempo, curious and whimsical, dungeon RPG atmosphere, 30 seconds',
+            'taverne'         => 'Lively medieval tavern music, upbeat folk fiddle and acoustic guitar, cheerful and energetic, slightly comedic, fantasy RPG inn ambiance, 30 seconds',
+            'boss'            => 'Intense dark fantasy boss battle music, heavy drums, dramatic choir, ominous brass, fast paced and threatening, 30 seconds',
+            'repos'           => 'Peaceful calm fantasy camp music, soft acoustic guitar, gentle ambient sounds, relaxing and cozy, RPG rest theme, 30 seconds',
+        ];
+
+        return $prompts[$style] ?? 'Medieval fantasy RPG background music, atmospheric and adventurous, 30 seconds';
     }
 
     // ─── Budget check ────────────────────────────────────────────────────────
@@ -266,11 +521,18 @@ class GeminiService
     public function canCall(string $type): bool
     {
         if (!$this->settings->get('AI_ENABLED', 0)) {
+            Log::warning("GeminiService::canCall({$type}) bloqué : AI_ENABLED=0 dans game_settings");
             return false;
         }
 
-        $apiKey = config('services.gemini.api_key');
-        if (empty($apiKey)) {
+        $geminiKey = config('services.gemini.api_key');
+        $vertexKey = config('services.vertex_ai.api_key');
+        $hasKey    = ($type === 'music')
+            ? (!empty($vertexKey) || !empty($geminiKey))
+            : !empty($geminiKey);
+
+        if (!$hasKey) {
+            Log::warning("GeminiService::canCall({$type}) bloqué : clé API manquante (GEMINI_API_KEY / VERTEX_AI_API_KEY)");
             return false;
         }
 
@@ -279,7 +541,12 @@ class GeminiService
             ->whereDate('created_at', today())
             ->sum('cost_estimate');
 
-        return $todayUsage < $dailyLimit;
+        if ($todayUsage >= $dailyLimit) {
+            Log::warning("GeminiService::canCall({$type}) bloqué : budget journalier dépassé ({$todayUsage}/{$dailyLimit})");
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -302,43 +569,191 @@ class GeminiService
 
     // ─── Core HTTP ───────────────────────────────────────────────────────────
 
-    private function callImageApi(string $prompt, string $type, int $itemId): ?string
+    /**
+     * @param bool $removeGreenBg  Si true, supprime le fond #00FF00 et sauvegarde en PNG transparent.
+     *                             Si false, sauvegarde tel quel (pour les backgrounds de zone).
+     */
+    private function callImageApi(string $prompt, string $type, string $filename, bool $removeGreenBg = true): ?string
     {
         $apiKey = config('services.gemini.api_key');
 
-        $response = Http::timeout(30)
+        $response = Http::timeout(60)
             ->post(self::IMAGE_API_URL . "?key={$apiKey}", [
-                'instances' => [
-                    ['prompt' => $prompt],
+                'contents' => [
+                    ['parts' => [['text' => $prompt]]],
                 ],
-                'parameters' => [
-                    'sampleCount' => 1,
-                    'aspectRatio' => '1:1',
+                'generationConfig' => [
+                    'responseModalities' => ['IMAGE', 'TEXT'],
                 ],
             ]);
 
-        $this->logGeneration($type, substr($prompt, 0, 200), null, self::COST_IMAGE, $response->successful());
+        $success = $response->successful();
+        $this->logGeneration($type, substr($prompt, 0, 200), null, self::COST_IMAGE, $success);
 
-        if (!$response->successful()) {
-            Log::warning('Gemini Imagen API error', ['status' => $response->status()]);
+        if (!$success) {
+            Log::warning('Gemini image API error', ['status' => $response->status(), 'body' => $response->body()]);
             return null;
         }
 
-        $b64 = data_get($response->json(), 'predictions.0.bytesBase64Encoded');
+        $parts = data_get($response->json(), 'candidates.0.content.parts', []);
+        $b64   = null;
+        foreach ($parts as $part) {
+            if (isset($part['inlineData']['data'])) {
+                $b64 = $part['inlineData']['data'];
+                break;
+            }
+        }
+
         if (empty($b64)) {
+            Log::warning('Gemini image: aucune inlineData dans la réponse', ['body' => $response->body()]);
             return null;
         }
 
-        $dir = storage_path('app/public/loot_images');
+        return $this->saveImageData(base64_decode($b64), $filename, $removeGreenBg);
+    }
+
+    /**
+     * Appel image avec une image de référence (multimodal) — pour les élites.
+     */
+    private function callImageApiWithReference(string $referenceImagePath, string $prompt, string $type, string $filename): ?string
+    {
+        // Monter la limite mémoire tôt : on va encoder l'image de référence + décoder la réponse + GD
+        $prevMemLimit = ini_get('memory_limit');
+        ini_set('memory_limit', '512M');
+
+        $apiKey  = config('services.gemini.api_key');
+        $absPath = storage_path('app/public/' . str_replace('storage/', '', $referenceImagePath));
+        $mime    = str_ends_with($absPath, '.png') ? 'image/png' : 'image/jpeg';
+
+        // Encoder la référence et libérer les bytes bruts immédiatement
+        $refRaw = file_get_contents($absPath);
+        $b64Ref = base64_encode($refRaw);
+        unset($refRaw);
+
+        $response = Http::timeout(60)
+            ->post(self::IMAGE_API_URL . "?key={$apiKey}", [
+                'contents' => [
+                    [
+                        'parts' => [
+                            ['inline_data' => ['mime_type' => $mime, 'data' => $b64Ref]],
+                            ['text' => $prompt],
+                        ],
+                    ],
+                ],
+                'generationConfig' => [
+                    'responseModalities' => ['IMAGE', 'TEXT'],
+                ],
+            ]);
+
+        unset($b64Ref); // Libérer le base64 de référence après envoi
+
+        $success = $response->successful();
+        $this->logGeneration($type, substr($prompt, 0, 200), null, self::COST_IMAGE, $success);
+
+        if (!$success) {
+            Log::warning('Gemini image ref API error', ['status' => $response->status(), 'body' => $response->body()]);
+            ini_set('memory_limit', $prevMemLimit);
+            return null;
+        }
+
+        // Extraire le base64 de l'image retournée, puis libérer la réponse complète
+        $b64Image = null;
+        foreach (data_get($response->json(), 'candidates.0.content.parts', []) as $part) {
+            if (isset($part['inlineData']['data'])) {
+                $b64Image = $part['inlineData']['data'];
+                break;
+            }
+        }
+        unset($response);
+
+        if ($b64Image === null) {
+            ini_set('memory_limit', $prevMemLimit);
+            return null;
+        }
+
+        $bytes = base64_decode($b64Image);
+        unset($b64Image);
+
+        // saveImageData va faire le traitement GD (memory_limit déjà à 512M)
+        $result = $this->saveImageData($bytes, $filename, true);
+        ini_set('memory_limit', $prevMemLimit);
+        return $result;
+    }
+
+    /**
+     * Sauvegarde les bytes d'image, avec suppression optionnelle du fond vert chroma (#00FF00).
+     */
+    private function saveImageData(string $bytes, string $filename, bool $removeGreenBg): ?string
+    {
+        // Déduire le sous-dossier depuis le préfixe du nom de fichier
+        $subdir = match (true) {
+            str_starts_with($filename, 'hero_')    => 'heroes',
+            str_starts_with($filename, 'monster_') => 'monsters',
+            str_starts_with($filename, 'zone_')    => 'zones',
+            default                                => 'loot_images',
+        };
+
+        $dir = storage_path("app/public/{$subdir}");
         if (!is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
-        $filename = "item_{$itemId}_" . time() . '.png';
-        $fullPath = $dir . '/' . $filename;
-        file_put_contents($fullPath, base64_decode($b64));
+        $fullPath = "{$dir}/{$filename}";
 
-        return 'storage/loot_images/' . $filename;
+        if ($removeGreenBg && function_exists('imagecreatefromstring')) {
+            // Augmenter la limite mémoire temporairement pour GD (images HD)
+            $prevMemLimit = ini_get('memory_limit');
+            ini_set('memory_limit', '512M');
+
+            $img = imagecreatefromstring($bytes);
+            unset($bytes); // Libérer les bytes bruts immédiatement
+
+            if ($img !== false) {
+                $w = imagesx($img);
+                $h = imagesy($img);
+                $out = imagecreatetruecolor($w, $h);
+                imagealphablending($out, false);
+                imagesavealpha($out, true);
+                $transparent = imagecolorallocatealpha($out, 0, 0, 0, 127);
+                imagefill($out, 0, 0, $transparent);
+
+                // Détection par ratio : le vert doit dominer nettement sur R et B.
+                // Plus robuste que les seuils absolus face aux artefacts JPEG.
+                for ($x = 0; $x < $w; $x++) {
+                    for ($y = 0; $y < $h; $y++) {
+                        $rgb = imagecolorsforindex($img, imagecolorat($img, $x, $y));
+                        $r = $rgb['red'];
+                        $g = $rgb['green'];
+                        $b = $rgb['blue'];
+
+                        // Pixel considéré "vert chroma" si :
+                        //  - vert > 100 (lumineux)
+                        //  - vert > rouge * 1.4  ET  vert > bleu * 1.4  (dominant)
+                        //  - rouge < 160  ET  bleu < 160  (pas blanc/jaune)
+                        if ($g > 100 && $g > $r * 1.4 && $g > $b * 1.4 && $r < 160 && $b < 160) {
+                            // Antialiasing : proportionnel à combien le pixel est "vert"
+                            $greenness = min(127, (int)(($g - max($r, $b)) / 2));
+                            $alpha = $greenness + $rgb['alpha'];
+                            imagesetpixel($out, $x, $y, imagecolorallocatealpha($out, $r, $g, $b, min(127, $alpha)));
+                        } else {
+                            imagesetpixel($out, $x, $y, imagecolorallocatealpha($out, $r, $g, $b, $rgb['alpha']));
+                        }
+                    }
+                }
+
+                $pngFile = preg_replace('/\.(jpg|jpeg)$/i', '.png', $fullPath);
+                imagepng($out, $pngFile);
+                imagedestroy($img);
+                imagedestroy($out);
+                ini_set('memory_limit', $prevMemLimit);
+                return "storage/{$subdir}/" . basename($pngFile);
+            }
+
+            ini_set('memory_limit', $prevMemLimit);
+        }
+
+        file_put_contents($fullPath, $bytes);
+        return "storage/{$subdir}/{$filename}";
     }
 
     private function callTextApi(string $prompt, string $type, int $maxTokens): ?string
@@ -393,6 +808,55 @@ class GeminiService
     }
 
     // ─── Prompt builders ─────────────────────────────────────────────────────
+
+    private function buildHeroImagePrompt(string $raceName, string $classSlug, ?string $traitSlug): string
+    {
+        $classDesc = match ($classSlug) {
+            'guerrier'     => 'warrior in heavy armor, sword and shield',
+            'barbare'      => 'barbarian with war axe, fur cloak, muscular',
+            'mage'         => 'mage with magic staff, robes, glowing runes',
+            'necromancien' => 'necromancer in dark robes, skull motifs, purple energy',
+            'barde'        => 'bard with lute, colorful clothes, charismatic pose',
+            'pretre'       => 'priest with holy symbol, white and gold robes',
+            'voleur'       => 'rogue in dark leather armor, daggers, hood',
+            'ranger'       => 'ranger with bow, green cloak, forest attire',
+            default        => 'adventurer in fantasy attire',
+        };
+
+        $traitDesc = match ($traitSlug) {
+            'couard'        => 'slightly nervous expression, looking over shoulder',
+            'narcoleptique' => 'drowsy half-closed eyes, pillow tucked under arm',
+            'pyromane'      => 'singed eyebrows, manic grin, small flame in hand',
+            'kleptomane'    => 'pockets bulging, shifty eyes, coin purse in hand',
+            'maladroit'     => 'bandaged hands and knees, surprised expression',
+            default         => '',
+        };
+
+        return "Fantasy RPG character portrait, {$raceName} {$classDesc}"
+            . ($traitDesc ? ", {$traitDesc}" : '')
+            . ", humorous medieval fantasy style, pixel art inspired, detailed, "
+            . "isolated on pure solid #00FF00 green background, no gradients, no shadows, no vignette on background, "
+            . "character centered, square format.";
+    }
+
+    private function buildZoneBackgroundPrompt(string $zoneSlug, string $element, string $description): string
+    {
+        $elementDesc = match ($element) {
+            'feu'      => 'volcanic, lava rivers, fire and embers',
+            'glace'    => 'frozen, ice crystals, blizzard atmosphere',
+            'foudre'   => 'stormy, lightning strikes, electric atmosphere',
+            'poison'   => 'toxic swamp, purple fog, corrupted vegetation',
+            'ombre'    => 'dark shadow realm, void darkness, ghostly mist',
+            'sacre'    => 'holy light rays, golden ambiance, divine atmosphere',
+            'physique' => 'stone dungeon, torchlight, medieval architecture',
+            default    => 'dark fantasy dungeon',
+        };
+
+        return "Dark fantasy RPG zone background illustration, {$elementDesc}, "
+            . "atmospheric and immersive, no characters or text, cinematic wide angle, "
+            . "painterly illustration style, moody lighting, {$description}, "
+            . "game background art, highly detailed environment.";
+    }
 
     private function buildNarrationPrompt(string $eventType, array $context): string
     {
@@ -685,7 +1149,6 @@ class GeminiService
 
     private function fallbackLootImage(string $slot, string $rarity): string
     {
-        // Static placeholder images by slot + rarity tier
         $rarityGroup = match ($rarity) {
             'legendaire', 'wtf' => 'legendary',
             'epique'            => 'epic',
@@ -694,6 +1157,21 @@ class GeminiService
         };
 
         return "images/placeholders/loot/{$slot}_{$rarityGroup}.png";
+    }
+
+    private function fallbackHeroImage(string $classSlug): string
+    {
+        return "images/placeholders/heroes/{$classSlug}.png";
+    }
+
+    private function fallbackMonsterImage(string $element): string
+    {
+        return "images/placeholders/monsters/{$element}.png";
+    }
+
+    private function fallbackZoneBackground(string $element): string
+    {
+        return "images/placeholders/zones/{$element}_bg.jpg";
     }
 
     /**
@@ -714,12 +1192,13 @@ class GeminiService
                 . "2. Une biographie absurde de 1-2 phrases expliquant pourquoi il est 'légendaire' malgré son incompétence.\n"
                 . "Réponds UNIQUEMENT avec du JSON valide : {\"epithet\": \"...\", \"backstory\": \"...\"}";
 
-            $raw = $this->callTextApi($prompt);
-            $cleaned = preg_replace('/^```json\s*|\s*```$/m', '', trim($raw));
-            $data = json_decode($cleaned, true);
+            $raw = $this->callTextApi($prompt, 'legendary_hero', 200);
+            if ($raw === null) {
+                return $this->fallbackLegendaryHero($heroName);
+            }
+            $data = json_decode($this->extractJson($raw), true);
 
             if (isset($data['epithet'], $data['backstory'])) {
-                $this->logGeneration('legendary_hero', strlen($prompt), strlen($raw));
                 return [
                     'epithet'   => mb_substr($data['epithet'], 0, 100),
                     'backstory' => mb_substr($data['backstory'], 0, 300),

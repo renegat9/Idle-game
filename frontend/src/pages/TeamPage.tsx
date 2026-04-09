@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { heroApi } from '../api/game'
 import apiClient from '../api/client'
 import { useGameStore } from '../store/gameStore'
@@ -10,6 +11,7 @@ type Synergy = { hero_name: string; slug: string; name: string; description: str
 
 export function TeamPage() {
   const { setHeroes } = useGameStore()
+  const navigate = useNavigate()
   const [heroes, setLocalHeroes] = useState<Hero[]>([])
   const [races, setRaces] = useState<Race[]>([])
   const [classes, setClasses] = useState<GameClass[]>([])
@@ -32,12 +34,15 @@ export function TeamPage() {
       apiClient.get('/reference/traits'),
       apiClient.get('/heroes/synergies'),
     ]).then(([heroRes, raceRes, classRes, traitRes, synRes]) => {
-      setLocalHeroes(heroRes.data.heroes)
-      setHeroes(heroRes.data.heroes)
+      const loadedHeroes = heroRes.data.heroes
+      setLocalHeroes(loadedHeroes)
+      setHeroes(loadedHeroes)
       setRaces(raceRes.data.races ?? [])
       setClasses(classRes.data.classes ?? [])
       setTraits(traitRes.data.traits ?? [])
       setSynergies(synRes.data.active_synergies ?? [])
+      // Ouvrir le formulaire automatiquement si aucun héros
+      if (loadedHeroes.length === 0) setShowCreateForm(true)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -86,12 +91,21 @@ export function TeamPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h1 style={{ color: '#f9fafb', margin: 0 }}>⚔️ Mon Équipe</h1>
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}
-        >
-          + Recruter un Héros
-        </button>
+        {heroes.length === 0 ? (
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}
+          >
+            + Créer mon premier héros
+          </button>
+        ) : (
+          <button
+            onClick={() => navigate('/tavern')}
+            style={{ background: '#1f2937', color: '#d1d5db', border: '1px solid #374151', borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}
+          >
+            + Recruter à la Taverne
+          </button>
+        )}
       </div>
 
       {narratorComment && <NarratorBubble comment={narratorComment} />}

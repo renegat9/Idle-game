@@ -209,6 +209,19 @@ class LootService
     }
 
     /**
+     * Génère un objet loot pour une récompense de quête (sans zone ni monstre).
+     * Le slot est tiré aléatoirement, le level basé sur le niveau moyen des héros actifs.
+     */
+    public function rollQuestLoot(User $user, string $rarity): Item
+    {
+        $slot      = $this->rollSlot();
+        $heroLevel = (int) ($user->activeHeroes()->avg('level') ?? 1);
+        $itemLevel = max(1, $heroLevel);
+
+        return $this->generateItemForCrafting($user, $rarity, $slot, $itemLevel);
+    }
+
+    /**
      * Generate an item by rarity/slot without requiring a zone (used for crafting).
      */
     public function generateItemForCrafting(User $user, string $rarity, string $slot, int $itemLevel): Item

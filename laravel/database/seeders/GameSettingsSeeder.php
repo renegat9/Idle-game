@@ -136,7 +136,7 @@ class GameSettingsSeeder extends Seeder
             ['WORLD_BOSS_NPC_ATTACKS_PER_CYCLE', 5, 'Nombre d\'attaques NPC simulées toutes les 2h sur le boss mondial'],
 
             // IA et budget
-            ['AI_DAILY_BUDGET_LIMIT', 1000, 'Limite de budget IA journalier (unités arbitraires)'],
+            ['AI_DAILY_BUDGET_LIMIT', 5000, 'Limite de budget IA journalier (unités arbitraires, image=50, texte=10)'],
             ['AI_ENABLED', 0, 'IA activée (0=fallback statique uniquement)'],
 
             // Taverne

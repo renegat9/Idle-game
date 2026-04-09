@@ -39,4 +39,10 @@ return [
         'api_key' => env('GEMINI_API_KEY'),
     ],
 
+    'vertex_ai' => [
+        'api_key'    => env('VERTEX_AI_API_KEY'),
+        'project_id' => env('VERTEX_AI_PROJECT_ID'),
+        'location'   => env('VERTEX_AI_LOCATION', 'us-central1'),
+    ],
+
 ];

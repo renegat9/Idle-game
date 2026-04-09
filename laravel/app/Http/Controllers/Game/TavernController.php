@@ -171,6 +171,7 @@ class TavernController extends Controller
                 'talent_points'    => 0,
                 'slot_index'       => $slotIndex,
                 'is_active'        => true,
+                // Réutiliser l'image déjà générée pour le recrutement
                 'image_path'       => $recruit->image_path,
             ]);
         });
@@ -272,6 +273,7 @@ class TavernController extends Controller
                 'legendary_backstory' => $legendaryBackstory,
             ]);
 
+            // Générer l'image du recrutement en async
             GenerateHeroImage::dispatch(
                 $recruit->id,
                 $race->name,
