@@ -1,13 +1,30 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useGameStore } from '../../store/gameStore'
 import { usePolling } from '../../hooks/usePolling'
 import { authApi } from '../../api/auth'
 
+const NAV_ITEMS = [
+  { to: '/dashboard',  icon: '🏠', label: 'Tableau de Bord' },
+  { to: '/team',       icon: '⚔️', label: 'Équipe' },
+  { to: '/map',        icon: '🗺️', label: 'Carte du Monde' },
+  { to: '/inventory',  icon: '🎒', label: 'Inventaire', badge: true },
+  { to: '/quests',     icon: '📜', label: 'Quêtes' },
+  { to: '/forge',      icon: '🔨', label: 'Forge de Gérard' },
+  { to: '/tavern',     icon: '🍺', label: 'Taverne' },
+  { to: '/shop',       icon: '🛒', label: 'Boutique' },
+  { to: '/consumables',icon: '🧪', label: 'Consommables' },
+  { to: '/dungeon',    icon: '🏚️', label: 'Donjon' },
+  { to: '/talents',    icon: '✨', label: 'Talents' },
+  { to: '/world-boss', icon: '🐉', label: 'Boss Mondial' },
+  { to: '/profile',    icon: '👤', label: 'Profil' },
+]
+
 export function AppShell() {
   const { user, logout } = useAuthStore()
-  const { gold, unreadEventsCount } = useGameStore()
+  const { gold, unreadEventsCount, narratorComment, isExploring, currentZoneName } = useGameStore()
   const navigate = useNavigate()
+  const location = useLocation()
 
   usePolling(15000)
 
@@ -17,81 +34,101 @@ export function AppShell() {
     navigate('/login')
   }
 
-  const navStyle = {
-    background: '#0f172a',
-    borderBottom: '1px solid #1e293b',
-    padding: '0 24px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 56,
-    position: 'sticky' as const,
-    top: 0,
-    zIndex: 100,
-  }
-
-  const linkStyle = {
-    color: '#94a3b8',
-    textDecoration: 'none',
-    padding: '8px 12px',
-    borderRadius: 6,
-    fontSize: 14,
-    transition: 'color 0.2s',
-  }
+  const displayGold = (gold || user?.gold || 0).toLocaleString()
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0f', color: '#f1f5f9' }}>
-      <nav style={navStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: '#7c3aed', fontWeight: 'bold', marginRight: 16, fontSize: 16 }}>
-            🏰 Donjon des Inc.
-          </span>
-          <Link to="/dashboard" style={linkStyle}>Tableau de bord</Link>
-          <Link to="/team" style={linkStyle}>Équipe</Link>
-          <Link to="/map" style={linkStyle}>Carte</Link>
-          <Link to="/inventory" style={linkStyle}>
-            Inventaire
-            {unreadEventsCount > 0 && (
-              <span style={{
-                background: '#7c3aed', color: 'white',
-                borderRadius: '50%', padding: '0 5px',
-                fontSize: 10, marginLeft: 4,
-              }}>
-                {unreadEventsCount}
-              </span>
-            )}
-          </Link>
-          <Link to="/quests" style={linkStyle}>Quêtes</Link>
-          <Link to="/forge" style={linkStyle}>Forge</Link>
-          <Link to="/tavern" style={linkStyle}>Taverne</Link>
-          <Link to="/shop" style={linkStyle}>Boutique</Link>
-          <Link to="/consumables" style={linkStyle}>Consommables</Link>
-          <Link to="/dungeon" style={linkStyle}>Donjon</Link>
-          <Link to="/talents" style={linkStyle}>Talents</Link>
-          <Link to="/world-boss" style={linkStyle}>Boss Mondial</Link>
-          <Link to="/profile" style={linkStyle}>Profil</Link>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0f' }}>
+
+      {/* ── Sidebar ── */}
+      <aside className="sidebar">
+
+        {/* Logo */}
+        <div className="sidebar-logo">
+          <div style={{ fontSize: 22, marginBottom: 6 }}>🏰</div>
+          <div className="sidebar-logo-text">Le Donjon<br />des Incompétents</div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ color: '#fbbf24', fontSize: 14 }}>
-            💰 {(gold || user?.gold || 0).toLocaleString()} or
-          </span>
-          <span style={{ color: '#6b7280', fontSize: 13 }}>{user?.username}</span>
+        {/* Resources */}
+        <div className="sidebar-resources">
+          <div className="sidebar-resource">
+            <span style={{ fontSize: 16 }}>💰</span>
+            <span style={{ color: '#fbbf24', fontWeight: 600, fontSize: 14 }}>{displayGold} or</span>
+          </div>
+          {user?.level && (
+            <div className="sidebar-resource">
+              <span style={{ fontSize: 14 }}>⭐</span>
+              <span style={{ color: '#9ca3af', fontSize: 13 }}>
+                {user.username} — Niv. {user.level}
+              </span>
+            </div>
+          )}
+          {isExploring && (
+            <div className="sidebar-resource" style={{ marginTop: 4 }}>
+              <span className="anim-explore-pulse" style={{ fontSize: 10, color: '#22c55e' }}>●</span>
+              <span style={{ color: '#4ade80', fontSize: 11 }}>
+                {currentZoneName ?? 'En exploration'}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map(({ to, icon, label, badge }) => {
+            const isActive = location.pathname === to
+            return (
+              <Link
+                key={to}
+                to={to}
+                className={`sidebar-nav-link${isActive ? ' active' : ''}`}
+              >
+                <span className="nav-icon">{icon}</span>
+                <span>{label}</span>
+                {badge && unreadEventsCount > 0 && (
+                  <span className="sidebar-nav-badge">{unreadEventsCount}</span>
+                )}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* Mini narrator in sidebar */}
+        {narratorComment && (
+          <div className="sidebar-narrator">
+            <div style={{
+              background: '#12122a',
+              border: '1px solid #4c1d95',
+              borderLeft: '3px solid #7c3aed',
+              borderRadius: 6,
+              padding: '8px 10px',
+            }}>
+              <div style={{ fontSize: 9, color: '#7c3aed', fontFamily: 'var(--font-title)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
+                📖 Le Narrateur
+              </div>
+              <div style={{ fontSize: 11, color: '#c4b5fd', fontStyle: 'italic', lineHeight: 1.4 }}>
+                {narratorComment.length > 120 ? narratorComment.slice(0, 117) + '…' : narratorComment}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="sidebar-footer">
           <button
             onClick={handleLogout}
-            style={{
-              background: 'transparent', border: '1px solid #374151',
-              color: '#9ca3af', padding: '4px 12px', borderRadius: 6,
-              cursor: 'pointer', fontSize: 13,
-            }}
+            className="game-btn game-btn-ghost game-btn-sm"
+            style={{ width: '100%', justifyContent: 'center' }}
           >
             Déconnexion
           </button>
         </div>
-      </nav>
+      </aside>
 
-      <main style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
-        <Outlet />
+      {/* ── Main Content ── */}
+      <main className="main-content" style={{ flex: 1 }}>
+        <div className="page-container">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

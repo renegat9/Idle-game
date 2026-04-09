@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { heroApi, talentApi } from '../api/game'
+import { GameButton } from '../components/ui/GameButton'
+import { GamePanel } from '../components/ui/GamePanel'
 
 type Hero = {
   id: number
@@ -47,10 +49,16 @@ const BRANCH_LABELS = {
   defaut:    '🤪 Branche du Défaut',
 }
 
-const TYPE_BADGES = {
-  passif:   { label: 'Passif',   color: '#94a3b8' },
-  actif:    { label: 'Actif',    color: '#22c55e' },
-  reactif:  { label: 'Réactif', color: '#f59e0b' },
+const BRANCH_BG = {
+  offensive: '#1a0505',
+  defensive: '#050a1a',
+  defaut:    '#1a0f00',
+}
+
+const TYPE_BADGES: Record<string, { label: string; color: string }> = {
+  passif:  { label: 'Passif',   color: '#9ca3af' },
+  actif:   { label: 'Actif',    color: '#22c55e' },
+  reactif: { label: 'Réactif',  color: '#f59e0b' },
 }
 
 export function TalentsPage() {
@@ -61,13 +69,8 @@ export function TalentsPage() {
   const [acting, setActing] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
 
-  useEffect(() => {
-    loadHeroes()
-  }, [])
-
-  useEffect(() => {
-    if (selectedHeroId) loadTree(selectedHeroId)
-  }, [selectedHeroId])
+  useEffect(() => { loadHeroes() }, [])
+  useEffect(() => { if (selectedHeroId) loadTree(selectedHeroId) }, [selectedHeroId])
 
   async function loadHeroes() {
     try {
@@ -123,113 +126,153 @@ export function TalentsPage() {
     }
 
     return (
-      <div style={{ flex: 1, minWidth: 240 }}>
-        <h3 style={{ color: BRANCH_COLORS[branchKey], marginBottom: 12, fontSize: 15 }}>
-          {BRANCH_LABELS[branchKey]}
-        </h3>
-        {Object.entries(tierGroups).sort(([a], [b]) => Number(a) - Number(b)).map(([tier, group]) => (
-          <div key={tier} style={{ marginBottom: 12 }}>
-            <div style={{ color: '#475569', fontSize: 11, marginBottom: 6 }}>Rang {tier}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {group.sort((a, b) => a.position - b.position).map(talent => (
-                <div
-                  key={talent.id}
-                  style={{
-                    background: talent.is_unlocked ? '#0f2a0f' : talent.can_unlock ? '#1e293b' : '#0f172a',
-                    border: `1px solid ${talent.is_unlocked ? '#16a34a' : talent.can_unlock ? BRANCH_COLORS[branchKey] : '#1e293b'}`,
-                    borderRadius: 8,
-                    padding: 12,
-                    opacity: talent.can_unlock || talent.is_unlocked ? 1 : 0.5,
-                    cursor: talent.can_unlock && !acting ? 'pointer' : 'default',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onClick={() => talent.can_unlock && !talent.is_unlocked && allocate(talent.id)}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                    <span style={{ color: talent.is_unlocked ? '#22c55e' : '#e2e8f0', fontWeight: 'bold', fontSize: 13 }}>
-                      {talent.is_unlocked ? '✓ ' : ''}{talent.name}
-                    </span>
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <span style={{ color: TYPE_BADGES[talent.talent_type].color, fontSize: 10, background: '#0f172a', padding: '1px 5px', borderRadius: 3 }}>
-                        {TYPE_BADGES[talent.talent_type].label}
+      <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{
+          background: BRANCH_BG[branchKey], border: `1px solid ${BRANCH_COLORS[branchKey]}44`,
+          borderRadius: '6px 6px 0 0', padding: '10px 14px', marginBottom: 0,
+        }}>
+          <h3 className="game-title" style={{ color: BRANCH_COLORS[branchKey], margin: 0, fontSize: 14 }}>
+            {BRANCH_LABELS[branchKey]}
+          </h3>
+        </div>
+        <div style={{ border: `1px solid ${BRANCH_COLORS[branchKey]}33`, borderTop: 'none', borderRadius: '0 0 6px 6px', padding: 12 }}>
+          {Object.entries(tierGroups).sort(([a], [b]) => Number(a) - Number(b)).map(([tier, group]) => (
+            <div key={tier} style={{ marginBottom: 12 }}>
+              <div style={{ color: '#4b5563', fontSize: 10, fontFamily: 'var(--font-title)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+                Rang {tier}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {group.sort((a, b) => a.position - b.position).map(talent => (
+                  <div
+                    key={talent.id}
+                    onClick={() => talent.can_unlock && !talent.is_unlocked && allocate(talent.id)}
+                    style={{
+                      background: talent.is_unlocked ? '#051a05' : talent.can_unlock ? '#0d1117' : '#080d0d',
+                      border: `1px solid ${talent.is_unlocked ? '#16a34a' : talent.can_unlock ? BRANCH_COLORS[branchKey] + '88' : '#1f2937'}`,
+                      borderRadius: 6, padding: '10px 12px',
+                      opacity: talent.can_unlock || talent.is_unlocked ? 1 : 0.45,
+                      cursor: talent.can_unlock && !talent.is_unlocked && !acting ? 'pointer' : 'default',
+                      transition: 'border-color 0.2s, background 0.2s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                      <span style={{ color: talent.is_unlocked ? '#4ade80' : '#e2e8f0', fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-title)' }}>
+                        {talent.is_unlocked ? '✓ ' : ''}{talent.name}
                       </span>
-                      {!talent.is_unlocked && (
-                        <span style={{ color: '#f59e0b', fontSize: 11 }}>{talent.cost} pt</span>
-                      )}
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0, marginLeft: 6 }}>
+                        <span style={{
+                          color: TYPE_BADGES[talent.talent_type]?.color ?? '#9ca3af',
+                          fontSize: 10, background: '#0d1117', padding: '1px 5px', borderRadius: 3,
+                        }}>
+                          {TYPE_BADGES[talent.talent_type]?.label}
+                        </span>
+                        {!talent.is_unlocked && (
+                          <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 700 }}>{talent.cost}pt</span>
+                        )}
+                      </div>
                     </div>
+                    <p style={{ color: '#6b7280', margin: 0, fontSize: 11, lineHeight: 1.5 }}>{talent.description}</p>
+                    {talent.required_points_in_branch > 0 && !talent.is_unlocked && (
+                      <p style={{ color: '#374151', margin: '4px 0 0', fontSize: 10 }}>
+                        Requis : {talent.required_points_in_branch} pts dans cette branche
+                      </p>
+                    )}
                   </div>
-                  <p style={{ color: '#6b7280', margin: 0, fontSize: 11, lineHeight: 1.4 }}>{talent.description}</p>
-                  {talent.required_points_in_branch > 0 && !talent.is_unlocked && (
-                    <p style={{ color: '#475569', margin: '4px 0 0', fontSize: 10 }}>
-                      Requis : {talent.required_points_in_branch} pts dans cette branche
-                    </p>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     )
   }
 
-  if (loading) return <div style={{ color: '#94a3b8' }}>Chargement des talents...</div>
+  if (loading) {
+    return (
+      <div className="game-loading">
+        <div className="game-loading-spinner" />
+        <div className="game-loading-text">Chargement des talents…</div>
+      </div>
+    )
+  }
 
   if (heroes.length === 0) {
     return (
       <div>
-        <h1 style={{ color: '#f1f5f9', fontSize: 24 }}>🌟 Arbres de talents</h1>
-        <p style={{ color: '#6b7280' }}>Recrutez des héros dans la taverne pour débloquer les arbres de talents.</p>
+        <h1 className="game-title" style={{ fontSize: 26, marginBottom: 12 }}>🌟 Arbres de talents</h1>
+        <GamePanel variant="default" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🌿</div>
+          <p style={{ color: '#6b7280', fontStyle: 'italic', margin: 0 }}>
+            Recrutez des héros dans la taverne pour débloquer les arbres de talents.
+          </p>
+        </GamePanel>
       </div>
     )
   }
 
   return (
     <div>
-      <h1 style={{ color: '#f1f5f9', marginBottom: 4, fontSize: 24 }}>🌟 Arbres de talents</h1>
-      <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 14 }}>1 point tous les 5 niveaux, 20 points max. Les talents de Branche du Défaut... sont inévitables.</p>
+      <div style={{ marginBottom: 24 }}>
+        <h1 className="game-title" style={{ fontSize: 26, margin: '0 0 4px' }}>🌟 Arbres de talents</h1>
+        <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>
+          1 point tous les 5 niveaux, 20 points max. La Branche du Défaut… est inévitable.
+        </p>
+      </div>
 
       {/* Hero selector */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div className="game-tabs" style={{ marginBottom: 20 }}>
         {heroes.map(h => (
           <button
             key={h.id}
+            className={`game-tab ${selectedHeroId === h.id ? 'active' : ''}`}
             onClick={() => setSelectedHeroId(h.id)}
-            style={{
-              background: selectedHeroId === h.id ? '#7c3aed' : '#1e293b',
-              color: selectedHeroId === h.id ? 'white' : '#94a3b8',
-              border: `1px solid ${selectedHeroId === h.id ? '#7c3aed' : '#334155'}`,
-              padding: '6px 14px',
-              borderRadius: 8,
-              cursor: 'pointer',
-              fontSize: 13,
-            }}
           >
-            {h.name} <span style={{ opacity: 0.7 }}>Niv. {h.level}</span>
+            {h.name}
+            <span style={{ opacity: 0.6, marginLeft: 6, fontSize: 11 }}>Niv. {h.level}</span>
+            {h.talent_points_available > 0 && (
+              <span style={{
+                background: '#f59e0b', color: '#000', borderRadius: '50%',
+                width: 16, height: 16, fontSize: 10, fontWeight: 700,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginLeft: 6,
+              }}>
+                {h.talent_points_available}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
       {message && (
-        <div style={{ background: message.ok ? '#052e16' : '#1c0505', border: `1px solid ${message.ok ? '#16a34a' : '#991b1b'}`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          <span style={{ color: message.ok ? '#22c55e' : '#ef4444' }}>{message.text}</span>
+        <div
+          className="narrator-bubble anim-slide-in"
+          style={{ marginBottom: 16, borderLeftColor: message.ok ? '#22c55e' : '#ef4444', background: message.ok ? '#020f08' : '#0a0202' }}
+        >
+          <p className="narrator-text" style={{ margin: 0, color: message.ok ? '#86efac' : '#fca5a5' }}>
+            « {message.text} »
+          </p>
         </div>
       )}
 
       {tree && (
         <>
           {/* Points header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: '12px 16px', marginBottom: 20 }}>
-            <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>
-              {tree.points_available} point{tree.points_available !== 1 ? 's' : ''} disponible{tree.points_available !== 1 ? 's' : ''}
-            </span>
-            <button
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0d1117', border: '1px solid #2d3748', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
+            <div>
+              <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-title)' }}>
+                {tree.points_available}
+              </span>
+              <span style={{ color: '#9ca3af', fontSize: 13, marginLeft: 6 }}>
+                point{tree.points_available !== 1 ? 's' : ''} disponible{tree.points_available !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <GameButton
+              variant="ghost"
+              size="sm"
               onClick={reset}
               disabled={acting}
-              style={{ background: 'transparent', color: '#ef4444', border: '1px solid #7f1d1d', padding: '4px 12px', borderRadius: 6, cursor: acting ? 'not-allowed' : 'pointer', fontSize: 12 }}
             >
-              Réinitialiser ({tree.reset_cost} 💰)
-            </button>
+              🔄 Réinitialiser ({tree.reset_cost.toLocaleString('fr-FR')} 💰)
+            </GameButton>
           </div>
 
           {/* Three branches */}

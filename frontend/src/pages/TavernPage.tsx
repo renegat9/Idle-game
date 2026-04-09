@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { tavernApi, musicApi } from '../api/game'
 import { useGameStore } from '../store/gameStore'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
+import { HeroPortrait } from '../components/ui/HeroPortrait'
+import { GameButton } from '../components/ui/GameButton'
+import { GamePanel } from '../components/ui/GamePanel'
 
 type Recruit = {
   id: number
@@ -24,15 +27,13 @@ type HeroDebuffs = {
   debuffs: Array<{ id: number; source: string; stat_affected: string; modifier_percent: number; remaining_combats: number }>
 }
 
-const CLASS_EMOJI: Record<string, string> = {
-  guerrier: '🗡️', barbare: '🪓', mage: '🔮', necromancien: '💀',
-  barde: '🎵', pretre: '✝️', voleur: '🗝️', ranger: '🏹',
+const ROLE_COLORS: Record<string, string> = {
+  tank: '#3b82f6', dps: '#ef4444', support: '#22c55e', hybrid: '#f59e0b', summoner: '#a855f7'
 }
 
 const STYLE_LABELS: Record<string, string> = {
-  taverne: '🍺 Ambiance Taverne', victoire_epique: '🏆 Victoire Épique',
-  defaite: '😢 Mélodie de la Défaite', exploration: '🗺️ Exploration',
-  boss: '⚔️ Combat de Boss', repos: '😴 Repos',
+  taverne: '🍺 Taverne', victoire_epique: '🏆 Victoire', defaite: '😢 Défaite',
+  exploration: '🗺️ Exploration', boss: '⚔️ Boss', repos: '😴 Repos',
 }
 
 export function TavernPage() {
@@ -91,50 +92,51 @@ export function TavernPage() {
     setActing(false)
   }
 
-  const roleColor = (role: string) =>
-    ({ tank: '#3b82f6', dps: '#ef4444', support: '#22c55e', hybrid: '#f59e0b', summoner: '#a855f7' }[role] ?? '#6b7280')
-
-  if (loading) return <div style={{ color: '#94a3b8' }}>Chargement de la taverne...</div>
+  if (loading) {
+    return (
+      <div className="game-loading">
+        <div className="game-loading-spinner" />
+        <div className="game-loading-text">La taverne s'anime…</div>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <h1 style={{ color: '#f1f5f9', marginBottom: 4, fontSize: 24 }}>🍺 La Taverne</h1>
-      <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 14 }}>Recruter de nouveaux héros ou purifier les afflictions de votre équipe.</p>
+      <div style={{ marginBottom: 24 }}>
+        <h1 className="game-title" style={{ fontSize: 26, margin: '0 0 4px' }}>🍺 La Taverne</h1>
+        <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>
+          Recruter de nouveaux héros ou purifier les afflictions de votre équipe.
+        </p>
+      </div>
 
       {narratorComment && <NarratorBubble comment={narratorComment} />}
 
       {/* Music player */}
-      <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 20 }}>🎵</span>
-            <div style={{ color: '#f1f5f9', fontSize: 14, fontWeight: 'bold' }}>Ambiance musicale</div>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {Object.keys(STYLE_LABELS).map(style => (
-              <button
-                key={style}
-                onClick={async () => {
-                  setSelectedStyle(style)
-                  const { data } = await tavernApi.music(style)
-                  const track = { style: data.style, context: style, file_path: data.file_path }
-                  setCurrentTrack(track)
-                  if (audioRef.current) {
-                    audioRef.current.src = `/${data.file_path}`
-                    audioRef.current.load()
-                    audioRef.current.play().then(() => setPlaying(true)).catch(() => {})
-                  }
-                }}
-                style={{ background: selectedStyle === style ? '#4c1d95' : '#0f172a', color: selectedStyle === style ? '#c4b5fd' : '#6b7280', border: '1px solid #334155', padding: '3px 10px', borderRadius: 6, cursor: 'pointer', fontSize: 11 }}
-              >
-                {STYLE_LABELS[style]}
-              </button>
-            ))}
-          </div>
+      <GamePanel icon="🎵" title="Ambiance musicale" variant="magic" style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 12, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {Object.entries(STYLE_LABELS).map(([style, label]) => (
+            <button
+              key={style}
+              onClick={async () => {
+                setSelectedStyle(style)
+                const { data } = await tavernApi.music(style)
+                const track = { style: data.style, context: style, file_path: data.file_path }
+                setCurrentTrack(track)
+                if (audioRef.current) {
+                  audioRef.current.src = `/${data.file_path}`
+                  audioRef.current.load()
+                  audioRef.current.play().then(() => setPlaying(true)).catch(() => {})
+                }
+              }}
+              className={`game-tab ${selectedStyle === style ? 'active' : ''}`}
+              style={{ fontSize: 12 }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-
-        {/* Controls */}
-        <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: '#0d1117', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             onClick={() => {
               if (!audioRef.current) return
@@ -154,148 +156,151 @@ export function TavernPage() {
             {playing ? '⏸' : '▶'}
           </button>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: '#c4b5fd', fontSize: 13 }}>{STYLE_LABELS[selectedStyle]}</div>
-            <div style={{ color: '#475569', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ color: '#c4b5fd', fontSize: 13, fontFamily: 'var(--font-title)' }}>
+              {STYLE_LABELS[selectedStyle]}
+            </div>
+            <div style={{ color: '#4b5563', fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {currentTrack ? currentTrack.file_path : `music/fallback/${selectedStyle}.mp3`}
             </div>
           </div>
-          <audio
-            ref={audioRef}
-            loop
-            onEnded={() => setPlaying(false)}
-            onPause={() => setPlaying(false)}
-            onPlay={() => setPlaying(true)}
-            style={{ display: 'none' }}
-          />
+          <audio ref={audioRef} loop onEnded={() => setPlaying(false)} onPause={() => setPlaying(false)} onPlay={() => setPlaying(true)} style={{ display: 'none' }} />
         </div>
-      </div>
+      </GamePanel>
 
       {message && (
-        <div style={{ background: message.ok ? '#052e16' : '#1c0505', border: `1px solid ${message.ok ? '#16a34a' : '#991b1b'}`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          <span style={{ color: message.ok ? '#22c55e' : '#ef4444' }}>{message.text}</span>
+        <div
+          className="narrator-bubble anim-slide-in"
+          style={{ marginBottom: 16, borderLeftColor: message.ok ? '#22c55e' : '#ef4444', background: message.ok ? '#020f08' : '#0a0202' }}
+        >
+          <p className="narrator-text" style={{ margin: 0, color: message.ok ? '#86efac' : '#fca5a5' }}>
+            « {message.text} »
+          </p>
         </div>
       )}
 
       {/* Recruits */}
-      <h2 style={{ color: '#e2e8f0', fontSize: 18, marginBottom: 14 }}>Héros disponibles</h2>
-      {recruits.length === 0 && (
-        <div style={{ color: '#6b7280', background: '#1e293b', borderRadius: 10, padding: 20, marginBottom: 24, textAlign: 'center' }}>
-          Aucun héros disponible pour le moment. Revenez plus tard.
-        </div>
-      )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
-        {recruits.map(r => (
-          <div key={r.id} style={{
-            background: r.is_legendary ? 'linear-gradient(135deg, #1e293b 0%, #1c1505 100%)' : '#1e293b',
-            border: r.is_legendary ? '2px solid #d97706' : '1px solid #334155',
-            borderRadius: 12, padding: 18,
-            boxShadow: r.is_legendary ? '0 0 12px rgba(217,119,6,0.3)' : 'none',
-          }}>
-            {/* Avatar */}
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-              {r.image_path ? (
-                <img
-                  src={`/${r.image_path}`}
-                  alt={r.name}
-                  style={{ width: 80, height: 80, objectFit: 'contain', borderRadius: 8, border: `2px solid ${r.is_legendary ? '#d97706' : '#334155'}` }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                />
-              ) : (
-                <div style={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', borderRadius: 8, border: `2px solid ${r.is_legendary ? '#d97706' : '#334155'}`, fontSize: 36 }}>
-                  {CLASS_EMOJI[r.class.slug] ?? '⚔️'}
+      <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h2 className="game-title" style={{ fontSize: 18, margin: 0 }}>Héros disponibles</h2>
+        <span style={{ color: '#4b5563', fontSize: 13 }}>({recruits.length})</span>
+      </div>
+
+      {recruits.length === 0 ? (
+        <GamePanel variant="default" style={{ textAlign: 'center', padding: '40px 20px', marginBottom: 24 }}>
+          <div style={{ fontSize: 40, marginBottom: 10 }}>😴</div>
+          <p style={{ color: '#6b7280', fontStyle: 'italic', margin: 0 }}>Aucun héros disponible pour le moment.</p>
+        </GamePanel>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16, marginBottom: 32 }}>
+          {recruits.map(r => (
+            <div
+              key={r.id}
+              className={`game-panel ${r.is_legendary ? 'game-panel-gold' : ''}`}
+              style={{ overflow: 'hidden' }}
+            >
+              {r.is_legendary && (
+                <div style={{ background: 'linear-gradient(90deg, #78350f, #b45309)', padding: '4px 12px', textAlign: 'center' }}>
+                  <span style={{ color: '#fde68a', fontSize: 11, fontFamily: 'var(--font-title)', letterSpacing: '0.1em' }}>
+                    ⭐ HÉROS LÉGENDAIRE ⭐
+                  </span>
                 </div>
               )}
-            </div>
+              <div style={{ padding: 18 }}>
+                {/* Portrait + info */}
+                <div style={{ display: 'flex', gap: 14, marginBottom: 14 }}>
+                  <HeroPortrait
+                    classSlug={r.class.slug}
+                    imagePath={r.image_path ?? undefined}
+                    name={r.name}
+                    size={80}
+                    animClass={r.is_legendary ? 'anim-breathe' : undefined}
+                  />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                      <h3 className="game-title" style={{ margin: 0, fontSize: 15, color: r.is_legendary ? '#fcd34d' : '#f9fafb' }}>
+                        {r.name}
+                      </h3>
+                      <span style={{ color: '#fbbf24', fontSize: 14, fontWeight: 700, whiteSpace: 'nowrap', marginLeft: 8 }}>
+                        {r.hire_cost.toLocaleString('fr-FR')} 💰
+                      </span>
+                    </div>
+                    {r.is_legendary && r.legendary_epithet && (
+                      <div style={{ color: '#d97706', fontSize: 12, marginBottom: 6, fontStyle: 'italic' }}>
+                        « {r.legendary_epithet} »
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ background: '#0d1117', border: '1px solid #2d3748', borderRadius: 4, padding: '2px 7px', fontSize: 11, color: '#9ca3af' }}>
+                        {r.race.name}
+                      </span>
+                      <span style={{ background: '#0d1117', border: `1px solid ${ROLE_COLORS[r.class.role] ?? '#6b7280'}`, borderRadius: 4, padding: '2px 7px', fontSize: 11, color: ROLE_COLORS[r.class.role] ?? '#6b7280' }}>
+                        {r.class.name}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div>
-                <h3 style={{ color: r.is_legendary ? '#fcd34d' : '#f1f5f9', margin: 0, fontSize: 16 }}>{r.name}</h3>
-                {r.is_legendary && r.legendary_epithet && (
-                  <div style={{ color: '#d97706', fontSize: 12, marginTop: 2, fontStyle: 'italic' }}>
-                    ⭐ {r.legendary_epithet}
+                {r.is_legendary && r.legendary_backstory && (
+                  <div className="narrator-bubble" style={{ marginBottom: 12, padding: '8px 12px' }}>
+                    <p className="narrator-text" style={{ margin: 0, fontSize: 12 }}>« {r.legendary_backstory} »</p>
                   </div>
                 )}
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ color: '#fbbf24', fontSize: 14, fontWeight: 'bold' }}>{r.hire_cost} 💰</span>
-                {r.is_legendary && (
-                  <div style={{ background: '#78350f', color: '#fde68a', fontSize: 10, borderRadius: 4, padding: '1px 6px', marginTop: 2 }}>
-                    LÉGENDAIRE
+
+                {/* Trait */}
+                <div style={{ background: '#0d1117', border: '1px solid #2d3748', borderRadius: 6, padding: '8px 10px', marginBottom: 14 }}>
+                  <div style={{ color: '#a78bfa', fontSize: 12, fontWeight: 600, marginBottom: 2 }}>
+                    ⚠ Trait : {r.trait.name}
                   </div>
-                )}
+                  <p style={{ color: '#4b5563', fontSize: 11, margin: 0, fontStyle: 'italic' }}>{r.trait.description}</p>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ color: '#4b5563', fontSize: 11 }}>
+                    Expire {new Date(r.expires_at).toLocaleDateString('fr-FR')}
+                  </span>
+                  <GameButton
+                    variant={r.is_legendary ? 'gold' : 'primary'}
+                    size="sm"
+                    onClick={() => hire(r.id)}
+                    loading={acting}
+                    icon={r.is_legendary ? '⭐' : '🍺'}
+                  >
+                    Recruter
+                  </GameButton>
+                </div>
               </div>
             </div>
-            {r.is_legendary && r.legendary_backstory && (
-              <p style={{ color: '#92400e', fontSize: 11, margin: '4px 0 8px', fontStyle: 'italic', background: '#1c1505', borderRadius: 4, padding: '4px 8px' }}>
-                {r.legendary_backstory}
-              </p>
-            )}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-              <span style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#94a3b8' }}>
-                {r.race.name}
-              </span>
-              <span style={{ background: '#0f172a', border: `1px solid ${roleColor(r.class.role)}`, borderRadius: 6, padding: '2px 8px', fontSize: 12, color: roleColor(r.class.role) }}>
-                {r.class.name}
-              </span>
-              <span style={{ background: '#0f172a', border: '1px solid #7c3aed', borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#a78bfa' }}>
-                {r.trait.name}
-              </span>
-            </div>
-            <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 12px', fontStyle: 'italic' }}>{r.trait.description}</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#475569', fontSize: 11 }}>
-                Expire {new Date(r.expires_at).toLocaleDateString('fr-FR')}
-              </span>
-              <button
-                onClick={() => hire(r.id)}
-                disabled={acting}
-                style={{
-                  background: r.is_legendary ? '#d97706' : '#7c3aed',
-                  color: 'white', border: 'none', padding: '8px 16px',
-                  borderRadius: 8, cursor: acting ? 'not-allowed' : 'pointer',
-                  fontSize: 13, opacity: acting ? 0.6 : 1,
-                }}
-              >
-                {r.is_legendary ? '⭐ Recruter (Légendaire)' : 'Recruter'}
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Debuff removal */}
       {heroDebuffs.length > 0 && (
-        <>
-          <h2 style={{ color: '#e2e8f0', fontSize: 18, marginBottom: 14 }}>🧪 Purification des afflictions</h2>
+        <div>
+          <h2 className="game-title" style={{ fontSize: 18, marginBottom: 14 }}>🧪 Purification des afflictions</h2>
           <div style={{ display: 'grid', gap: 12 }}>
             {heroDebuffs.map(hd => (
-              <div key={hd.hero_id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <h3 style={{ color: '#f1f5f9', margin: 0, fontSize: 15 }}>{hd.hero_name}</h3>
-                  <span style={{ color: '#94a3b8', fontSize: 12 }}>Coût de purification : {hd.removal_cost} 💰 / debuff</span>
+              <GamePanel key={hd.hero_id} icon="🧪" title={hd.hero_name} variant="danger">
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                  <span style={{ color: '#9ca3af', fontSize: 12 }}>Coût : {hd.removal_cost} 💰 / debuff</span>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {hd.debuffs.map(b => (
-                    <div key={b.id} style={{ background: '#1c0505', border: '1px solid #7f1d1d', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div key={b.id} style={{ background: '#0a0202', border: '1px solid #7f1d1d', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div>
-                        <span style={{ color: '#fca5a5', fontSize: 12 }}>{b.source.replace('quest_debuff_', '')}</span>
-                        <span style={{ color: '#ef4444', fontSize: 11, marginLeft: 6 }}>{b.modifier_percent}% {b.stat_affected}</span>
-                        <span style={{ color: '#6b7280', fontSize: 11, marginLeft: 6 }}>{b.remaining_combats} combats</span>
+                        <div style={{ color: '#fca5a5', fontSize: 12 }}>{b.source.replace('quest_debuff_', '')}</div>
+                        <div style={{ color: '#ef4444', fontSize: 11 }}>{b.modifier_percent}% {b.stat_affected}</div>
+                        <div style={{ color: '#4b5563', fontSize: 11 }}>{b.remaining_combats} combats</div>
                       </div>
-                      <button
-                        onClick={() => removeDebuff(hd.hero_id, b.id)}
-                        disabled={acting}
-                        style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '4px 10px', borderRadius: 6, cursor: acting ? 'not-allowed' : 'pointer', fontSize: 12 }}
-                      >
+                      <GameButton size="sm" variant="primary" onClick={() => removeDebuff(hd.hero_id, b.id)} disabled={acting}>
                         Purifier
-                      </button>
+                      </GameButton>
                     </div>
                   ))}
                 </div>
-              </div>
+              </GamePanel>
             ))}
           </div>
-        </>
+        </div>
       )}
     </div>
   )

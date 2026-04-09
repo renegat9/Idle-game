@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { dungeonApi, zoneApi } from '../api/game'
+import { MonsterPortrait } from '../components/ui/MonsterPortrait'
+import { GameButton } from '../components/ui/GameButton'
+import { GamePanel } from '../components/ui/GamePanel'
 
 type RoomPreview = {
   room_number: number
@@ -11,34 +14,18 @@ type RoomPreview = {
 }
 
 type DungeonStatus = {
-  active: boolean
-  on_cooldown?: boolean
-  available_at?: string | null
-  dungeon_id?: number
-  zone_id?: number
-  status?: string
-  current_room?: number
-  total_rooms?: number
-  room_preview?: RoomPreview | null
-  gold_gained?: number
-  loot_count?: number
-  started_at?: string
+  active: boolean; on_cooldown?: boolean; available_at?: string | null
+  dungeon_id?: number; zone_id?: number; status?: string
+  current_room?: number; total_rooms?: number; room_preview?: RoomPreview | null
+  gold_gained?: number; loot_count?: number; started_at?: string
 }
 
-const ROOM_ICONS: Record<string, string> = {
-  combat:   '⚔️',
-  treasure: '💰',
-  trap:     '🪤',
-  rest:     '🛏️',
-  boss:     '💀',
-}
-
-const ROOM_COLORS: Record<string, string> = {
-  combat:   '#ef4444',
-  treasure: '#f59e0b',
-  trap:     '#f97316',
-  rest:     '#22c55e',
-  boss:     '#a855f7',
+const ROOM_CONFIG: Record<string, { icon: string; color: string; label: string; bg: string }> = {
+  combat:   { icon: '⚔️', color: '#ef4444', label: 'Combat',      bg: '#1a0505' },
+  treasure: { icon: '💰', color: '#fbbf24', label: 'Trésor',      bg: '#1a0d00' },
+  trap:     { icon: '🪤', color: '#f97316', label: 'Piège',       bg: '#1a0800' },
+  rest:     { icon: '🛏️', color: '#22c55e', label: 'Repos',       bg: '#051a0a' },
+  boss:     { icon: '💀', color: '#a855f7', label: 'Boss Final',  bg: '#110820' },
 }
 
 export function DungeonPage() {
@@ -83,9 +70,7 @@ export function DungeonPage() {
     try {
       const { data } = await dungeonApi.enter(status.dungeon_id)
       const narration = data.room_result?.narration ?? data.narration ?? data.summary
-      if (narration) {
-        setMessage({ text: narration, ok: data.outcome !== 'failed' })
-      }
+      if (narration) setMessage({ text: narration, ok: data.outcome !== 'failed' })
       await loadStatus()
     } catch (e: any) {
       setMessage({ text: e.response?.data?.message ?? 'Erreur.', ok: false })
@@ -105,134 +90,190 @@ export function DungeonPage() {
     }
   }
 
-  if (loading) return <div style={{ color: '#94a3b8' }}>Chargement du donjon...</div>
+  if (loading) {
+    return (
+      <div className="game-loading">
+        <div className="game-loading-spinner" />
+        <div className="game-loading-text">Chargement du donjon…</div>
+      </div>
+    )
+  }
 
   const room = status?.room_preview
-  // isFinished used implicitly by on_cooldown state display below
-  void (status?.active === false && status?.on_cooldown === false && status?.dungeon_id !== undefined)
+  const roomCfg = room ? (ROOM_CONFIG[room.type] ?? ROOM_CONFIG.combat) : null
 
   return (
-    <div>
-      <h1 style={{ color: '#f1f5f9', marginBottom: 4, fontSize: 24 }}>🏰 Donjon</h1>
-      <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 14 }}>
-        Exploration procédurale — 5 à 8 salles, boss en fin de parcours.
-      </p>
+    <div className="page-bg-dungeon">
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 className="game-title" style={{ fontSize: 26, margin: '0 0 4px' }}>🏚️ Le Donjon</h1>
+        <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>
+          Exploration procédurale — salles mystérieuses, boss en fin de parcours
+        </p>
+      </div>
 
+      {/* Message */}
       {message && (
-        <div style={{ background: message.ok ? '#052e16' : '#1c0505', border: `1px solid ${message.ok ? '#16a34a' : '#991b1b'}`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          <span style={{ color: message.ok ? '#22c55e' : '#ef4444' }}>{message.text}</span>
+        <div
+          className={`narrator-bubble anim-slide-in`}
+          style={{
+            marginBottom: 16,
+            borderLeftColor: message.ok ? '#22c55e' : '#ef4444',
+            borderColor: message.ok ? '#166534' : '#7f1d1d',
+            background: message.ok ? '#020f08' : '#0a0202',
+          }}
+        >
+          <div className="narrator-label" style={{ color: message.ok ? '#22c55e' : '#ef4444' }}>
+            {message.ok ? '✅ Résultat' : '❌ Résultat'}
+          </div>
+          <p className="narrator-text" style={{ color: message.ok ? '#86efac' : '#fca5a5', margin: 0 }}>
+            « {message.text} »
+          </p>
         </div>
       )}
 
       {!status?.active ? (
         /* No active dungeon */
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 32, textAlign: 'center' }}>
-          {status?.on_cooldown && status.available_at ? (
-            <div>
-              <p style={{ color: '#6b7280', margin: '0 0 8px' }}>Vos héros sont épuisés. Ils reprennent leurs forces.</p>
-              <p style={{ color: '#f59e0b', margin: 0, fontSize: 14 }}>
-                Prochain donjon disponible le {new Date(status.available_at).toLocaleString('fr-FR')}
-              </p>
-            </div>
-          ) : (
-            <div>
-              <p style={{ color: '#94a3b8', margin: '0 0 16px' }}>Aucun donjon en cours. Vos héros s'ennuient profondément.</p>
-              <button
-                onClick={startDungeon}
-                style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: 'pointer', fontSize: 15, fontWeight: 'bold' }}
-              >
-                🏰 Entrer dans le donjon
-              </button>
-            </div>
-          )}
-        </div>
+        <GamePanel variant="default" noPadding>
+          <div style={{ padding: 40, textAlign: 'center' }}>
+            {status?.on_cooldown && status.available_at ? (
+              <div>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>😴</div>
+                <p style={{ color: '#9ca3af', marginBottom: 6 }}>Vos héros sont épuisés. Ils récupèrent.</p>
+                <p style={{ color: '#f59e0b', fontSize: 14, margin: 0 }}>
+                  Prochain donjon disponible : {new Date(status.available_at).toLocaleString('fr-FR')}
+                </p>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🏚️</div>
+                <p style={{ color: '#9ca3af', marginBottom: 20 }}>
+                  Aucun donjon en cours. Vos héros s'ennuient profondément.
+                </p>
+                <GameButton variant="primary" size="lg" icon="🏚️" onClick={startDungeon}>
+                  Entrer dans le Donjon
+                </GameButton>
+              </div>
+            )}
+          </div>
+        </GamePanel>
       ) : (
         /* Active dungeon */
         <div>
-          {/* Progress bar */}
-          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16, marginBottom: 16 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ color: '#94a3b8', fontSize: 13 }}>
-                Salle {status.current_room} / {status.total_rooms}
+          {/* Progress panel */}
+          <GamePanel icon="🗺️" title="Progression" variant="default" style={{ marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ color: '#9ca3af', fontSize: 13 }}>
+                Salle <strong style={{ color: '#f9fafb' }}>{status.current_room}</strong> / {status.total_rooms}
               </span>
               <div style={{ display: 'flex', gap: 16 }}>
-                <span style={{ color: '#f59e0b', fontSize: 13 }}>💰 {status.gold_gained ?? 0}</span>
+                <span style={{ color: '#fbbf24', fontSize: 13 }}>💰 {status.gold_gained ?? 0} or</span>
                 {(status.loot_count ?? 0) > 0 && (
-                  <span style={{ color: '#22c55e', fontSize: 13 }}>🎁 {status.loot_count} objet(s)</span>
+                  <span style={{ color: '#4ade80', fontSize: 13 }}>🎁 {status.loot_count} objet(s)</span>
                 )}
               </div>
             </div>
 
-            {/* Progress dots */}
-            <div style={{ display: 'flex', gap: 6 }}>
+            {/* Room progress dots */}
+            <div style={{ display: 'flex', gap: 5 }}>
               {Array.from({ length: status.total_rooms ?? 0 }, (_, i) => {
                 const roomNum = i + 1
                 const done = roomNum < (status.current_room ?? 1)
                 const current = roomNum === status.current_room
+                const isBoss = roomNum === status.total_rooms
                 return (
-                  <div key={i} style={{
-                    flex: 1,
-                    height: 8,
-                    borderRadius: 4,
-                    background: done ? '#16a34a' : current ? '#7c3aed' : '#1e293b',
-                    border: `1px solid ${done ? '#16a34a' : current ? '#7c3aed' : '#334155'}`,
-                  }} />
+                  <div
+                    key={i}
+                    title={`Salle ${roomNum}${isBoss ? ' (Boss)' : ''}`}
+                    style={{
+                      flex: 1, height: 10, borderRadius: 4, cursor: 'default',
+                      background: done ? '#16a34a' : current ? '#7c3aed' : '#1f2937',
+                      border: `1px solid ${done ? '#22c55e' : current ? '#7c3aed' : '#374151'}`,
+                      boxShadow: current ? '0 0 8px rgba(124,58,237,0.5)' : 'none',
+                      fontSize: isBoss ? 8 : undefined,
+                      display: isBoss ? 'flex' : undefined,
+                      alignItems: isBoss ? 'center' : undefined,
+                      justifyContent: isBoss ? 'center' : undefined,
+                    }}
+                  >
+                    {isBoss && !done && <span style={{ color: current ? 'white' : '#6b7280' }}>💀</span>}
+                  </div>
                 )
               })}
             </div>
-          </div>
+          </GamePanel>
 
           {/* Current room */}
-          {room && (
-            <div style={{
-              background: '#1e293b',
-              border: `1px solid ${ROOM_COLORS[room.type] ?? '#334155'}`,
-              borderRadius: 12,
-              padding: 24,
-              marginBottom: 16,
-            }}>
-              <h2 style={{ color: ROOM_COLORS[room.type] ?? '#f1f5f9', margin: '0 0 8px', fontSize: 18 }}>
-                {ROOM_ICONS[room.type]} Salle {room.room_number} — {
-                  room.type === 'combat' ? 'Combat' :
-                  room.type === 'treasure' ? 'Trésor' :
-                  room.type === 'trap' ? 'Piège' :
-                  room.type === 'rest' ? 'Repos' : 'Boss Final'
-                }
-              </h2>
-              {room.monster_name && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                  {room.monster_image_path && (
-                    <img
-                      src={`/${room.monster_image_path}`}
-                      alt={room.monster_name}
-                      style={{ width: 56, height: 56, objectFit: 'contain', imageRendering: 'auto' }}
-                    />
-                  )}
-                  <p style={{ color: '#94a3b8', margin: 0, fontSize: 14 }}>
-                    Ennemi : <strong style={{ color: '#f1f5f9' }}>{room.monster_name}</strong>
-                    {room.monster_level && <span> (Niv. {room.monster_level})</span>}
-                  </p>
+          {room && roomCfg && (
+            <div
+              className="game-panel anim-slide-in"
+              style={{
+                marginBottom: 16,
+                borderColor: roomCfg.color + '44',
+                boxShadow: `0 0 20px ${roomCfg.color}15`,
+                overflow: 'hidden',
+              }}
+            >
+              {/* Room header */}
+              <div style={{
+                padding: '14px 16px',
+                background: `linear-gradient(90deg, ${roomCfg.bg}, transparent)`,
+                borderBottom: `1px solid ${roomCfg.color}33`,
+                display: 'flex', alignItems: 'center', gap: 10,
+              }}>
+                <span style={{ fontSize: 24 }}>{roomCfg.icon}</span>
+                <div>
+                  <div className="game-title" style={{ fontSize: 15, color: roomCfg.color }}>
+                    Salle {room.room_number} — {roomCfg.label}
+                  </div>
                 </div>
-              )}
-              {room.description && (
-                <p style={{ color: '#6b7280', margin: '0 0 16px', fontSize: 13, fontStyle: 'italic' }}>
-                  {room.description}
-                </p>
-              )}
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <button
-                  onClick={advance}
-                  disabled={advancing}
-                  style={{ background: advancing ? '#374151' : '#7c3aed', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 8, cursor: advancing ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 'bold', opacity: advancing ? 0.6 : 1 }}
-                >
-                  {advancing ? '...' : 'Avancer ▶️'}
-                </button>
-                <button
-                  onClick={abandon}
-                  style={{ background: 'transparent', color: '#6b7280', border: '1px solid #374151', padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14 }}
-                >
-                  Fuir 🏃
-                </button>
+              </div>
+
+              <div style={{ padding: 16 }}>
+                {/* Monster */}
+                {room.monster_name && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14, background: '#0d1117', borderRadius: 8, padding: '10px 12px' }}>
+                    <MonsterPortrait
+                      name={room.monster_name}
+                      imagePath={room.monster_image_path}
+                      level={room.monster_level}
+                      size={72}
+                    />
+                    <div>
+                      <div className="game-title" style={{ fontSize: 15, color: '#f9fafb', marginBottom: 4 }}>
+                        {room.monster_name}
+                      </div>
+                      {room.monster_level && (
+                        <span style={{ background: '#7f1d1d', color: '#fca5a5', padding: '2px 8px', borderRadius: 4, fontSize: 12, fontFamily: 'var(--font-title)' }}>
+                          Niveau {room.monster_level}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Room description */}
+                {room.description && (
+                  <p style={{ color: '#9ca3af', fontSize: 13, fontStyle: 'italic', lineHeight: 1.6, marginBottom: 16 }}>
+                    {room.description}
+                  </p>
+                )}
+
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <GameButton
+                    variant="primary"
+                    icon={roomCfg.icon}
+                    onClick={advance}
+                    loading={advancing}
+                    size="lg"
+                  >
+                    {room.type === 'combat' || room.type === 'boss' ? 'Combattre !' : room.type === 'treasure' ? 'Ramasser' : room.type === 'rest' ? 'Se reposer' : 'Avancer'}
+                  </GameButton>
+                  <GameButton variant="ghost" onClick={abandon}>
+                    🏃 Fuir
+                  </GameButton>
+                </div>
               </div>
             </div>
           )}

@@ -1,3 +1,5 @@
+@import './styles/game-ui.css';
+
 *, *::before, *::after { box-sizing: border-box; }
 
 body {
@@ -14,11 +16,7 @@ input, select, textarea, button {
 
 a { color: #7c3aed; }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: #111827; }
-::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
-
-/* ── Animations héros & monstres ─────────────────────────────────────────── */
+/* ── Hero/Monster Animations ────────────────────────────────────── */
 
 @keyframes breathe {
   0%, 100% { transform: scale(1); }

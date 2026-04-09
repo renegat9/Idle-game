@@ -87,156 +87,158 @@ export function WorldBossPage() {
     return '#ef4444'
   }
 
-  if (loading) return <div style={{ color: '#94a3b8' }}>Chargement du boss mondial...</div>
+  if (loading) {
+    return (
+      <div className="game-loading">
+        <div className="game-loading-spinner" />
+        <div className="game-loading-text">Le boss arrive…</div>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <h1 style={{ color: '#f1f5f9', marginBottom: 4, fontSize: 24 }}>💀 Boss Mondial</h1>
-      <p style={{ color: '#6b7280', marginBottom: 16, fontSize: 14 }}>
-        Un événement serveur — tous les joueurs attaquent le même boss.
-      </p>
+      <div style={{ marginBottom: 24 }}>
+        <h1 className="game-title" style={{ fontSize: 26, margin: '0 0 4px' }}>🐉 Boss Mondial</h1>
+        <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>
+          Événement serveur — tous les joueurs attaquent le même boss
+        </p>
+      </div>
 
       {message && (
-        <div style={{ background: message.ok ? '#052e16' : '#1c0505', border: `1px solid ${message.ok ? '#16a34a' : '#991b1b'}`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          <span style={{ color: message.ok ? '#22c55e' : '#ef4444' }}>{message.text}</span>
+        <div className={`narrator-bubble anim-slide-in`} style={{ marginBottom: 16, borderLeftColor: message.ok ? '#22c55e' : '#ef4444', background: message.ok ? '#020f08' : '#0a0202' }}>
+          <p className="narrator-text" style={{ margin: 0, color: message.ok ? '#86efac' : '#fca5a5' }}>« {message.text} »</p>
         </div>
       )}
 
       {/* Boss panel */}
       {!status?.active_boss || status.active_boss!.status === 'inactive' ? (
-        <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 40, textAlign: 'center', marginBottom: 24 }}>
-          <p style={{ color: '#6b7280', margin: 0 }}>Aucun boss actif pour l'instant. Les rumeurs parlent d'une prochaine apparition...</p>
+        <div className="game-panel" style={{ padding: 40, textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 64, marginBottom: 12 }}>💤</div>
+          <p style={{ color: '#6b7280', margin: 0, fontStyle: 'italic' }}>Aucun boss actif. Les rumeurs parlent d'une prochaine apparition…</p>
         </div>
       ) : (
-        <div style={{ background: '#1e293b', border: `1px solid ${status.active_boss!.status === 'defeated' ? '#334155' : '#991b1b'}`, borderRadius: 12, padding: 24, marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-            <div>
-              <h2 style={{ color: '#f1f5f9', margin: '0 0 4px', fontSize: 22 }}>{status.active_boss!.name}</h2>
+        <div
+          className={`game-panel ${status.active_boss!.status === 'defeated' ? '' : 'game-panel-danger'}`}
+          style={{ marginBottom: 24, overflow: 'hidden' }}
+        >
+          {/* Boss header with large icon */}
+          <div style={{ padding: '20px 20px 16px', background: 'linear-gradient(135deg, #1a0505, #0a0202)', borderBottom: '1px solid #7f1d1d', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+            <div className="anim-breathe" style={{ fontSize: 56, lineHeight: 1, flexShrink: 0 }}>🐉</div>
+            <div style={{ flex: 1 }}>
+              <h2 className="game-title" style={{ margin: '0 0 6px', fontSize: 22, color: '#f9fafb' }}>
+                {status.active_boss!.name}
+              </h2>
               {status.active_boss!.description && (
-                <p style={{ color: '#94a3b8', fontSize: 13, margin: '6px 0 4px', fontStyle: 'italic' }}>
-                  {status.active_boss!.description}
-                </p>
+                <p className="flavor-text" style={{ margin: '0 0 8px' }}>{status.active_boss!.description}</p>
               )}
               {status.active_boss!.special_mechanic && (
-                <span style={{ color: '#f59e0b', fontSize: 12, background: '#1c1005', padding: '2px 8px', borderRadius: 4 }}>
-                  Mécanisme : {status.active_boss!.special_mechanic}
+                <span style={{ color: '#f59e0b', fontSize: 12, background: '#1a0d00', padding: '3px 10px', borderRadius: 4, border: '1px solid #b45309' }}>
+                  ⚡ {status.active_boss!.special_mechanic}
                 </span>
               )}
             </div>
             <span style={{
               color: status.active_boss!.status === 'defeated' ? '#6b7280' : '#ef4444',
-              background: '#0f172a',
-              padding: '4px 12px',
-              borderRadius: 6,
-              fontSize: 13,
-              fontWeight: 'bold',
+              background: '#0d1117', padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700,
+              fontFamily: 'var(--font-title)', flexShrink: 0,
             }}>
               {status.active_boss!.status === 'defeated' ? '💀 Vaincu' : '⚔️ Actif'}
             </span>
           </div>
 
-          {/* HP bar */}
-          {status.active_boss!.status !== 'defeated' && (
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ color: '#94a3b8', fontSize: 12 }}>Points de vie</span>
-                <span style={{ color: '#e2e8f0', fontSize: 12 }}>
-                  {status.active_boss!.current_hp.toLocaleString('fr-FR')} / {status.active_boss!.total_hp.toLocaleString('fr-FR')} ({hpPercent(status.active_boss!)}%)
-                </span>
+          <div style={{ padding: 20 }}>
+            {/* HP bar */}
+            {status.active_boss!.status !== 'defeated' && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ color: '#9ca3af', fontSize: 12, fontFamily: 'var(--font-title)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    ❤️ Points de Vie
+                  </span>
+                  <span style={{ color: '#f9fafb', fontSize: 12 }}>
+                    {status.active_boss!.current_hp.toLocaleString('fr-FR')} / {status.active_boss!.total_hp.toLocaleString('fr-FR')} ({hpPercent(status.active_boss!)}%)
+                  </span>
+                </div>
+                <div className="stat-bar-track" style={{ height: 16 }}>
+                  <div
+                    className="stat-bar-fill"
+                    style={{
+                      width: `${hpPercent(status.active_boss!)}%`,
+                      background: hpColor(hpPercent(status.active_boss!)),
+                      height: '100%', borderRadius: 4, transition: 'width 0.5s ease',
+                      boxShadow: `0 0 8px ${hpColor(hpPercent(status.active_boss!))}66`,
+                    }}
+                  />
+                </div>
               </div>
-              <div style={{ background: '#0f172a', borderRadius: 6, height: 14, overflow: 'hidden' }}>
-                <div style={{
-                  width: `${hpPercent(status.active_boss!)}%`,
-                  height: '100%',
-                  background: hpColor(hpPercent(status.active_boss!)),
-                  transition: 'width 0.5s ease',
-                  borderRadius: 6,
-                }} />
+            )}
+
+            {/* Contribution */}
+            {status.my_contribution && (
+              <div style={{ background: '#0d1117', borderRadius: 8, padding: '10px 14px', marginBottom: 16, border: '1px solid #1f2937', display: 'flex', gap: 20 }}>
+                <div><div style={{ color: '#6b7280', fontSize: 11, marginBottom: 2 }}>Vos dégâts</div><div style={{ color: '#ef4444', fontWeight: 700, fontSize: 16 }}>{status.my_contribution.damage_dealt.toLocaleString('fr-FR')}</div></div>
+                <div><div style={{ color: '#6b7280', fontSize: 11, marginBottom: 2 }}>Attaques</div><div style={{ color: '#f9fafb', fontWeight: 700, fontSize: 16 }}>{status.my_contribution.hits_count}</div></div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* My contribution */}
-          {status.my_contribution && (
-            <div style={{ background: '#0f172a', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-              <span style={{ color: '#94a3b8', fontSize: 12 }}>Votre contribution : </span>
-              <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>
-                {status.my_contribution.damage_dealt.toLocaleString('fr-FR')} dégâts
-              </span>
-              <span style={{ color: '#6b7280', fontSize: 12, marginLeft: 8 }}>
-                ({status.my_contribution.hits_count} attaques)
-              </span>
-            </div>
-          )}
+            {/* Attack */}
+            {status.active_boss!.status === 'active' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <button
+                  onClick={attack}
+                  disabled={attacking || status.cooldown_seconds > 0}
+                  className="game-btn game-btn-danger game-btn-lg"
+                >
+                  {attacking ? '⚔️ Attaque...' : '⚔️ Attaquer !'}
+                </button>
+                {status.cooldown_seconds > 0 && (
+                  <span style={{ color: '#6b7280', fontSize: 13 }}>
+                    ⏱ {Math.ceil(status.cooldown_seconds / 60)} min de recharge
+                  </span>
+                )}
+              </div>
+            )}
 
-          {/* Attack button */}
-          {status.active_boss!.status === 'active' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button
-                onClick={attack}
-                disabled={attacking || (status.cooldown_seconds > 0)}
-                style={{
-                  background: attacking || status.cooldown_seconds > 0 ? '#374151' : '#dc2626',
-                  color: 'white',
-                  border: 'none',
-                  padding: '10px 24px',
-                  borderRadius: 8,
-                  cursor: attacking || status.cooldown_seconds > 0 ? 'not-allowed' : 'pointer',
-                  fontSize: 15,
-                  fontWeight: 'bold',
-                  opacity: attacking || status.cooldown_seconds > 0 ? 0.6 : 1,
-                }}
-              >
-                {attacking ? '⚔️ Attaque...' : '⚔️ Attaquer'}
-              </button>
-              {status.cooldown_seconds > 0 && (
-                <span style={{ color: '#6b7280', fontSize: 13 }}>
-                  Prochain attaque dans {Math.ceil(status.cooldown_seconds / 60)} min
-                </span>
-              )}
-            </div>
-          )}
-
-          {lastResult && (
-            <div style={{ marginTop: 12, color: '#94a3b8', fontSize: 13, fontStyle: 'italic' }}>
-              {lastResult.narration}
-            </div>
-          )}
+            {lastResult?.narration && (
+              <div className="narrator-bubble" style={{ marginTop: 14 }}>
+                <p className="narrator-text" style={{ margin: 0 }}>« {lastResult.narration} »</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Leaderboard */}
-      <div>
-        <h2 style={{ color: '#e2e8f0', fontSize: 18, marginBottom: 12 }}>🏆 Classement des contributeurs</h2>
+      <div className="game-panel" style={{ overflow: 'hidden' }}>
+        <div className="game-panel-header">
+          <span className="panel-icon">🏆</span>
+          <span className="panel-title">Classement des Contributeurs</span>
+        </div>
         {leaderboard.length === 0 ? (
-          <p style={{ color: '#6b7280' }}>Aucune contribution enregistrée pour le moment.</p>
+          <div style={{ padding: '32px 16px', textAlign: 'center', color: '#4b5563', fontStyle: 'italic' }}>
+            Aucune contribution pour le moment.
+          </div>
         ) : (
-          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, overflow: 'hidden' }}>
+          <div>
             {leaderboard.map((entry, i) => (
               <div
                 key={i}
                 style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '12px 16px',
-                  borderBottom: i < leaderboard.length - 1 ? '1px solid #1e293b' : 'none',
-                  background: i === 0 ? '#1a1005' : i === 1 ? '#131a25' : 'transparent',
+                  borderBottom: i < leaderboard.length - 1 ? '1px solid #1f2937' : 'none',
+                  background: i === 0 ? '#1a0d0022' : 'transparent',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ color: i === 0 ? '#f59e0b' : i === 1 ? '#94a3b8' : '#6b7280', fontWeight: 'bold', width: 24, fontSize: 16 }}>
-                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`}
+                  <span style={{ fontSize: 18, width: 28 }}>
+                    {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : <span style={{ color: '#4b5563', fontSize: 13 }}>#{i + 1}</span>}
                   </span>
                   <span style={{ color: '#e2e8f0', fontSize: 14 }}>{entry.username}</span>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
-                    {entry.damage_dealt.toLocaleString('fr-FR')} dmg
-                  </span>
-                  <span style={{ color: '#6b7280', fontSize: 12, marginLeft: 8 }}>
-                    ({entry.hits_count} coups)
-                  </span>
+                  <span style={{ color: '#ef4444', fontWeight: 700 }}>{entry.damage_dealt.toLocaleString('fr-FR')} dmg</span>
+                  <span style={{ color: '#4b5563', fontSize: 12, marginLeft: 8 }}>({entry.hits_count} coups)</span>
                 </div>
               </div>
             ))}

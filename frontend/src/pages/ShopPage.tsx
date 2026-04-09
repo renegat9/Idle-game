@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react'
 import { shopApi } from '../api/game'
+import { ItemImage } from '../components/ui/ItemImage'
+import { GameButton } from '../components/ui/GameButton'
+import { GamePanel } from '../components/ui/GamePanel'
 
 type ShopItem = {
   id: number
@@ -18,22 +21,13 @@ type ShopItem = {
   expires_at: string
 }
 
-const RARITY_COLORS: Record<string, string> = {
-  commun:      '#94a3b8',
-  peu_commun:  '#22c55e',
-  rare:        '#3b82f6',
-  epique:      '#a855f7',
-  legendaire:  '#f59e0b',
-  wtf:         '#ec4899',
-}
-
-const SLOT_ICONS: Record<string, string> = {
-  arme:         '⚔️',
-  armure:       '🛡️',
-  casque:       '⛑️',
-  bottes:       '👢',
-  accessoire:   '💍',
-  truc_bizarre: '🤔',
+const RARITY_LABEL: Record<string, string> = {
+  commun:      'Commun',
+  peu_commun:  'Peu commun',
+  rare:        'Rare',
+  epique:      'Épique',
+  legendaire:  'Légendaire',
+  wtf:         'WTF',
 }
 
 export function ShopPage() {
@@ -71,99 +65,112 @@ export function ShopPage() {
     setBuying(null)
   }
 
-  function statRow(label: string, value: number) {
-    if (!value) return null
+  if (loading) {
     return (
-      <span style={{ color: '#94a3b8', fontSize: 11, marginRight: 8 }}>
-        {label} <span style={{ color: '#e2e8f0' }}>+{value}</span>
-      </span>
+      <div className="game-loading">
+        <div className="game-loading-spinner" />
+        <div className="game-loading-text">Le marchand arrive…</div>
+      </div>
     )
   }
 
-  if (loading) return <div style={{ color: '#94a3b8' }}>Chargement de la boutique...</div>
-
   return (
     <div>
-      <h1 style={{ color: '#f1f5f9', marginBottom: 4, fontSize: 24 }}>🛒 Boutique</h1>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <p style={{ color: '#6b7280', fontSize: 14, margin: 0 }}>
-          {zoneName ? `Marchand de ${zoneName}` : 'Marchand ambulant'} — assortiment limité, qualité douteuse.
-        </p>
-        {expiresAt && (
-          <span style={{ color: '#475569', fontSize: 12 }}>
-            Expire le {new Date(expiresAt).toLocaleString('fr-FR')}
-          </span>
-        )}
+      <div style={{ marginBottom: 24 }}>
+        <h1 className="game-title" style={{ fontSize: 26, margin: '0 0 4px' }}>🛒 Boutique</h1>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>
+            {zoneName ? `Marchand de ${zoneName}` : 'Marchand ambulant'} — assortiment limité, qualité douteuse.
+          </p>
+          {expiresAt && (
+            <span style={{ color: '#4b5563', fontSize: 12, fontFamily: 'var(--font-title)' }}>
+              ⏱ Expire le {new Date(expiresAt).toLocaleString('fr-FR')}
+            </span>
+          )}
+        </div>
       </div>
 
       {message && (
-        <div style={{ background: message.ok ? '#052e16' : '#1c0505', border: `1px solid ${message.ok ? '#16a34a' : '#991b1b'}`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
-          <span style={{ color: message.ok ? '#22c55e' : '#ef4444' }}>{message.text}</span>
+        <div
+          className="narrator-bubble anim-slide-in"
+          style={{ marginBottom: 16, borderLeftColor: message.ok ? '#22c55e' : '#ef4444', background: message.ok ? '#020f08' : '#0a0202' }}
+        >
+          <p className="narrator-text" style={{ margin: 0, color: message.ok ? '#86efac' : '#fca5a5' }}>
+            « {message.text} »
+          </p>
         </div>
       )}
 
       {items.length === 0 ? (
-        <div style={{ color: '#6b7280', background: '#1e293b', borderRadius: 10, padding: 40, textAlign: 'center' }}>
-          Le marchand est en pause déjeuner. Revenez dans un moment.
-        </div>
+        <GamePanel variant="default" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🛏️</div>
+          <p style={{ color: '#6b7280', fontStyle: 'italic', margin: 0 }}>
+            Le marchand est en pause déjeuner. Revenez dans un moment.
+          </p>
+        </GamePanel>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
           {items.map(item => (
-            <div key={item.id} style={{
-              background: '#1e293b',
-              border: `1px solid ${RARITY_COLORS[item.rarity] ?? '#334155'}`,
-              borderRadius: 12,
-              padding: 18,
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                <div>
-                  <span style={{ fontSize: 18, marginRight: 8 }}>{SLOT_ICONS[item.slot] ?? '📦'}</span>
-                  <span style={{ color: RARITY_COLORS[item.rarity] ?? '#94a3b8', fontWeight: 'bold', fontSize: 14 }}>
-                    {item.name}
-                  </span>
+            <div
+              key={item.id}
+              className={`game-panel rarity-frame rarity-frame-${item.rarity}`}
+              style={{ overflow: 'hidden' }}
+            >
+              {/* Item header */}
+              <div style={{ padding: '14px 16px 0', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                <ItemImage slot={item.slot} rarity={item.rarity} size={64} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                    <h3 className="game-title" style={{ margin: 0, fontSize: 14, color: '#f9fafb', lineHeight: 1.3 }}>
+                      {item.name}
+                    </h3>
+                    <span style={{ color: '#4b5563', fontSize: 11, background: '#0d1117', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', marginLeft: 6 }}>
+                      Niv. {item.item_level}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <span style={{
+                      fontSize: 10, fontFamily: 'var(--font-title)', textTransform: 'uppercase',
+                      letterSpacing: '0.05em', padding: '2px 8px', borderRadius: 4,
+                      background: '#0d1117',
+                      color: {
+                        commun: '#94a3b8', peu_commun: '#22c55e', rare: '#3b82f6',
+                        epique: '#a855f7', legendaire: '#f59e0b', wtf: '#ec4899',
+                      }[item.rarity] ?? '#94a3b8',
+                    }}>
+                      {RARITY_LABEL[item.rarity] ?? item.rarity}
+                    </span>
+                    <span style={{ fontSize: 10, color: '#4b5563', padding: '2px 8px', borderRadius: 4, background: '#0d1117', textTransform: 'capitalize' }}>
+                      {item.slot.replace('_', ' ')}
+                    </span>
+                  </div>
                 </div>
-                <span style={{ color: '#94a3b8', fontSize: 11, background: '#0f172a', padding: '2px 6px', borderRadius: 4 }}>
-                  Niv. {item.item_level}
-                </span>
               </div>
 
-              <div style={{ marginBottom: 10 }}>
-                <span style={{ fontSize: 11, color: RARITY_COLORS[item.rarity], background: '#0f172a', padding: '2px 8px', borderRadius: 4, textTransform: 'capitalize' }}>
-                  {item.rarity.replace('_', ' ')}
-                </span>
-                <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 8, textTransform: 'capitalize' }}>
-                  {item.slot.replace('_', ' ')}
-                </span>
+              {/* Stats */}
+              <div style={{ padding: '10px 16px', display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
+                {item.atq > 0 && <span style={{ color: '#ef4444', fontSize: 12 }}>⚔️ +{item.atq}</span>}
+                {item.def > 0 && <span style={{ color: '#3b82f6', fontSize: 12 }}>🛡️ +{item.def}</span>}
+                {item.hp  > 0 && <span style={{ color: '#22c55e', fontSize: 12 }}>❤️ +{item.hp}</span>}
+                {item.vit > 0 && <span style={{ color: '#06b6d4', fontSize: 12 }}>💨 +{item.vit}</span>}
+                {item.cha > 0 && <span style={{ color: '#ec4899', fontSize: 12 }}>✨ +{item.cha}</span>}
+                {item.int > 0 && <span style={{ color: '#a855f7', fontSize: 12 }}>📖 +{item.int}</span>}
               </div>
 
-              <div style={{ marginBottom: 14, minHeight: 20 }}>
-                {statRow('ATQ', item.atq)}
-                {statRow('DEF', item.def)}
-                {statRow('HP', item.hp)}
-                {statRow('VIT', item.vit)}
-                {statRow('CHA', item.cha)}
-                {statRow('INT', item.int)}
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#94a3b8', fontSize: 11 }}>Revente : {item.sell_value} 💰</span>
-                <button
+              {/* Footer */}
+              <div style={{ padding: '10px 16px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1f2937' }}>
+                <span style={{ color: '#4b5563', fontSize: 11 }}>
+                  Revente : {item.sell_value.toLocaleString('fr-FR')} 💰
+                </span>
+                <GameButton
+                  variant="gold"
+                  size="sm"
                   onClick={() => buy(item.id)}
+                  loading={buying === item.id}
                   disabled={buying !== null}
-                  style={{
-                    background: buying === item.id ? '#374151' : '#7c3aed',
-                    color: 'white',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: 8,
-                    cursor: buying !== null ? 'not-allowed' : 'pointer',
-                    fontSize: 13,
-                    fontWeight: 'bold',
-                    opacity: buying !== null ? 0.6 : 1,
-                  }}
                 >
-                  {buying === item.id ? '...' : `${item.shop_price} 💰`}
-                </button>
+                  {item.shop_price.toLocaleString('fr-FR')} 💰 Acheter
+                </GameButton>
               </div>
             </div>
           ))}
