@@ -143,31 +143,6 @@ class GeminiService
     }
 
     /**
-     * Generate a unique portrait for a hero based on race, class and trait.
-     * Returns the public path to the saved image (with transparent background).
-     */
-    public function generateHeroImage(int $heroId, string $raceName, string $classSlug, ?string $traitSlug): string
-    {
-        if (!$this->canCall('hero_image')) {
-            return $this->fallbackHeroImage($classSlug);
-        }
-
-        $prompt = $this->buildHeroImagePrompt($raceName, $classSlug, $traitSlug);
-
-        try {
-            $filename = "hero_{$heroId}_" . time() . '.png';
-            $path = $this->callImageApi($prompt, 'hero_image', $filename);
-            if ($path !== null) {
-                return $path;
-            }
-        } catch (\Throwable $e) {
-            Log::warning('GeminiService::generateHeroImage failed', ['error' => $e->getMessage()]);
-        }
-
-        return $this->fallbackHeroImage($classSlug);
-    }
-
-    /**
      * Generate a zone background illustration.
      */
     public function generateZoneBackground(int $zoneId, string $zoneSlug, string $element, string $description): string
