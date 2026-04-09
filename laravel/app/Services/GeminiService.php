@@ -424,11 +424,11 @@ class GeminiService
         $apiKey = config('services.gemini.api_key');
 
         $response = Http::timeout(90)
-            ->post(self::MUSIC_GEMINI_URL . "?key={$apiKey}", [
+            ->withHeader('x-goog-api-key', $apiKey)
+            ->post(self::MUSIC_GEMINI_URL, [
                 'contents'        => [['parts' => [['text' => $prompt]]]],
                 'generationConfig' => [
-                    'responseModalities' => ['AUDIO'],
-                    'responseMimeType'   => 'audio/mp3',
+                    'responseModalities' => ['AUDIO', 'TEXT'],
                 ],
             ]);
 
