@@ -12,6 +12,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [dashboard, setDashboard] = useState<any>(null)
   const [collecting, setCollecting] = useState(false)
+  const [collectResult, setCollectResult] = useState<any>(null)
   const [activeEvents, setActiveEvents] = useState<SeasonalEvent[]>([])
   const [eventModifiers, setEventModifiers] = useState<any>(null)
 
@@ -36,8 +37,10 @@ export function DashboardPage() {
 
   const handleCollect = async () => {
     setCollecting(true)
+    setCollectResult(null)
     try {
       const { data } = await explorationApi.collect()
+      setCollectResult(data.result)
       setOfflineResult(data.result)
       setGold(data.user.gold)
       updateUser(data.user)
@@ -77,29 +80,62 @@ export function DashboardPage() {
       {/* Narrateur */}
       {dashboard?.narrator_comment && <NarratorBubble comment={dashboard.narrator_comment} />}
 
-      {/* Résultat offline */}
-      {offlineResult && offlineResult.combats_simulated > 0 && (
-        <div style={{
-          background: '#0f2d1a', border: '1px solid #22c55e', borderRadius: 8,
-          padding: 16, marginBottom: 20,
-        }}>
-          <h3 style={{ color: '#22c55e', marginTop: 0 }}>Pendant ton absence...</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
+      {/* Résultat de collecte */}
+      {collectResult && (
+        <div style={{ background: '#0f2d1a', border: '1px solid #22c55e', borderRadius: 8, padding: 16, marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ color: '#22c55e', margin: 0 }}>Récompenses collectées</h3>
+            <button
+              onClick={() => setCollectResult(null)}
+              style={{ background: 'transparent', border: 'none', color: '#4b5563', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}
+            >✕</button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 }}>
             {[
-              ['Combats', offlineResult.combats_simulated],
-              ['XP gagnée', offlineResult.xp_gained],
-              ['Or gagné', offlineResult.gold_gained],
-            ].map(([label, value]) => (
-              <div key={label} style={{ background: '#111827', borderRadius: 6, padding: '8px 12px', textAlign: 'center' }}>
-                <div style={{ color: '#f9fafb', fontSize: 20, fontWeight: 'bold' }}>{value}</div>
-                <div style={{ color: '#6b7280', fontSize: 12 }}>{label}</div>
+              ['⚔️ Combats',  collectResult.combats_simulated, '#f9fafb'],
+              ['✨ XP',        collectResult.xp_gained,         '#818cf8'],
+              ['💰 Or',        collectResult.gold_gained,        '#fbbf24'],
+            ].map(([label, value, color]) => (
+              <div key={label as string} style={{ background: '#111827', borderRadius: 6, padding: '8px 10px', textAlign: 'center' }}>
+                <div style={{ color: color as string, fontSize: 18, fontWeight: 'bold' }}>{value as number}</div>
+                <div style={{ color: '#6b7280', fontSize: 11 }}>{label as string}</div>
               </div>
             ))}
           </div>
-          {offlineResult.items_gained.length > 0 && (
-            <p style={{ color: '#fbbf24', fontSize: 13, margin: 0 }}>
-              +{offlineResult.items_gained.length} objet(s) trouvé(s) dans l'inventaire
-            </p>
+
+          {collectResult.items_gained?.length > 0 ? (
+            <div>
+              <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 6 }}>
+                {collectResult.items_gained.length} objet(s) ajouté(s) à l'inventaire
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {collectResult.items_gained.map((item: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#111827', borderRadius: 5, padding: '5px 10px' }}>
+                    <span style={{ fontSize: 14 }}>
+                      {{ arme: '⚔️', armure: '🛡️', casque: '⛑️', bottes: '👢', accessoire: '💍', truc_bizarre: '🎲' }[item.slot as string] ?? '📦'}
+                    </span>
+                    <span style={{
+                      fontWeight: 'bold', fontSize: 13, flex: 1,
+                      color: ({ commun: '#9ca3af', peu_commun: '#4ade80', rare: '#60a5fa', epique: '#a78bfa', legendaire: '#fbbf24', wtf: '#f472b6' } as Record<string,string>)[item.rarity] ?? '#9ca3af',
+                    }}>
+                      {item.name}
+                    </span>
+                    <span style={{ color: '#4b5563', fontSize: 11 }}>niv. {item.item_level}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ color: '#4b5563', fontSize: 13, fontStyle: 'italic' }}>
+              Aucun objet trouvé. Le Narrateur compatit.
+            </div>
+          )}
+
+          {collectResult.narrator_comment && (
+            <div style={{ marginTop: 12, color: '#6b7280', fontSize: 12, fontStyle: 'italic', borderTop: '1px solid #1f2937', paddingTop: 10 }}>
+              "{collectResult.narrator_comment}"
+            </div>
           )}
         </div>
       )}
