@@ -9,14 +9,15 @@ return new class extends Migration
     {
         DB::statement("ALTER TABLE ai_generation_log MODIFY COLUMN type ENUM(
             'narration','loot_text','loot_image','quest','music','boss','zone',
-            'legendary_hero','hero_image'
+            'zone_bg','elite_monster','monster_image','legendary_hero','hero_image'
         ) NOT NULL");
     }
 
     public function down(): void
     {
         DB::statement("ALTER TABLE ai_generation_log MODIFY COLUMN type ENUM(
-            'narration','loot_text','loot_image','quest','music','boss','zone'
+            'narration','loot_text','loot_image','quest','music','boss','zone',
+            'zone_bg','elite_monster','monster_image','legendary_hero'
         ) NOT NULL");
     }
 };
