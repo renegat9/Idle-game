@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { inventoryApi } from '../api/game'
+import { inventoryApi, heroApi } from '../api/game'
 import { useAuthStore } from '../store/authStore'
 import { useGameStore } from '../store/gameStore'
 import { RarityBadge } from '../components/hero/RarityBadge'
-import type { Item } from '../types'
+import type { Item, Hero } from '../types'
 
 const SLOT_LABELS: Record<string, string> = {
   arme: '⚔️ Arme', armure: '🛡️ Armure', casque: '🪖 Casque',
@@ -21,15 +21,22 @@ export function InventoryPage() {
   const { setInventory, setGold } = useGameStore()
   const [equipped, setEquipped] = useState<Item[]>([])
   const [unequipped, setUnequipped] = useState<Item[]>([])
+  const [heroes, setHeroes] = useState<Hero[]>([])
   const [loading, setLoading] = useState(true)
   const [selling, setSelling] = useState<number | null>(null)
+  const [equipping, setEquipping] = useState<number | null>(null)
+  const [selectedHero, setSelectedHero] = useState<Record<number, number>>({}) // itemId → heroId
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    inventoryApi.list().then(({ data }) => {
-      setEquipped(data.equipped)
-      setUnequipped(data.unequipped)
-      setInventory(data.equipped, data.unequipped)
+    Promise.all([
+      inventoryApi.list(),
+      heroApi.list(),
+    ]).then(([invRes, heroRes]) => {
+      setEquipped(invRes.data.equipped)
+      setUnequipped(invRes.data.unequipped)
+      setInventory(invRes.data.equipped, invRes.data.unequipped)
+      setHeroes(heroRes.data.heroes)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -46,6 +53,24 @@ export function InventoryPage() {
       setMessage(err.response?.data?.message || 'Erreur')
     } finally {
       setSelling(null)
+    }
+  }
+
+  const handleEquip = async (item: Item) => {
+    const heroId = selectedHero[item.id]
+    if (!heroId) return
+    setEquipping(item.id)
+    setMessage('')
+    try {
+      const { data } = await heroApi.equip(heroId, item.id)
+      setMessage(data.message)
+      // Déplacer l'item vers équipés
+      setUnequipped((prev) => prev.filter((i) => i.id !== item.id))
+      setEquipped((prev) => [...prev, { ...item, equipped_by_hero_id: heroId }])
+    } catch (err: any) {
+      setMessage(err.response?.data?.message || 'Erreur lors de l\'équipement')
+    } finally {
+      setEquipping(null)
     }
   }
 
@@ -75,7 +100,7 @@ export function InventoryPage() {
         </div>
         {item.image_url && (
           <img
-            src={`/api/storage/${item.image_url.replace('storage/', '')}`}
+            src={`/${item.image_url}`}
             alt={item.name}
             style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, marginLeft: 8, border: '1px solid #374151' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
@@ -101,18 +126,54 @@ export function InventoryPage() {
       </div>
 
       {canSell && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-          <span style={{ color: '#fbbf24', fontSize: 12 }}>💰 {item.sell_value} or</span>
-          <button
-            onClick={() => handleSell(item)}
-            disabled={selling === item.id}
-            style={{
-              background: '#374151', color: '#d1d5db', border: 'none',
-              borderRadius: 4, padding: '4px 12px', cursor: 'pointer', fontSize: 12,
-            }}
-          >
-            {selling === item.id ? '...' : 'Vendre'}
-          </button>
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {/* Équiper */}
+          {heroes.length > 0 && (
+            <div style={{ display: 'flex', gap: 6 }}>
+              <select
+                value={selectedHero[item.id] ?? ''}
+                onChange={(e) => setSelectedHero((prev) => ({ ...prev, [item.id]: +e.target.value }))}
+                style={{
+                  flex: 1, background: '#1f2937', border: '1px solid #374151',
+                  borderRadius: 4, color: '#d1d5db', fontSize: 12, padding: '4px 6px',
+                }}
+              >
+                <option value="">— Choisir un héros —</option>
+                {heroes.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.name} (Niv.{h.level} {h.class.name})
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={() => handleEquip(item)}
+                disabled={!selectedHero[item.id] || equipping === item.id}
+                style={{
+                  background: selectedHero[item.id] ? '#7c3aed' : '#374151',
+                  color: 'white', border: 'none', borderRadius: 4,
+                  padding: '4px 12px', cursor: selectedHero[item.id] ? 'pointer' : 'not-allowed',
+                  fontSize: 12, whiteSpace: 'nowrap',
+                }}
+              >
+                {equipping === item.id ? '...' : 'Équiper'}
+              </button>
+            </div>
+          )}
+
+          {/* Vendre */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#fbbf24', fontSize: 12 }}>💰 {item.sell_value} or</span>
+            <button
+              onClick={() => handleSell(item)}
+              disabled={selling === item.id}
+              style={{
+                background: '#374151', color: '#d1d5db', border: 'none',
+                borderRadius: 4, padding: '4px 12px', cursor: 'pointer', fontSize: 12,
+              }}
+            >
+              {selling === item.id ? '...' : 'Vendre'}
+            </button>
+          </div>
         </div>
       )}
     </div>
