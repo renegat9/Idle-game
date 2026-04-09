@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Game;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\GenerateHeroImage;
 use App\Models\GameClass;
 use App\Models\Hero;
 use App\Models\Item;
@@ -85,6 +86,14 @@ class HeroController extends Controller
         });
 
         $hero->load(['race', 'gameClass', 'trait_']);
+
+        GenerateHeroImage::dispatch(
+            $hero->id,
+            $hero->race->name,
+            $hero->gameClass->slug,
+            $hero->trait_?->slug,
+        );
+
         $narratorComment = $this->narrator->getComment('hero_created', ['hero_name' => $hero->name]);
 
         return response()->json([
@@ -208,6 +217,7 @@ class HeroController extends Controller
             'slot_index' => $hero->slot_index,
             'is_active' => $hero->is_active,
             'deaths' => $hero->deaths,
+            'image_path' => $hero->image_path,
             'talent_points' => $hero->talent_points,
             'race' => [
                 'id' => $hero->race->id,

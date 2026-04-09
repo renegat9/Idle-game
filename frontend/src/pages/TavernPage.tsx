@@ -11,8 +11,9 @@ type Recruit = {
   is_legendary: boolean
   legendary_epithet: string | null
   legendary_backstory: string | null
+  image_path: string | null
   race: { id: number; name: string; slug: string }
-  class: { id: number; name: string; role: string }
+  class: { id: number; name: string; role: string; slug: string }
   trait: { id: number; name: string; description: string }
 }
 
@@ -21,6 +22,11 @@ type HeroDebuffs = {
   hero_name: string
   removal_cost: number
   debuffs: Array<{ id: number; source: string; stat_affected: string; modifier_percent: number; remaining_combats: number }>
+}
+
+const CLASS_EMOJI: Record<string, string> = {
+  guerrier: '🗡️', barbare: '🪓', mage: '🔮', necromancien: '💀',
+  barde: '🎵', pretre: '✝️', voleur: '🗝️', ranger: '🏹',
 }
 
 const STYLE_LABELS: Record<string, string> = {
@@ -158,6 +164,22 @@ export function TavernPage() {
             borderRadius: 12, padding: 18,
             boxShadow: r.is_legendary ? '0 0 12px rgba(217,119,6,0.3)' : 'none',
           }}>
+            {/* Avatar */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+              {r.image_path ? (
+                <img
+                  src={`/${r.image_path}`}
+                  alt={r.name}
+                  style={{ width: 80, height: 80, objectFit: 'contain', borderRadius: 8, border: `2px solid ${r.is_legendary ? '#d97706' : '#334155'}` }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : (
+                <div style={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0f172a', borderRadius: 8, border: `2px solid ${r.is_legendary ? '#d97706' : '#334155'}`, fontSize: 36 }}>
+                  {CLASS_EMOJI[r.class.slug] ?? '⚔️'}
+                </div>
+              )}
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <div>
                 <h3 style={{ color: r.is_legendary ? '#fcd34d' : '#f1f5f9', margin: 0, fontSize: 16 }}>{r.name}</h3>
