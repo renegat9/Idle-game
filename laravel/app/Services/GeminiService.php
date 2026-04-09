@@ -267,10 +267,11 @@ class GeminiService
             return $this->fallbackHeroImage($classSlug);
         }
 
-        $prompt = $this->buildHeroImagePrompt($raceName, $classSlug, $traitSlug);
+        $prompt   = $this->buildHeroImagePrompt($raceName, $classSlug, $traitSlug);
+        $filename = "hero_{$targetId}_" . time() . '.png';
 
         try {
-            $path = $this->callHeroImageApi($targetId, $prompt);
+            $path = $this->callImageApi($prompt, 'hero_image', $filename, true);
             if ($path !== null) {
                 return $path;
             }
@@ -1231,72 +1232,4 @@ class GeminiService
         ];
     }
 
-    // ─── Hero image helpers ───────────────────────────────────────────────────
-
-    private function callHeroImageApi(int $targetId, string $prompt): ?string
-    {
-        $apiKey = config('services.gemini.api_key');
-
-        $response = Http::timeout(30)
-            ->post(self::IMAGE_API_URL . "?key={$apiKey}", [
-                'instances'  => [['prompt' => $prompt]],
-                'parameters' => ['sampleCount' => 1, 'aspectRatio' => '1:1'],
-            ]);
-
-        $this->logGeneration('hero_image', substr($prompt, 0, 200), null, self::COST_IMAGE, $response->successful());
-
-        if (!$response->successful()) {
-            Log::warning('Gemini Imagen: hero image failed', ['status' => $response->status()]);
-            return null;
-        }
-
-        $b64 = data_get($response->json(), 'predictions.0.bytesBase64Encoded');
-        if (empty($b64)) {
-            return null;
-        }
-
-        $dir = storage_path('app/public/hero_images');
-        if (!is_dir($dir)) {
-            mkdir($dir, 0755, true);
-        }
-
-        $filename = "hero_{$targetId}_" . time() . '.png';
-        $fullPath = $dir . '/' . $filename;
-
-        // Decode and apply chroma-key (remove pure green background)
-        $raw = base64_decode($b64);
-        $src = @imagecreatefromstring($raw);
-        if ($src === false) {
-            file_put_contents($fullPath, $raw);
-            return 'storage/hero_images/' . $filename;
-        }
-
-        $w = imagesx($src);
-        $h = imagesy($src);
-        $out = imagecreatetruecolor($w, $h);
-        imagealphablending($out, false);
-        imagesavealpha($out, true);
-        $transparent = imagecolorallocatealpha($out, 0, 0, 0, 127);
-        imagefill($out, 0, 0, $transparent);
-
-        for ($x = 0; $x < $w; $x++) {
-            for ($y = 0; $y < $h; $y++) {
-                $rgb = imagecolorsforindex($src, imagecolorat($src, $x, $y));
-                $r = $rgb['red']; $g = $rgb['green']; $b = $rgb['blue'];
-                if ($g > 100 && $g > $r * 1.4 && $g > $b * 1.4 && $r < 160 && $b < 160) {
-                    $greenness = min(127, (int)(($g - max($r, $b)) / 2));
-                    $alpha = min(127, $greenness + $rgb['alpha']);
-                    imagesetpixel($out, $x, $y, imagecolorallocatealpha($out, $r, $g, $b, $alpha));
-                } else {
-                    imagesetpixel($out, $x, $y, imagecolorallocatealpha($out, $r, $g, $b, $rgb['alpha']));
-                }
-            }
-        }
-
-        imagepng($out, $fullPath);
-        imagedestroy($src);
-        imagedestroy($out);
-
-        return 'storage/hero_images/' . $filename;
-    }
 }
