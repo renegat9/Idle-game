@@ -9,6 +9,7 @@
 #   bash generate_images.sh --monsters        # monstres base + élite uniquement
 #   bash generate_images.sh --monsters-elite  # élites uniquement (utilise image de base)
 #   bash generate_images.sh --music           # pistes musicales uniquement (Lyria 3)
+#   bash generate_images.sh --music --gemini  # forcer Lyria 3 même si Vertex AI est configuré
 #   bash generate_images.sh --list            # voir l'état sans générer
 #   bash generate_images.sh --force           # régénérer tout
 #   bash generate_images.sh --delay=6         # délai personnalisé
@@ -28,7 +29,7 @@ SLOTS="arme armure casque bottes accessoire truc_bizarre"
 
 # ── Parse options ─────────────────────────────────────────────────────────────
 DO_LOOT=false DO_HEROES=false DO_ZONES=false DO_MONSTERS=false DO_ELITE_ONLY=false DO_MUSIC=false
-LIST=false FORCE="" DELAY=""
+LIST=false FORCE="" DELAY="" GEMINI=""
 
 for arg in "$@"; do
     case $arg in
@@ -40,6 +41,7 @@ for arg in "$@"; do
         --music)          DO_MUSIC=true ;;
         --list)           LIST=true ;;
         --force)          FORCE="--force" ;;
+        --gemini)         GEMINI="--gemini" ;;
         --delay=*)        DELAY="$arg" ;;
     esac
 done
@@ -83,7 +85,7 @@ fi
 # ── Musique ───────────────────────────────────────────────────────────────────
 if $DO_MUSIC; then
     echo -e "\n${YELLOW}══ PISTES MUSICALES (Lyria 3) ══${NC}"
-    $PHP "$ARTISAN" images:music $FORCE $DELAY $LIST_FLAG || true
+    $PHP "$ARTISAN" images:music $GEMINI $FORCE $DELAY $LIST_FLAG || true
 fi
 
 echo -e "\n${GREEN}[OK]${NC} Génération terminée."
