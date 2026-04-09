@@ -1233,26 +1233,6 @@ class GeminiService
 
     // ─── Hero image helpers ───────────────────────────────────────────────────
 
-    private function buildHeroImagePrompt(string $raceName, string $classSlug, ?string $traitSlug): string
-    {
-        $classDesc = match ($classSlug) {
-            'guerrier'     => 'warrior with sword and shield',
-            'barbare'      => 'berserker barbarian with huge axe',
-            'mage'         => 'wizard with staff and spell book',
-            'necromancien' => 'necromancer in dark robes with skull staff',
-            'barde'        => 'bard with lute and flamboyant colourful outfit',
-            'pretre'       => 'cleric priest with holy symbol and mace',
-            'voleur'       => 'rogue thief with daggers and hood',
-            'ranger'       => 'ranger archer with bow and quiver',
-            default        => 'adventurer with equipment',
-        };
-
-        return "Fantasy RPG character: a {$raceName} {$classDesc}. "
-            . "Humorous cartoon style, slightly incompetent looking expression. "
-            . "Full body, simple clean composition. "
-            . "Isolated on pure solid #00FF00 green background, no gradients, no shadows on background.";
-    }
-
     private function callHeroImageApi(int $targetId, string $prompt): ?string
     {
         $apiKey = config('services.gemini.api_key');
@@ -1318,10 +1298,5 @@ class GeminiService
         imagedestroy($out);
 
         return 'storage/hero_images/' . $filename;
-    }
-
-    private function fallbackHeroImage(string $classSlug): string
-    {
-        return "images/placeholders/heroes/{$classSlug}.png";
     }
 }
