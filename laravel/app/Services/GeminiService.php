@@ -318,7 +318,7 @@ class GeminiService
      * Every resolved track is persisted to tavern_music for future cache hits.
      * @return array{style: string, prompt: string, file_path: string}
      */
-    public function generateTavernMusic(string $style): array
+    public function generateTavernMusic(string $style, bool $forceGemini = false): array
     {
         // 1. Return cached track if it exists
         $cached = DB::table('tavern_music')->where('style', $style)->latest('created_at')->first();
@@ -336,7 +336,7 @@ class GeminiService
         $prompt   = '';
         if ($this->canCall('music')) {
             $prompt    = $this->buildMusicPrompt($style);
-            $useVertex = !empty(config('services.vertex_ai.api_key'));
+            $useVertex = !empty(config('services.vertex_ai.api_key')) && !$forceGemini;
             $filePath  = $useVertex
                 ? $this->callMusicVertexAI($prompt, $style)
                 : $this->callMusicGemini($prompt, $style);

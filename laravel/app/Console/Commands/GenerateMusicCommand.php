@@ -11,6 +11,7 @@ class GenerateMusicCommand extends Command
 {
     protected $signature = 'images:music
                             {--force : Régénérer même si le fichier existe déjà}
+                            {--gemini : Forcer Lyria 3 via Gemini (ignore Vertex AI)}
                             {--delay=3 : Délai en secondes entre chaque génération}
                             {--style= : Générer un seul style (victoire_epique, defaite, exploration, taverne, boss, repos)}
                             {--list : Lister les styles sans générer}';
@@ -43,7 +44,9 @@ class GenerateMusicCommand extends Command
         $this->line('  VERTEX_PROJECT   : ' . (!empty($projectId) ? "<fg=green>{$projectId}</>" : '<fg=yellow>absent</>'));
         $this->line('  VERTEX_LOCATION  : ' . $location);
         $this->line('  Budget journalier: ' . $budget);
-        $this->line('  Backend musique  : ' . (!empty($vertexKey) ? '<fg=green>Vertex AI Lyria 2 (WAV)</>' : '<fg=cyan>Gemini API Lyria 3 (MP3)</>'));
+        $forceGemini = (bool) $this->option('gemini');
+        $useVertex   = !empty($vertexKey) && !$forceGemini;
+        $this->line('  Backend musique  : ' . ($useVertex ? '<fg=green>Vertex AI Lyria 2 (WAV)</>' : '<fg=cyan>Gemini API Lyria 3 (MP3)</>'));
         $this->line('');
 
         if (!$aiEnabled) {
@@ -103,7 +106,7 @@ class GenerateMusicCommand extends Command
 
             $this->line("  Génération : <fg=cyan>{$style}</> ...");
 
-            $result = $gemini->generateTavernMusic($style);
+            $result = $gemini->generateTavernMusic($style, $forceGemini);
 
             if (str_starts_with($result['file_path'], 'storage/music/generated/')) {
                 $this->line("  <fg=green>✓ {$style}</> → {$result['file_path']}");
