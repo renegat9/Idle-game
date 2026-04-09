@@ -64,7 +64,7 @@ fi
 # ── Héros portraits ───────────────────────────────────────────────────────────
 if $DO_HEROES; then
     echo -e "\n${YELLOW}══ PORTRAITS HÉROS ══${NC}"
-    $PHP "$ARTISAN" images:heroes $FORCE $DELAY $LIST_FLAG || true
+    $PHP "$ARTISAN" images:heroes --tavern $FORCE $DELAY $LIST_FLAG || true
 fi
 
 # ── Zone backgrounds ──────────────────────────────────────────────────────────
