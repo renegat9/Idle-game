@@ -45,7 +45,7 @@ const STAT_ICONS: Record<string, { icon: string; color: string }> = {
 }
 
 export function HeroCard({ hero, onClick, selected }: HeroCardProps) {
-  const stats      = hero.computed_stats
+  const stats      = hero.computed_stats ?? { max_hp: 0, current_hp: 0, atq: 0, def: 0, vit: 0, cha: 0, int: 0 }
   const hpPercent  = stats.max_hp > 0 ? Math.round((stats.current_hp / stats.max_hp) * 100) : 0
   const xpPercent  = hero.xp_to_next_level > 0 ? Math.min(100, Math.round((hero.xp / hero.xp_to_next_level) * 100)) : 0
   const animClass  = CLASS_ANIM[hero.class.slug] ?? 'anim-breathe'

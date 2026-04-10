@@ -80,7 +80,7 @@ export interface Hero {
   race: HeroRace
   class: HeroClass
   trait: HeroTrait | null
-  computed_stats: ComputedStats
+  computed_stats: ComputedStats | undefined
   equipped_items: Item[]
 }
 

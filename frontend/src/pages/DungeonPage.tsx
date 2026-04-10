@@ -207,7 +207,7 @@ export function DungeonPage() {
                       imagePath={hero.image_path}
                       name={hero.name}
                       size={48}
-                      hpPercent={hero.computed_stats?.max_hp > 0 ? Math.round(((hero.computed_stats?.current_hp ?? 0) / hero.computed_stats.max_hp) * 100) : 100}
+                      hpPercent={hero.computed_stats?.max_hp ? Math.round(((hero.computed_stats.current_hp ?? 0) / hero.computed_stats.max_hp) * 100) : 100}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: 'var(--font-title)', fontSize: 13, color: '#f9fafb', marginBottom: 4 }}>{hero.name}</div>
