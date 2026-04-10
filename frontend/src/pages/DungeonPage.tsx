@@ -207,11 +207,11 @@ export function DungeonPage() {
                       imagePath={hero.image_path}
                       name={hero.name}
                       size={48}
-                      hpPercent={hero.computed_stats.max_hp > 0 ? Math.round((hero.computed_stats.current_hp / hero.computed_stats.max_hp) * 100) : 100}
+                      hpPercent={hero.computed_stats?.max_hp > 0 ? Math.round(((hero.computed_stats?.current_hp ?? 0) / hero.computed_stats.max_hp) * 100) : 100}
                     />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontFamily: 'var(--font-title)', fontSize: 13, color: '#f9fafb', marginBottom: 4 }}>{hero.name}</div>
-                      <HpBar current={hero.computed_stats.current_hp} max={hero.computed_stats.max_hp} />
+                      <HpBar current={hero.computed_stats?.current_hp ?? 0} max={hero.computed_stats?.max_hp ?? 0} />
                     </div>
                     <div style={{ fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>Niv.{hero.level}</div>
                   </div>
@@ -313,9 +313,9 @@ export function DungeonPage() {
                           Votre équipe
                         </div>
                         {activeHeroes.length > 0 ? activeHeroes.map(hero => {
-                          const hpPct = hero.computed_stats.max_hp > 0
-                            ? Math.round((hero.computed_stats.current_hp / hero.computed_stats.max_hp) * 100)
-                            : 100
+                          const maxHp = hero.computed_stats?.max_hp ?? 0
+                          const curHp = hero.computed_stats?.current_hp ?? 0
+                          const hpPct = maxHp > 0 ? Math.round((curHp / maxHp) * 100) : 100
                           return (
                             <div key={hero.id} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                               <HeroPortrait
@@ -330,7 +330,7 @@ export function DungeonPage() {
                                 <div style={{ fontFamily: 'var(--font-title)', fontSize: 12, color: '#e5e7eb', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {hero.name}
                                 </div>
-                                <HpBar current={hero.computed_stats.current_hp} max={hero.computed_stats.max_hp} />
+                                <HpBar current={curHp} max={maxHp} />
                               </div>
                             </div>
                           )
@@ -422,9 +422,9 @@ export function DungeonPage() {
                         </div>
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                           {activeHeroes.map(hero => {
-                            const hpPct = hero.computed_stats.max_hp > 0
-                              ? Math.round((hero.computed_stats.current_hp / hero.computed_stats.max_hp) * 100)
-                              : 100
+                            const maxHp = hero.computed_stats?.max_hp ?? 0
+                            const curHp = hero.computed_stats?.current_hp ?? 0
+                            const hpPct = maxHp > 0 ? Math.round((curHp / maxHp) * 100) : 100
                             return (
                               <div key={hero.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                                 <HeroPortrait
@@ -435,7 +435,7 @@ export function DungeonPage() {
                                   hpPercent={hpPct}
                                 />
                                 <div style={{ width: 52 }}>
-                                  <HpBar current={hero.computed_stats.current_hp} max={hero.computed_stats.max_hp} color={roomCfg.color} />
+                                  <HpBar current={curHp} max={maxHp} color={roomCfg.color} />
                                 </div>
                                 <div style={{ fontSize: 10, color: '#9ca3af', textAlign: 'center', maxWidth: 52, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {hero.name}
