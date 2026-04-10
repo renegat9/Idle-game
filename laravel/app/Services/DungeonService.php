@@ -356,10 +356,16 @@ class DungeonService
     private function buildRoom(string $type, string $difficulty, Zone $zone, int $roomNumber, int $total): array
     {
         // Pick a monster for combat/boss rooms
-        $monsterId = null;
+        $monsterId        = null;
+        $monsterName      = null;
+        $monsterLevel     = null;
+        $monsterImagePath = null;
         if (in_array($type, ['combat', 'boss'])) {
-            $monster   = Monster::where('zone_id', $zone->id)->where('is_active', true)->inRandomOrder()->first();
-            $monsterId = $monster?->id;
+            $monster          = Monster::where('zone_id', $zone->id)->where('is_active', true)->inRandomOrder()->first();
+            $monsterId        = $monster?->id;
+            $monsterName      = $monster?->name;
+            $monsterLevel     = $monster?->level;
+            $monsterImagePath = $monster?->image_path;
         }
 
         // Trap damage as percent of team HP — scales with zone level_max
@@ -379,6 +385,9 @@ class DungeonService
             'type'                => $type,
             'difficulty'          => $difficulty,
             'monster_id'          => $monsterId,
+            'monster_name'        => $monsterName,
+            'monster_level'       => $monsterLevel,
+            'monster_image_path'  => $monsterImagePath,
             'loot_rarity'         => $lootRarity,
             'trap_damage_percent' => $trapDamagePercent,
             'is_completed'        => false,
@@ -671,11 +680,14 @@ class DungeonService
     private function buildRoomPreview(array $room): array
     {
         return [
-            'room_number'  => $room['room_number'],
-            'type'         => $room['type'],
-            'difficulty'   => $room['difficulty'],
-            'description'  => $room['description'],
-            'is_completed' => $room['is_completed'],
+            'room_number'         => $room['room_number'],
+            'type'                => $room['type'],
+            'difficulty'          => $room['difficulty'],
+            'description'         => $room['description'],
+            'is_completed'        => $room['is_completed'],
+            'monster_name'        => $room['monster_name'] ?? null,
+            'monster_level'       => $room['monster_level'] ?? null,
+            'monster_image_path'  => $room['monster_image_path'] ?? null,
         ];
     }
 }
