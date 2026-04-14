@@ -59,6 +59,10 @@ if ! $SKIP_LARAVEL; then
     info "Migration DB..."
     $PHP "$LARAVEL_DIR/artisan" migrate --force
     ok "Migrations appliquées."
+
+    info "Lien storage..."
+    $PHP "$LARAVEL_DIR/artisan" storage:link --force 2>/dev/null || true
+    ok "Storage lié."
 fi
 
 # ─── 3. Build frontend ────────────────────────────────────────────────────────
