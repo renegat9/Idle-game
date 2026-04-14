@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Game;
 
 use App\Http\Controllers\Controller;
-use App\Services\IdleService;
 use App\Services\NarratorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,7 +11,6 @@ use Illuminate\Support\Facades\DB;
 class DashboardController extends Controller
 {
     public function __construct(
-        private readonly IdleService $idleService,
         private readonly NarratorService $narrator
     ) {}
 
@@ -27,12 +25,9 @@ class DashboardController extends Controller
             'currentZone',
         ]);
 
-        // Déclencher le calcul offline si une exploration est active
+        // Ne pas déclencher le calcul offline ici — uniquement via POST /exploration/collect.
+        // Sinon chaque chargement du dashboard consomme le temps accumulé.
         $offlineResult = null;
-        if ($user->activeExploration()->exists()) {
-            $offlineResult = $this->idleService->calculateOfflineProgress($user);
-            $user->refresh();
-        }
 
         $exploration = $user->activeExploration()->with('zone')->first();
 
