@@ -141,6 +141,7 @@ class ExplorationController extends Controller
                 return [
                     'id' => $hero->id,
                     'name' => $hero->name,
+                    'image_path' => $hero->image_path,
                     'level' => $hero->level,
                     'xp' => $hero->xp,
                     'xp_to_next_level' => $hero->xp_to_next_level,

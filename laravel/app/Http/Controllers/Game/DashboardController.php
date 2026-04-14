@@ -61,6 +61,7 @@ class DashboardController extends Controller
                     'race' => ['name' => $hero->race->name, 'slug' => $hero->race->slug],
                     'class' => ['name' => $hero->gameClass->name, 'slug' => $hero->gameClass->slug, 'role' => $hero->gameClass->role],
                     'trait' => $hero->trait_ ? ['name' => $hero->trait_->name, 'slug' => $hero->trait_->slug] : null,
+                    'image_path' => $hero->image_path,
                     'current_hp' => $hero->current_hp,
                     'max_hp' => $stats['max_hp'],
                     'atq' => $stats['atq'],
