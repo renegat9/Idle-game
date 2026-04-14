@@ -54,20 +54,29 @@ class DashboardController extends Controller
             ],
             'heroes' => $user->activeHeroes->map(function ($hero) {
                 $stats = $hero->computedStats();
+                $trait = $hero->trait_;
                 return [
-                    'id' => $hero->id,
-                    'name' => $hero->name,
-                    'level' => $hero->level,
-                    'race' => ['name' => $hero->race->name, 'slug' => $hero->race->slug],
-                    'class' => ['name' => $hero->gameClass->name, 'slug' => $hero->gameClass->slug, 'role' => $hero->gameClass->role],
-                    'trait' => $hero->trait_ ? ['name' => $hero->trait_->name, 'slug' => $hero->trait_->slug] : null,
-                    'image_path' => $hero->image_path,
-                    'current_hp' => $hero->current_hp,
-                    'max_hp' => $stats['max_hp'],
-                    'atq' => $stats['atq'],
-                    'def' => $stats['def'],
-                    'xp' => $hero->xp,
-                    'xp_to_next_level' => $hero->xp_to_next_level,
+                    'id'                       => $hero->id,
+                    'name'                     => $hero->name,
+                    'level'                    => $hero->level,
+                    'xp'                       => $hero->xp,
+                    'xp_to_next_level'         => $hero->xp_to_next_level,
+                    'slot_index'               => $hero->slot_index,
+                    'is_active'                => $hero->is_active,
+                    'deaths'                   => $hero->deaths,
+                    'image_path'               => $hero->image_path,
+                    'talent_points'            => $hero->talent_points,
+                    'race'  => ['id' => $hero->race->id,      'name' => $hero->race->name,      'slug' => $hero->race->slug],
+                    'class' => ['id' => $hero->gameClass->id, 'name' => $hero->gameClass->name, 'slug' => $hero->gameClass->slug, 'role' => $hero->gameClass->role, 'key_skill_name' => $hero->gameClass->key_skill_name],
+                    'trait' => $trait ? ['id' => $trait->id, 'name' => $trait->name, 'slug' => $trait->slug, 'description' => $trait->description, 'flavor_text' => $trait->flavor_text] : null,
+                    'computed_stats'           => $stats,
+                    'equipped_items'           => $hero->equippedItems->map(fn($item) => [
+                        'id' => $item->id, 'name' => $item->name, 'rarity' => $item->rarity,
+                        'slot' => $item->slot, 'element' => $item->element,
+                        'atq' => $item->atq, 'def' => $item->def, 'hp' => $item->hp,
+                        'vit' => $item->vit, 'cha' => $item->cha, 'int' => $item->int,
+                        'image_url' => $item->image_url,
+                    ])->values(),
                 ];
             })->values(),
             'exploration' => $exploration ? [
