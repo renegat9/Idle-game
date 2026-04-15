@@ -206,6 +206,9 @@ class DungeonService
         $heroesWiped = $result['heroes_wiped'] ?? false;
 
         if ($heroesWiped) {
+            // Arrêter l'exploration active — héros à 0 PV ne peuvent plus explorer
+            $user->activeExploration()->update(['is_active' => false]);
+
             // Dungeon failed — set cooldown to 1 hour (shorter penalty)
             $dungeon->status       = 'failed';
             $dungeon->completed_at = now();

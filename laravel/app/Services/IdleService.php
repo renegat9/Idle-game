@@ -92,6 +92,23 @@ class IdleService
             ];
         }
 
+        // Héros à 0 PV → arrêter l'exploration
+        $aliveHeroes = $heroes->filter(fn($h) => $h->current_hp > 0);
+        if ($aliveHeroes->isEmpty()) {
+            $exploration->update(['is_active' => false]);
+            return [
+                'had_exploration'   => true,
+                'elapsed_seconds'   => $elapsed,
+                'combats_simulated' => 0,
+                'xp_gained'         => 0,
+                'gold_gained'       => 0,
+                'items_gained'      => [],
+                'events'            => [],
+                'narrator_comment'  => 'Vos héros sont à terre. Le Narrateur les regarde avec une indifférence polie.',
+            ];
+        }
+        $heroes = $aliveHeroes;
+
         // Charger les groupes de rencontres normaux (pas boss)
         $encounterGroups = EncounterGroup::where('zone_id', $zone->id)
             ->where('is_boss_encounter', false)
