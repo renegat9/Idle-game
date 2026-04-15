@@ -128,6 +128,8 @@ class ExplorationController extends Controller
         $result = $this->idleService->calculateOfflineProgress($user);
 
         $exploration->update(['is_active' => false]);
+        $user->current_zone_id = null;
+        $user->save();
         $user->refresh();
 
         return response()->json([
