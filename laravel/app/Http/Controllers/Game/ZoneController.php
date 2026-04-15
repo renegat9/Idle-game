@@ -17,7 +17,11 @@ class ZoneController extends Controller
         $userProgress = $user->zoneProgress()->pluck('boss_defeated', 'zone_id');
         $userProgressCombats = $user->zoneProgress()->pluck('total_victories', 'zone_id');
 
-        $zonesData = $zones->map(function ($zone) use ($userProgress, $userProgressCombats, $user) {
+        // is_current doit refléter une exploration ACTIVE, pas juste current_zone_id
+        $activeExploration = $user->activeExploration()->first();
+        $activeZoneId = $activeExploration?->zone_id;
+
+        $zonesData = $zones->map(function ($zone) use ($userProgress, $userProgressCombats, $activeZoneId) {
             $unlocked = $zone->order_index === 1 || isset($userProgress[$zone->id]);
             $bossDefeated = $userProgress[$zone->id] ?? false;
 
@@ -34,7 +38,7 @@ class ZoneController extends Controller
                 'is_unlocked' => $unlocked,
                 'boss_defeated' => (bool) $bossDefeated,
                 'total_victories' => $userProgressCombats[$zone->id] ?? 0,
-                'is_current' => $user->current_zone_id === $zone->id,
+                'is_current' => $activeZoneId !== null && $activeZoneId === $zone->id,
                 'background_image_path' => $zone->background_image_path,
             ];
         });
