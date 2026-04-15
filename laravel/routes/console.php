@@ -48,3 +48,8 @@ Schedule::command('world-boss:auto-attack')->everyTwoHours()
 Schedule::command('queue:work --stop-when-empty --tries=2 --timeout=90')->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Every 5 minutes: heal heroes at rest (players not exploring)
+Schedule::command('heroes:heal-at-rest')->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
