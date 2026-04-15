@@ -21,6 +21,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [dashboard, setDashboard] = useState<any>(null)
   const [collecting, setCollecting] = useState(false)
+  const [stopping, setStopping] = useState(false)
   const [collectResult, setCollectResult] = useState<any>(null)
   const [activeEvents, setActiveEvents] = useState<SeasonalEvent[]>([])
   const [eventModifiers, setEventModifiers] = useState<any>(null)
@@ -53,6 +54,22 @@ export function DashboardPage() {
       setHeroes(data.heroes as any)
     } finally {
       setCollecting(false)
+    }
+  }
+
+  const handleStop = async () => {
+    setStopping(true)
+    setCollectResult(null)
+    try {
+      const { data } = await explorationApi.stop()
+      setCollectResult(data.result)
+      setOfflineResult(data.result)
+      setExploring(false)
+      setDashboard((prev: any) => prev ? { ...prev, exploration: { is_active: false } } : prev)
+    } catch (err: any) {
+      // silently ignore
+    } finally {
+      setStopping(false)
     }
   }
 
@@ -143,9 +160,14 @@ export function DashboardPage() {
                   Vos héros explorent courageusement (enfin, c'est relatif)
                 </div>
               </div>
-              <GameButton variant="gold" icon="💰" onClick={handleCollect} loading={collecting}>
-                Collecter
-              </GameButton>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <GameButton variant="gold" icon="💰" onClick={handleCollect} loading={collecting} disabled={stopping}>
+                  Collecter
+                </GameButton>
+                <GameButton variant="danger" icon="🛑" onClick={handleStop} loading={stopping} disabled={collecting}>
+                  Arrêter
+                </GameButton>
+              </div>
             </>
           ) : (
             <>

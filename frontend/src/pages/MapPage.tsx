@@ -19,6 +19,7 @@ export function MapPage() {
   const [reputations, setReputations] = useState<Record<number, ZoneReputation>>({})
   const [loading, setLoading] = useState(true)
   const [starting, setStarting] = useState<number | null>(null)
+  const [stopping, setStopping] = useState(false)
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -32,6 +33,21 @@ export function MapPage() {
       setReputations(repMap)
     }).finally(() => setLoading(false))
   }, [])
+
+  const handleStopExploration = async () => {
+    setStopping(true)
+    setMessage('')
+    try {
+      await explorationApi.stop()
+      setMessage('Exploration arrêtée. Vos héros rentrent au camp.')
+      setExploring(false)
+      setLocalZones((prev) => prev.map((z) => ({ ...z, is_current: false })))
+    } catch (err: any) {
+      setMessage(err.response?.data?.message || 'Erreur')
+    } finally {
+      setStopping(false)
+    }
+  }
 
   const handleStartExploration = async (zone: Zone) => {
     setStarting(zone.id)
@@ -157,9 +173,21 @@ export function MapPage() {
                 {/* Action */}
                 <div style={{ marginTop: 4 }}>
                   {zone.is_current ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#22c55e', fontSize: 13, fontWeight: 600 }}>
-                      <span className="anim-explore-pulse">●</span>
-                      Exploration en cours
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#22c55e', fontSize: 13, fontWeight: 600 }}>
+                        <span className="anim-explore-pulse">●</span>
+                        Exploration en cours
+                      </div>
+                      <GameButton
+                        variant="danger"
+                        size="sm"
+                        icon="🛑"
+                        onClick={handleStopExploration}
+                        loading={stopping}
+                        style={{ width: '100%' }}
+                      >
+                        Arrêter l'exploration
+                      </GameButton>
                     </div>
                   ) : zone.is_unlocked ? (
                     <GameButton

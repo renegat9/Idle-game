@@ -28,6 +28,8 @@ class IdleService
         $exploration = $user->activeExploration()->with('zone')->first();
 
         if (!$exploration) {
+            // Guérison au repos : 10% des PV max par heure sans exploration
+            $this->healHeroesAtRest($user);
             return [
                 'had_exploration' => false,
                 'elapsed_seconds' => 0,
@@ -354,5 +356,41 @@ class IdleService
         }
 
         return max($base, $result);
+    }
+
+    /**
+     * Guérison au repos : 10% des PV max par heure depuis last_idle_calc_at.
+     * Déclenché uniquement quand les héros ne sont PAS en exploration.
+     */
+    private function healHeroesAtRest(User $user): void
+    {
+        $lastCalc = $user->last_idle_calc_at;
+        if (!$lastCalc) {
+            return;
+        }
+
+        $elapsedHours = Carbon::now()->diffInSeconds($lastCalc) / 3600;
+        if ($elapsedHours <= 0) {
+            return;
+        }
+
+        $healPercentPerHour = $this->settings->get('REST_HEAL_PERCENT_PER_HOUR', 10);
+        $healPercent = min(100, (int) ($elapsedHours * $healPercentPerHour));
+
+        if ($healPercent <= 0) {
+            return;
+        }
+
+        $heroes = $user->activeHeroes()->get();
+        foreach ($heroes as $hero) {
+            if ($hero->current_hp < $hero->max_hp) {
+                $heal = intdiv($hero->max_hp * $healPercent, 100);
+                $hero->current_hp = min($hero->max_hp, $hero->current_hp + $heal);
+                $hero->save();
+            }
+        }
+
+        $user->last_idle_calc_at = Carbon::now();
+        $user->save();
     }
 }
