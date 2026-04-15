@@ -5,9 +5,19 @@ import apiClient from '../api/client'
 import { useGameStore } from '../store/gameStore'
 import { HeroCard } from '../components/hero/HeroCard'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
+import { HeroPortrait } from '../components/ui/HeroPortrait'
+import { GameButton } from '../components/ui/GameButton'
+import { GamePanel } from '../components/ui/GamePanel'
 import type { Hero, Race, GameClass, Trait } from '../types'
 
 type Synergy = { hero_name: string; slug: string; name: string; description: string }
+
+const selectStyle = {
+  width: '100%', background: '#0d1117', border: '1px solid #2d3748',
+  borderRadius: 6, padding: '9px 12px', color: '#f9fafb', fontSize: 13,
+}
+const inputStyle = { ...selectStyle }
+const labelStyle = { display: 'block' as const, color: '#9ca3af', marginBottom: 6, fontSize: 12, textTransform: 'uppercase' as const, letterSpacing: '0.08em', fontFamily: 'var(--font-title)' }
 
 export function TeamPage() {
   const { setHeroes } = useGameStore()
@@ -26,6 +36,9 @@ export function TeamPage() {
   const [confirmDismiss, setConfirmDismiss] = useState<number | null>(null)
   const [error, setError] = useState('')
 
+  // Preview: get class slug for portrait preview
+  const previewClass = classes.find(c => c.id === form.class_id)
+
   useEffect(() => {
     Promise.all([
       heroApi.list(),
@@ -41,7 +54,6 @@ export function TeamPage() {
       setClasses(classRes.data.classes ?? [])
       setTraits(traitRes.data.traits ?? [])
       setSynergies(synRes.data.active_synergies ?? [])
-      // Ouvrir le formulaire automatiquement si aucun héros
       if (loadedHeroes.length === 0) setShowCreateForm(true)
     }).finally(() => setLoading(false))
   }, [])
@@ -82,126 +94,149 @@ export function TeamPage() {
     }
   }
 
-  const selectStyle = { width: '100%', background: '#1f2937', border: '1px solid #374151', borderRadius: 6, padding: '8px 12px', color: '#f9fafb', fontSize: 14 }
-  const inputStyle = { ...selectStyle }
-
-  if (loading) return <div style={{ color: '#6b7280', textAlign: 'center', paddingTop: 80 }}>Chargement...</div>
+  if (loading) {
+    return (
+      <div className="game-loading">
+        <div className="game-loading-spinner" />
+        <div className="game-loading-text">Rassemblement de l'équipe…</div>
+      </div>
+    )
+  }
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h1 style={{ color: '#f9fafb', margin: 0 }}>⚔️ Mon Équipe</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h1 className="game-title" style={{ fontSize: 26, margin: '0 0 4px' }}>⚔️ Mon Équipe</h1>
+          <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>{heroes.length}/5 héros</p>
+        </div>
         {heroes.length === 0 ? (
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}
-          >
-            + Créer mon premier héros
-          </button>
+          <GameButton variant="primary" icon="+" onClick={() => setShowCreateForm(!showCreateForm)}>
+            Créer mon premier héros
+          </GameButton>
         ) : (
-          <button
-            onClick={() => navigate('/tavern')}
-            style={{ background: '#1f2937', color: '#d1d5db', border: '1px solid #374151', borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}
-          >
-            + Recruter à la Taverne
-          </button>
+          <GameButton variant="ghost" icon="🍺" onClick={() => navigate('/tavern')}>
+            Recruter à la Taverne
+          </GameButton>
         )}
       </div>
 
       {narratorComment && <NarratorBubble comment={narratorComment} />}
-      {error && <div style={{ color: '#fca5a5', background: '#450a0a', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>{error}</div>}
 
+      {error && (
+        <div style={{ color: '#fca5a5', background: '#1a0505', border: '1px solid #7f1d1d', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
+          ⚠ {error}
+        </div>
+      )}
+
+      {/* Synergies */}
       {synergies.length > 0 && (
-        <div style={{ background: '#0d1a0d', border: '1px solid #166534', borderRadius: 8, padding: '12px 16px', marginBottom: 20 }}>
-          <div style={{ color: '#86efac', fontSize: 13, fontWeight: 'bold', marginBottom: 8 }}>✨ Synergies actives</div>
-          {synergies.map((s) => (
-            <div key={s.slug} style={{ marginBottom: 6 }}>
-              <span style={{ color: '#4ade80', fontSize: 12, fontWeight: 'bold' }}>{s.hero_name} — {s.name}</span>
-              <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>{s.description}</div>
-            </div>
-          ))}
-        </div>
+        <GamePanel icon="✨" title="Synergies Actives" variant="success" style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {synergies.map((s) => (
+              <div key={s.slug} style={{ background: '#0a1a0a', borderRadius: 6, padding: '8px 10px', border: '1px solid #14532d' }}>
+                <div style={{ color: '#4ade80', fontSize: 12, fontWeight: 700 }}>{s.hero_name} — {s.name}</div>
+                <div style={{ color: '#6b7280', fontSize: 11, marginTop: 2 }}>{s.description}</div>
+              </div>
+            ))}
+          </div>
+        </GamePanel>
       )}
 
+      {/* Create Form */}
       {showCreateForm && (
-        <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 8, padding: 24, marginBottom: 24 }}>
-          <h3 style={{ color: '#f9fafb', marginTop: 0 }}>Créer un Héros</h3>
-          <form onSubmit={handleCreate}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              <div>
-                <label style={{ display: 'block', color: '#9ca3af', marginBottom: 6, fontSize: 13 }}>Nom du héros</label>
-                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required style={inputStyle} placeholder="Gruntak le Magnifique" />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#9ca3af', marginBottom: 6, fontSize: 13 }}>Race</label>
-                <select value={form.race_id} onChange={(e) => setForm({ ...form, race_id: +e.target.value })} required style={selectStyle}>
-                  <option value={0}>-- Choisir une race --</option>
-                  {races.map((r) => <option key={r.id} value={r.id}>{r.name} — {r.passive_bonus_description}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#9ca3af', marginBottom: 6, fontSize: 13 }}>Classe</label>
-                <select value={form.class_id} onChange={(e) => setForm({ ...form, class_id: +e.target.value })} required style={selectStyle}>
-                  <option value={0}>-- Choisir une classe --</option>
-                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.role})</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#9ca3af', marginBottom: 6, fontSize: 13 }}>Trait Négatif</label>
-                <select value={form.trait_id} onChange={(e) => setForm({ ...form, trait_id: +e.target.value })} required style={selectStyle}>
-                  <option value={0}>-- Choisir un trait --</option>
-                  {traits.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.description}</option>)}
-                </select>
+        <GamePanel icon="⚔️" title="Créer un Héros" variant="magic" style={{ marginBottom: 24 }} className="anim-slide-in">
+          <div style={{ display: 'flex', gap: 20 }}>
+            {/* Portrait preview */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <HeroPortrait
+                classSlug={previewClass?.slug ?? 'guerrier'}
+                size={90}
+                animClass="anim-breathe"
+              />
+              <div style={{ color: '#6b7280', fontSize: 11, textAlign: 'center' }}>
+                {form.name || 'Votre héros'}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <button type="submit" disabled={creating} style={{ background: '#7c3aed', color: 'white', border: 'none', borderRadius: 6, padding: '8px 20px', cursor: 'pointer' }}>
-                {creating ? 'Création...' : 'Créer'}
-              </button>
-              <button type="button" onClick={() => setShowCreateForm(false)} style={{ background: '#374151', color: '#d1d5db', border: 'none', borderRadius: 6, padding: '8px 16px', cursor: 'pointer' }}>
-                Annuler
-              </button>
-            </div>
-          </form>
-        </div>
+            {/* Form fields */}
+            <form onSubmit={handleCreate} style={{ flex: 1 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+                <div>
+                  <label style={labelStyle}>Nom du héros</label>
+                  <input
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    required
+                    style={inputStyle}
+                    placeholder="Gruntak le Magnifique"
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Race</label>
+                  <select value={form.race_id} onChange={(e) => setForm({ ...form, race_id: +e.target.value })} required style={selectStyle}>
+                    <option value={0}>— Choisir une race —</option>
+                    {races.map((r) => <option key={r.id} value={r.id}>{r.name} — {r.passive_bonus_description}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Classe</label>
+                  <select value={form.class_id} onChange={(e) => setForm({ ...form, class_id: +e.target.value })} required style={selectStyle}>
+                    <option value={0}>— Choisir une classe —</option>
+                    {classes.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.role})</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Trait Négatif</label>
+                  <select value={form.trait_id} onChange={(e) => setForm({ ...form, trait_id: +e.target.value })} required style={selectStyle}>
+                    <option value={0}>— Choisir un trait —</option>
+                    {traits.map((t) => <option key={t.id} value={t.id}>{t.name} — {t.description}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <GameButton type="submit" variant="primary" loading={creating} icon="⚔️">
+                  Créer le héros
+                </GameButton>
+                <GameButton type="button" variant="ghost" onClick={() => setShowCreateForm(false)}>
+                  Annuler
+                </GameButton>
+              </div>
+            </form>
+          </div>
+        </GamePanel>
       )}
 
+      {/* Heroes grid */}
       {heroes.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>
-          Aucun héros. Le Narrateur hausse les épaules.
-        </div>
+        <GamePanel variant="default" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🏚️</div>
+          <p style={{ color: '#6b7280', fontStyle: 'italic', margin: 0 }}>
+            Aucun héros. Le Narrateur hausse les épaules.
+          </p>
+        </GamePanel>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
           {heroes.map((hero) => (
-            <div key={hero.id} style={{ position: 'relative' }}>
+            <div key={hero.id}>
               <HeroCard hero={hero} />
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 6 }}>
                 {confirmDismiss === hero.id ? (
-                  <div style={{ background: '#1f0a0a', border: '1px solid #7f1d1d', borderRadius: 6, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+                  <div style={{ background: '#0a0202', border: '1px solid #7f1d1d', borderRadius: 6, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
                     <span style={{ color: '#fca5a5', fontSize: 12 }}>Renvoyer {hero.name} définitivement ?</span>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        onClick={() => handleDismiss(hero.id)}
-                        disabled={dismissing === hero.id}
-                        style={{ background: '#dc2626', color: 'white', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}
-                      >
-                        {dismissing === hero.id ? '...' : 'Oui'}
-                      </button>
-                      <button
-                        onClick={() => setConfirmDismiss(null)}
-                        style={{ background: '#374151', color: '#d1d5db', border: 'none', borderRadius: 4, padding: '4px 10px', cursor: 'pointer', fontSize: 12 }}
-                      >
+                      <GameButton size="sm" variant="danger" onClick={() => handleDismiss(hero.id)} loading={dismissing === hero.id}>
+                        Oui
+                      </GameButton>
+                      <GameButton size="sm" variant="ghost" onClick={() => setConfirmDismiss(null)}>
                         Non
-                      </button>
+                      </GameButton>
                     </div>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => setConfirmDismiss(hero.id)}
-                    style={{ width: '100%', background: 'transparent', color: '#6b7280', border: '1px solid #374151', borderRadius: 6, padding: '6px 0', cursor: 'pointer', fontSize: 12 }}
-                  >
+                  <GameButton variant="ghost" size="sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setConfirmDismiss(hero.id)}>
                     Renvoyer
-                  </button>
+                  </GameButton>
                 )}
               </div>
             </div>

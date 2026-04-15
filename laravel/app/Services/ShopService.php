@@ -230,6 +230,14 @@ class ShopService
 
     private function shopItemResponse(ShopInventory $s): array
     {
+        // Look up shared template image for this slot+rarity combination
+        $templateImage = \Illuminate\Support\Facades\DB::table('item_templates')
+            ->where('slot', $s->slot)
+            ->where('rarity', $s->rarity)
+            ->whereNotNull('image_path')
+            ->where('image_path', 'not like', 'images/placeholders/%')
+            ->value('image_path');
+
         return [
             'id'         => $s->id,
             'name'       => $s->name,
@@ -245,6 +253,7 @@ class ShopService
             'sell_value' => $s->sell_value,
             'shop_price' => $s->shop_price,
             'expires_at' => $s->expires_at,
+            'image_url'  => $templateImage,
         ];
     }
 

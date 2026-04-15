@@ -258,6 +258,32 @@ class GeminiService
     }
 
     /**
+     * Generate a full-page background illustration for a given UI page.
+     * Landscape format, dark atmospheric fantasy art, no transparency needed.
+     * Stored in storage/app/public/pages/{slug}.jpg
+     */
+    public function generatePageBackground(string $slug): string
+    {
+        if (!$this->canCall('page_bg')) {
+            return $this->fallbackPageBackground($slug);
+        }
+
+        $prompt = $this->buildPageBackgroundPrompt($slug);
+
+        try {
+            $filename = "page_{$slug}_" . time() . '.jpg';
+            $path = $this->callImageApi($prompt, 'page_bg', $filename, false);
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generatePageBackground failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackPageBackground($slug);
+    }
+
+    /**
      * Generate a hero portrait via Imagen with chroma-key transparency.
      * Saves to storage/app/public/hero_images/ and returns the public path.
      */
@@ -659,6 +685,34 @@ class GeminiService
     /**
      * Sauvegarde les bytes d'image, avec suppression optionnelle du fond vert chroma (#00FF00).
      */
+    private function buildPageBackgroundPrompt(string $slug): string
+    {
+        $themes = [
+            'dashboard'    => 'Epic dark fantasy RPG command center, heroes gathered around a glowing map table in a torchlit castle war room, dramatic cinematic lighting, deep shadows, high fantasy atmosphere, wide landscape',
+            'team'         => 'Fantasy heroes assembled in a grand hall, stone pillars with banners, dramatic side lighting from tall windows, diverse warriors mages and rogues, epic fantasy art, wide landscape',
+            'map'          => 'Ancient fantasy world map room, enormous glowing atlas on a stone table, magical runes floating, candles and crystal orbs, dark arcane library atmosphere, wide landscape',
+            'inventory'    => 'Fantasy treasure vault chamber, glowing magical weapons and armor on stone shelves, ancient chests, mystical blue and gold light, deep shadows, atmospheric fantasy art, wide landscape',
+            'forge'        => 'Roaring medieval forge workshop, massive glowing anvil, sparks flying dramatically, fire and embers, dark stone walls, master blacksmith atmosphere, cinematic fantasy art, wide landscape',
+            'quests'       => 'Ancient dungeon study room, scrolls and parchments pinned to stone walls, candles dripping wax, mystical quest map, dark fantasy atmosphere, warm amber lighting, wide landscape',
+            'dungeon'      => 'Long dark dungeon corridor, flickering torches on stone walls, misty depths ahead, ancient carved archways, eerie green glow from crystals, ominous fantasy atmosphere, wide landscape',
+            'tavern'       => 'Cozy fantasy medieval tavern interior at night, roaring fireplace, wooden beams and barrels, warm amber light, tankards on rough-hewn tables, atmospheric fantasy art, wide landscape',
+            'shop'         => 'Fantasy bazaar merchant hall, colorful potions and weapons displayed on wooden stalls, lanterns hanging overhead, mystical artifacts glowing, vibrant dark fantasy market, wide landscape',
+            'consumables'  => 'Alchemist workshop laboratory, shelves of glowing colored potions, bubbling cauldrons, mystical ingredients, arcane symbols, warm magical glow, dark fantasy art, wide landscape',
+            'world-boss'   => 'Epic boss arena, enormous shadowy dragon creature emerging from dark clouds, magical lightning storm, tiny brave warriors below, cinematic dark fantasy battle scene, wide landscape',
+            'talents'      => 'Mystical arcane library, floating magical books and scrolls, golden skill runes in the air, swirling arcane energy, ancient stone walls with carved symbols, wide landscape',
+            'profile'      => 'Hero hall of fame chamber, stone walls with carved achievement plaques and trophies, firelit torches, grand fantasy interior, introspective atmosphere, wide landscape',
+        ];
+
+        $theme = $themes[$slug] ?? "Dark fantasy RPG game screen, atmospheric dungeon environment, torchlight, stone walls, cinematic art, wide landscape";
+
+        return "{$theme}. Style: dark moody digital painting, concept art, high detail, no text, no UI elements, no characters in foreground, suitable as background wallpaper, aspect ratio 16:9.";
+    }
+
+    private function fallbackPageBackground(string $slug): string
+    {
+        return "images/placeholders/page_bg_{$slug}.jpg";
+    }
+
     private function saveImageData(string $bytes, string $filename, bool $removeGreenBg): ?string
     {
         // Déduire le sous-dossier depuis le préfixe du nom de fichier
@@ -666,6 +720,7 @@ class GeminiService
             str_starts_with($filename, 'hero_')    => 'heroes',
             str_starts_with($filename, 'monster_') => 'monsters',
             str_starts_with($filename, 'zone_')    => 'zones',
+            str_starts_with($filename, 'page_')    => 'pages',
             default                                => 'loot_images',
         };
 

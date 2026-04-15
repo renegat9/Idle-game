@@ -80,7 +80,7 @@ export interface Hero {
   race: HeroRace
   class: HeroClass
   trait: HeroTrait | null
-  computed_stats: ComputedStats
+  computed_stats: ComputedStats | undefined
   equipped_items: Item[]
 }
 
@@ -98,6 +98,7 @@ export interface Zone {
   boss_defeated: boolean
   total_victories: number
   is_current: boolean
+  background_image_path?: string | null
 }
 
 export interface Race {

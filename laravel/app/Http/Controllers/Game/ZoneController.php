@@ -35,6 +35,7 @@ class ZoneController extends Controller
                 'boss_defeated' => (bool) $bossDefeated,
                 'total_victories' => $userProgressCombats[$zone->id] ?? 0,
                 'is_current' => $user->current_zone_id === $zone->id,
+                'background_image_path' => $zone->background_image_path,
             ];
         });
 

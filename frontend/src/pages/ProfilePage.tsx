@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { profileApi } from '../api/game'
 import { useAuthStore } from '../store/authStore'
+import { GameButton } from '../components/ui/GameButton'
+import { GamePanel } from '../components/ui/GamePanel'
+import { StatBar } from '../components/ui/StatBar'
 
 const NARRATOR_OPTIONS = [
   { value: 'never',    label: 'Jamais — Le Narrateur est muselé' },
@@ -8,6 +11,11 @@ const NARRATOR_OPTIONS = [
   { value: 'normal',   label: 'Normal — Il commente régulièrement' },
   { value: 'annoying', label: 'Omniprésent — Il ne s\'arrête jamais' },
 ]
+
+const selectStyle = {
+  width: '100%', background: '#0d1117', border: '1px solid #2d3748',
+  borderRadius: 6, padding: '9px 12px', color: '#f9fafb', fontSize: 13,
+}
 
 type EconomyEntry = {
   transaction_type: string
@@ -48,12 +56,12 @@ type ProfileData = {
 
 export function ProfilePage() {
   const { updateUser } = useAuthStore()
-  const [profile, setProfile]           = useState<ProfileData | null>(null)
-  const [loading, setLoading]           = useState(true)
-  const [saving, setSaving]             = useState(false)
-  const [frequency, setFrequency]       = useState<string>('normal')
-  const [message, setMessage]           = useState<string | null>(null)
-  const [activeTab, setActiveTab]       = useState<'stats' | 'economy'>('stats')
+  const [profile, setProfile]     = useState<ProfileData | null>(null)
+  const [loading, setLoading]     = useState(true)
+  const [saving, setSaving]       = useState(false)
+  const [frequency, setFrequency] = useState<string>('normal')
+  const [message, setMessage]     = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'stats' | 'economy'>('stats')
 
   useEffect(() => {
     profileApi.get()
@@ -78,27 +86,55 @@ export function ProfilePage() {
     }
   }
 
-  if (loading) return <div className="p-8 text-center text-gray-400">Chargement du profil...</div>
-  if (!profile) return <div className="p-8 text-center text-red-400">Erreur lors du chargement.</div>
+  if (loading) {
+    return (
+      <div className="game-loading">
+        <div className="game-loading-spinner" />
+        <div className="game-loading-text">Chargement du profil…</div>
+      </div>
+    )
+  }
+  if (!profile) {
+    return (
+      <GamePanel variant="danger">
+        <p style={{ color: '#fca5a5', margin: 0 }}>Erreur lors du chargement du profil.</p>
+      </GamePanel>
+    )
+  }
 
   const { user, heroes, stats, economy_log, ai_budget } = profile
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="bg-gray-800 rounded-xl p-6 flex items-start gap-6">
-        <div className="bg-indigo-700 rounded-full w-16 h-16 flex items-center justify-center text-2xl font-bold text-white">
+    <div style={{ maxWidth: 860, margin: '0 auto' }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 className="game-title" style={{ fontSize: 26, margin: '0 0 4px' }}>👤 Profil</h1>
+        <p style={{ color: '#6b7280', fontSize: 13, margin: 0 }}>
+          Votre légende en chiffres et préférences.
+        </p>
+      </div>
+
+      {/* Header panel */}
+      <div className="game-panel" style={{ padding: 24, marginBottom: 20, display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+        <div style={{
+          background: 'linear-gradient(135deg, #4c1d95, #7c3aed)',
+          borderRadius: '50%', width: 64, height: 64,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 26, fontWeight: 700, color: 'white',
+          fontFamily: 'var(--font-title)', flexShrink: 0,
+          boxShadow: '0 0 20px rgba(124,58,237,0.4)',
+        }}>
           {user.username.charAt(0).toUpperCase()}
         </div>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-white">{user.username}</h1>
-          <p className="text-gray-400 text-sm">{user.email}</p>
-          <div className="flex gap-4 mt-2 text-sm">
-            <span className="text-yellow-400">Niveau {user.level}</span>
-            <span className="text-gray-400">{user.xp} / {user.xp_to_next_level} XP</span>
-            <span className="text-yellow-300">{user.gold.toLocaleString()} or</span>
+        <div style={{ flex: 1 }}>
+          <h2 className="game-title" style={{ margin: '0 0 2px', fontSize: 22 }}>{user.username}</h2>
+          <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 10px' }}>{user.email}</p>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
+            <span style={{ color: '#f59e0b', fontFamily: 'var(--font-title)', fontSize: 14 }}>Niveau {user.level}</span>
+            <span style={{ color: '#9ca3af', fontSize: 13 }}>{user.xp.toLocaleString('fr-FR')} / {user.xp_to_next_level.toLocaleString('fr-FR')} XP</span>
+            <span style={{ color: '#fbbf24', fontSize: 13 }}>💰 {user.gold.toLocaleString('fr-FR')} or</span>
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <StatBar value={user.xp} max={user.xp_to_next_level} variant="xp" height={6} />
+          <p style={{ color: '#4b5563', fontSize: 11, margin: '6px 0 0' }}>
             Aventurier depuis le {new Date(user.created_at).toLocaleDateString('fr-FR')}
           </p>
         </div>
@@ -106,117 +142,110 @@ export function ProfilePage() {
 
       {/* Heroes */}
       {heroes.length > 0 && (
-        <div className="bg-gray-800 rounded-xl p-4">
-          <h2 className="text-lg font-semibold text-gray-200 mb-3">Mon équipe</h2>
-          <div className="flex flex-wrap gap-2">
+        <GamePanel icon="⚔️" title="Mon équipe" variant="default" style={{ marginBottom: 20 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {heroes.map(h => (
-              <div key={h.id} className="bg-gray-700 rounded-lg px-3 py-2 text-sm">
-                <span className="text-white font-medium">{h.name}</span>
-                <span className="text-gray-400 ml-2">Niv.{h.level}</span>
-                <span className="text-gray-500 ml-2">{h.race} {h.class}</span>
+              <div key={h.id} style={{ background: '#0d1117', border: '1px solid #2d3748', borderRadius: 6, padding: '6px 12px' }}>
+                <span style={{ color: '#f9fafb', fontWeight: 600, fontSize: 13 }}>{h.name}</span>
+                <span style={{ color: '#6b7280', fontSize: 12, marginLeft: 6 }}>Niv.{h.level}</span>
+                <span style={{ color: '#4b5563', fontSize: 11, marginLeft: 6 }}>{h.race} {h.class}</span>
               </div>
             ))}
           </div>
-        </div>
+        </GamePanel>
       )}
 
       {/* Narrator preference */}
-      <div className="bg-gray-800 rounded-xl p-4 space-y-3">
-        <h2 className="text-lg font-semibold text-gray-200">Fréquence du Narrateur</h2>
-        <p className="text-xs text-gray-400">
-          Le Narrateur peut commenter vos aventures à votre guise. Ou pas du tout, si vous êtes sensible aux critiques.
+      <GamePanel icon="📖" title="Fréquence du Narrateur" variant="magic" style={{ marginBottom: 20 }}>
+        <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 12px' }}>
+          Le Narrateur peut commenter vos aventures. Ou pas, si vous êtes sensible aux critiques.
         </p>
-        <select
-          value={frequency}
-          onChange={e => setFrequency(e.target.value)}
-          className="w-full bg-gray-700 border border-gray-600 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        >
+        <select value={frequency} onChange={e => setFrequency(e.target.value)} style={selectStyle}>
           {NARRATOR_OPTIONS.map(opt => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          {saving ? 'Sauvegarde...' : 'Sauvegarder'}
-        </button>
-        {message && (
-          <p className="text-sm text-green-400 italic">{message}</p>
-        )}
-      </div>
+        <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <GameButton variant="primary" size="sm" onClick={handleSave} loading={saving}>
+            Sauvegarder
+          </GameButton>
+          {message && (
+            <span style={{ color: '#4ade80', fontSize: 13, fontStyle: 'italic' }}>{message}</span>
+          )}
+        </div>
+      </GamePanel>
 
-      {/* Tabs: stats / economy */}
-      <div className="bg-gray-800 rounded-xl overflow-hidden">
-        <div className="flex border-b border-gray-700">
+      {/* Tabs */}
+      <div className="game-panel" style={{ overflow: 'hidden' }}>
+        <div className="game-tabs" style={{ borderRadius: 0, borderBottom: '1px solid #1f2937', marginBottom: 0 }}>
           {(['stats', 'economy'] as const).map(tab => (
             <button
               key={tab}
+              className={`game-tab ${activeTab === tab ? 'active' : ''}`}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-3 text-sm font-medium transition-colors ${
-                activeTab === tab
-                  ? 'text-white border-b-2 border-indigo-400'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
             >
-              {tab === 'stats' ? 'Statistiques' : 'Historique économique'}
+              {tab === 'stats' ? '📊 Statistiques' : '💰 Historique économique'}
             </button>
           ))}
         </div>
 
         {activeTab === 'stats' && (
-          <div className="p-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <StatCard label="Monstres vaincus"   value={stats.total_kills.toLocaleString()}   color="text-green-400" />
-            <StatCard label="Défaites"            value={stats.total_defeats.toLocaleString()} color="text-red-400" />
-            <StatCard label="Quêtes terminées"    value={stats.quests_done.toLocaleString()}   color="text-blue-400" />
-            <StatCard label="Objets craftés"      value={stats.items_crafted.toLocaleString()} color="text-purple-400" />
-            <StatCard label="Donjons complétés"   value={stats.dungeons_done.toLocaleString()} color="text-orange-400" />
-            <StatCard label="Or total gagné"      value={`${stats.gold_earned.toLocaleString()} or`} color="text-yellow-400" />
-            <StatCard label="Or total dépensé"    value={`${stats.gold_spent.toLocaleString()} or`}  color="text-yellow-600" />
+          <div style={{ padding: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginBottom: ai_budget.limit > 0 ? 16 : 0 }}>
+              <StatCard label="Monstres vaincus"  value={stats.total_kills.toLocaleString('fr-FR')}    color="#4ade80" />
+              <StatCard label="Défaites"           value={stats.total_defeats.toLocaleString('fr-FR')}  color="#f87171" />
+              <StatCard label="Quêtes terminées"   value={stats.quests_done.toLocaleString('fr-FR')}    color="#60a5fa" />
+              <StatCard label="Objets craftés"     value={stats.items_crafted.toLocaleString('fr-FR')}  color="#c084fc" />
+              <StatCard label="Donjons complétés"  value={stats.dungeons_done.toLocaleString('fr-FR')}  color="#fb923c" />
+              <StatCard label="Or total gagné"     value={`${stats.gold_earned.toLocaleString('fr-FR')} or`}  color="#fbbf24" />
+              <StatCard label="Or total dépensé"   value={`${stats.gold_spent.toLocaleString('fr-FR')} or`}   color="#d97706" />
+            </div>
             {ai_budget.limit > 0 && (
-              <div className="col-span-2 sm:col-span-3">
-                <p className="text-xs text-gray-400 mb-1">Budget IA journalier</p>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div
-                    className="bg-indigo-500 h-2 rounded-full transition-all"
-                    style={{ width: `${Math.min(ai_budget.percent, 100)}%` }}
-                  />
+              <div style={{ background: '#0d1117', borderRadius: 6, padding: '12px 14px', border: '1px solid #2d3748' }}>
+                <div style={{ color: '#9ca3af', fontSize: 11, marginBottom: 6, fontFamily: 'var(--font-title)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  Budget IA journalier
                 </div>
-                <p className="text-xs text-gray-500 mt-1">{ai_budget.used} / {ai_budget.limit} unités utilisées aujourd'hui</p>
+                <StatBar value={ai_budget.used} max={ai_budget.limit} variant="custom" color="#7c3aed" height={6} />
+                <p style={{ color: '#4b5563', fontSize: 11, margin: '4px 0 0' }}>
+                  {ai_budget.used} / {ai_budget.limit} unités utilisées aujourd'hui
+                </p>
               </div>
             )}
           </div>
         )}
 
         {activeTab === 'economy' && (
-          <div className="overflow-auto max-h-80">
+          <div style={{ overflowY: 'auto', maxHeight: 320 }}>
             {economy_log.length === 0 ? (
-              <p className="p-5 text-gray-400 text-sm italic">Aucune transaction enregistrée.</p>
+              <p style={{ padding: 20, color: '#6b7280', fontStyle: 'italic', fontSize: 13 }}>
+                Aucune transaction enregistrée.
+              </p>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-gray-750 text-gray-400 text-xs uppercase">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Type</th>
-                    <th className="px-4 py-2 text-right">Montant</th>
-                    <th className="px-4 py-2 text-right">Solde après</th>
-                    <th className="px-4 py-2 text-left hidden sm:table-cell">Description</th>
-                    <th className="px-4 py-2 text-right hidden sm:table-cell">Date</th>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#0d1117' }}>
+                    <th style={{ padding: '8px 16px', textAlign: 'left', color: '#6b7280', fontFamily: 'var(--font-title)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Type</th>
+                    <th style={{ padding: '8px 16px', textAlign: 'right', color: '#6b7280', fontFamily: 'var(--font-title)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Montant</th>
+                    <th style={{ padding: '8px 16px', textAlign: 'right', color: '#6b7280', fontFamily: 'var(--font-title)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Solde après</th>
+                    <th style={{ padding: '8px 16px', textAlign: 'left', color: '#6b7280', fontFamily: 'var(--font-title)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date</th>
                   </tr>
                 </thead>
                 <tbody>
                   {economy_log.map((entry, i) => (
-                    <tr key={i} className="border-t border-gray-700 hover:bg-gray-750">
-                      <td className="px-4 py-2">
-                        <span className={`font-medium ${entry.transaction_type === 'gain' ? 'text-green-400' : 'text-red-400'}`}>
-                          {entry.transaction_type === 'gain' ? '+' : '-'}{entry.amount.toLocaleString()} or
+                    <tr key={i} style={{ borderTop: '1px solid #1f2937' }}>
+                      <td style={{ padding: '8px 16px' }}>
+                        <span style={{ color: entry.transaction_type === 'gain' ? '#4ade80' : '#f87171', fontWeight: 700 }}>
+                          {entry.transaction_type === 'gain' ? '+' : '-'}{entry.amount.toLocaleString('fr-FR')} or
                         </span>
-                        <span className="text-xs text-gray-500 ml-2">{entry.source}</span>
+                        <span style={{ color: '#4b5563', fontSize: 11, marginLeft: 6 }}>{entry.source}</span>
                       </td>
-                      <td className="px-4 py-2 text-right text-yellow-300">{entry.amount.toLocaleString()} or</td>
-                      <td className="px-4 py-2 text-right text-gray-400">{entry.balance_after.toLocaleString()} or</td>
-                      <td className="px-4 py-2 text-gray-400 hidden sm:table-cell text-xs">{entry.description ?? '—'}</td>
-                      <td className="px-4 py-2 text-right text-gray-500 hidden sm:table-cell text-xs">
+                      <td style={{ padding: '8px 16px', textAlign: 'right', color: '#fbbf24' }}>
+                        {entry.amount.toLocaleString('fr-FR')} or
+                      </td>
+                      <td style={{ padding: '8px 16px', textAlign: 'right', color: '#9ca3af' }}>
+                        {entry.balance_after.toLocaleString('fr-FR')} or
+                      </td>
+                      <td style={{ padding: '8px 16px', color: '#4b5563' }}>
                         {new Date(entry.created_at).toLocaleDateString('fr-FR')}
                       </td>
                     </tr>
@@ -233,9 +262,9 @@ export function ProfilePage() {
 
 function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="bg-gray-750 rounded-lg p-3 text-center">
-      <p className={`text-xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-gray-400 mt-1">{label}</p>
+    <div style={{ background: '#0d1117', border: '1px solid #1f2937', borderRadius: 6, padding: '12px', textAlign: 'center' }}>
+      <p style={{ color, fontSize: 20, fontWeight: 700, margin: '0 0 4px', fontFamily: 'var(--font-title)' }}>{value}</p>
+      <p style={{ color: '#6b7280', fontSize: 11, margin: 0 }}>{label}</p>
     </div>
   )
 }

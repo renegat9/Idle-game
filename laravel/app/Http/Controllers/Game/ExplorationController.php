@@ -114,6 +114,28 @@ class ExplorationController extends Controller
         ], 201);
     }
 
+    public function stop(Request $request): JsonResponse
+    {
+        $user        = $request->user();
+        $exploration = $user->activeExploration()->first();
+
+        if (!$exploration) {
+            return response()->json(['message' => 'Aucune exploration active.'], 422);
+        }
+
+        // Collecter les récompenses avant d'arrêter
+        $user->load(['activeHeroes.race', 'activeHeroes.gameClass', 'activeHeroes.trait_', 'activeHeroes.equippedItems']);
+        $result = $this->idleService->calculateOfflineProgress($user);
+
+        $exploration->update(['is_active' => false]);
+        $user->refresh();
+
+        return response()->json([
+            'result'  => $result,
+            'message' => 'Exploration terminée. Vos héros rentrent au camp.',
+        ]);
+    }
+
     public function collect(Request $request): JsonResponse
     {
         $user = $request->user()->fresh();
@@ -141,6 +163,7 @@ class ExplorationController extends Controller
                 return [
                     'id' => $hero->id,
                     'name' => $hero->name,
+                    'image_path' => $hero->image_path,
                     'level' => $hero->level,
                     'xp' => $hero->xp,
                     'xp_to_next_level' => $hero->xp_to_next_level,

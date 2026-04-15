@@ -17,6 +17,7 @@ export const explorationApi = {
     user: { gold: number; level: number; xp: number; xp_to_next_level: number }
     heroes: Array<{ id: number; name: string; level: number; xp: number; xp_to_next_level: number; current_hp: number; max_hp: number }>
   }>('/exploration/collect'),
+  stop: () => apiClient.post<{ result: OfflineResult; message: string }>('/exploration/stop'),
 }
 
 export const inventoryApi = {

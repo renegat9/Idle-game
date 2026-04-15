@@ -46,6 +46,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/exploration/status', [ExplorationController::class, 'status']);
     Route::post('/exploration/start', [ExplorationController::class, 'start']);
     Route::post('/exploration/collect', [ExplorationController::class, 'collect']);
+    Route::post('/exploration/stop', [ExplorationController::class, 'stop']);
 
     // Inventory
     Route::get('/inventory', [InventoryController::class, 'index']);

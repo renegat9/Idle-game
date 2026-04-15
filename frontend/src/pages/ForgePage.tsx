@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { craftingApi, inventoryApi } from '../api/game'
 import { RarityBadge } from '../components/hero/RarityBadge'
+import { ItemImage } from '../components/ui/ItemImage'
+import { GameButton } from '../components/ui/GameButton'
+import { GamePanel } from '../components/ui/GamePanel'
 import type { Enchantment, Item } from '../types'
 
 type Material = { name: string; slug: string; description: string; quantity: number }
@@ -10,13 +13,22 @@ type Recipe = {
   result_name: string; result_rarity: string; result_slot: string | null; result_type: string
 }
 
-const rarityColors: Record<string, string> = {
-  commun: '#6b7280', peu_commun: '#22c55e', rare: '#3b82f6',
-  epique: '#a855f7', legendaire: '#f59e0b', wtf: '#ec4899'
+const RARITY_COLORS: Record<string, string> = {
+  commun: '#9ca3af', peu_commun: '#4ade80', rare: '#60a5fa',
+  epique: '#a78bfa', legendaire: '#fbbf24', wtf: '#f472b6',
 }
 
-const tierLabels: Record<string, string> = { base: 'Base', avance: 'Avancé', elementaire: 'Élémentaire' }
-const tierColors: Record<string, string> = { base: '#64748b', avance: '#7c3aed', elementaire: '#f59e0b' }
+const MATERIAL_ICONS: Record<string, string> = {
+  ferraille:      '⚙️',
+  essence_magique:'✨',
+  bout_de_ficelle:'🧵',
+}
+
+const TIER_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  base:       { label: 'Base',       color: '#94a3b8', bg: '#1e293b' },
+  avance:     { label: 'Avancé',     color: '#c4b5fd', bg: '#1e1b4b' },
+  elementaire:{ label: 'Élémentaire',color: '#fbbf24', bg: '#1a0d00' },
+}
 
 export function ForgePage() {
   const [materials, setMaterials] = useState<Material[]>([])
@@ -98,99 +110,155 @@ export function ForgePage() {
     )
   }
 
-  // Only Rare+ items can be enchanted
   const enchantableItems = items.filter(i => ['rare', 'epique', 'legendaire', 'wtf'].includes(i.rarity))
 
-  if (loading) return <div style={{ color: '#94a3b8' }}>Chargement de la forge...</div>
+  if (loading) {
+    return (
+      <div className="game-loading">
+        <div className="game-loading-spinner" />
+        <div className="game-loading-text">Gérard allume sa forge…</div>
+      </div>
+    )
+  }
 
   return (
-    <div>
-      <h1 style={{ color: '#f1f5f9', marginBottom: 4, fontSize: 24 }}>⚒️ Forge de Gérard</h1>
-      <p style={{ color: '#6b7280', marginBottom: 24, fontSize: 14 }}>
-        "Bienvenue dans ma forge ! Je fais de mon mieux. C'est déjà quelque chose."
-      </p>
+    <div className="page-bg-forge">
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 className="game-title" style={{ fontSize: 26, margin: '0 0 4px' }}>⚒️ Forge de Gérard</h1>
+        <p className="flavor-text" style={{ margin: 0 }}>
+          « Bienvenue dans ma forge ! Je fais de mon mieux. C'est déjà quelque chose. »
+        </p>
+      </div>
 
-      {/* Result */}
+      {/* Craft Result */}
       {result && (
-        <div style={{ background: result.success ? '#052e16' : '#1c0505', border: `1px solid ${result.success ? '#16a34a' : '#991b1b'}`, borderRadius: 12, padding: 16, marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            <span>{result.success ? '✅' : '❌'}</span>
-            <span style={{ color: result.success ? '#22c55e' : '#ef4444', fontWeight: 'bold' }}>
-              {result.success ? (result.is_critical ? '💥 Fusion critique !' : result.message ?? 'Réussi !') : result.message ?? 'Raté...'}
-            </span>
-            {result.gold_spent && <span style={{ color: '#fbbf24', fontSize: 13 }}>-{result.gold_spent} 💰</span>}
-          </div>
-          {result.gerard_comment && <p style={{ color: '#94a3b8', fontStyle: 'italic', margin: '0 0 8px' }}>Gérard : "{result.gerard_comment}"</p>}
+        <GamePanel
+          icon={result.success ? '✅' : '❌'}
+          title={result.success ? (result.is_critical ? '💥 Fusion critique !' : 'Réussi !') : 'Raté...'}
+          variant={result.success ? 'success' : 'danger'}
+          style={{ marginBottom: 20 }}
+          className="anim-slide-in"
+        >
+          {result.gerard_comment && (
+            <p className="flavor-text" style={{ marginBottom: 10 }}>
+              Gérard : « {result.gerard_comment} »
+            </p>
+          )}
           {result.result_item && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: '#f1f5f9' }}>Obtenu :</span>
-              <span style={{ color: rarityColors[result.result_item.rarity] ?? '#f1f5f9', fontWeight: 'bold' }}>{result.result_item.name}</span>
-              <RarityBadge rarity={result.result_item.rarity} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#0d1117', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+              <ItemImage slot={result.result_item.slot ?? 'arme'} rarity={result.result_item.rarity} imageUrl={result.result_item.image_url} size={48} />
+              <div>
+                <div style={{ color: RARITY_COLORS[result.result_item.rarity] ?? '#f9fafb', fontWeight: 700, fontSize: 14 }}>
+                  {result.result_item.name}
+                </div>
+                <RarityBadge rarity={result.result_item.rarity} />
+              </div>
+              {result.gold_spent && (
+                <span style={{ marginLeft: 'auto', color: '#fbbf24', fontSize: 13 }}>-{result.gold_spent} 💰</span>
+              )}
             </div>
           )}
           {result.enchantment && (
-            <div style={{ color: '#c084fc', fontSize: 13 }}>
-              ✨ Enchantement appliqué : <strong>{result.enchantment}</strong>
-            </div>
+            <div style={{ color: '#c084fc', fontSize: 13 }}>✨ Enchantement appliqué : <strong>{result.enchantment}</strong></div>
           )}
           {result.materials && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
               {result.materials.map((m: any, i: number) => (
-                <span key={i} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#a78bfa' }}>
-                  +{m.qty} {m.slug}
+                <span key={i} style={{ background: '#1a0733', border: '1px solid #4c1d95', borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#a78bfa' }}>
+                  {MATERIAL_ICONS[m.slug] ?? '🔩'} +{m.qty} {m.slug.replace(/_/g, ' ')}
                 </span>
               ))}
             </div>
           )}
-          <button onClick={() => setResult(null)} style={{ marginTop: 10, background: 'transparent', border: '1px solid #475569', color: '#6b7280', padding: '4px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Fermer</button>
-        </div>
+          <div style={{ marginTop: 10 }}>
+            <GameButton variant="ghost" size="sm" onClick={() => setResult(null)}>Fermer ✕</GameButton>
+          </div>
+        </GamePanel>
       )}
 
-      {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20 }}>
-        {(['fusion', 'dismantle', 'recipes', 'enchant'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ background: tab === t ? '#7c3aed' : '#1e293b', color: tab === t ? 'white' : '#94a3b8', border: 'none', padding: '8px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 14 }}>
-            {t === 'fusion' ? '🔥 Fusion' : t === 'dismantle' ? '🔨 Démontage' : t === 'recipes' ? '📖 Recettes' : '✨ Enchantement'}
-          </button>
-        ))}
-      </div>
-
-      {/* Grid: content + materials */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 220px', gap: 20 }}>
+        {/* Main crafting area */}
         <div>
+          {/* Tabs */}
+          <div className="game-tabs">
+            {(['fusion', 'dismantle', 'recipes', 'enchant'] as const).map(t => (
+              <button
+                key={t}
+                className={`game-tab${tab === t ? ' active' : ''}`}
+                onClick={() => setTab(t)}
+              >
+                {t === 'fusion' ? '🔥 Fusion' : t === 'dismantle' ? '🔨 Démontage' : t === 'recipes' ? '📖 Recettes' : '✨ Enchantement'}
+              </button>
+            ))}
+          </div>
+
           {/* Fusion tab */}
           {tab === 'fusion' && (
             <div>
-              <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>
-                Sélectionnez 3 objets <strong>de même rareté</strong> à fusionner. Résultat : 1 objet de rareté supérieure (85% de chance).
-              </p>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-                {selectedFusion.map(id => {
-                  const item = items.find(i => i.id === id)
-                  return item ? (
-                    <span key={id} style={{ background: '#7c3aed', color: 'white', padding: '4px 10px', borderRadius: 6, fontSize: 13 }}>
-                      {item.name} <button onClick={() => toggleFusion(id)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', padding: '0 0 0 4px' }}>×</button>
-                    </span>
-                  ) : null
+              {/* Visual slot area */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, background: '#0d1117', border: '1px solid #1f2937', borderRadius: 10, padding: 16, marginBottom: 16 }}>
+                {[0, 1, 2].map(i => {
+                  const itemId = selectedFusion[i]
+                  const item = itemId ? items.find(it => it.id === itemId) : null
+                  return (
+                    <div key={i}>
+                      {item ? (
+                        <div style={{ position: 'relative', cursor: 'pointer' }} onClick={() => toggleFusion(itemId!)}>
+                          <ItemImage slot={item.slot} rarity={item.rarity} imageUrl={item.image_url} size={56} name={item.name} />
+                          <div style={{ fontSize: 10, color: RARITY_COLORS[item.rarity], textAlign: 'center', marginTop: 3, maxWidth: 56, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.name}
+                          </div>
+                          <div style={{ position: 'absolute', top: -4, right: -4, background: '#7f1d1d', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white', cursor: 'pointer' }}>
+                            ×
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ width: 56, height: 56, border: '2px dashed #2d3748', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4b5563', fontSize: 22 }}>
+                          +
+                        </div>
+                      )}
+                    </div>
+                  )
                 })}
-                {selectedFusion.length < 3 && <span style={{ color: '#475569', fontSize: 13 }}>{3 - selectedFusion.length} objet(s) manquant(s)</span>}
+                <div style={{ color: '#6b7280', fontSize: 24 }}>→</div>
+                <div style={{ width: 56, height: 56, border: '2px dashed #4c1d95', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, opacity: selectedFusion.length === 3 ? 1 : 0.3 }}>
+                  {selectedFusion.length === 3 ? '⭐' : '?'}
+                </div>
+                <GameButton
+                  variant="primary"
+                  icon="🔥"
+                  onClick={doFuse}
+                  disabled={selectedFusion.length !== 3}
+                  loading={acting}
+                >
+                  Fusionner
+                </GameButton>
               </div>
-              <button
-                onClick={doFuse}
-                disabled={selectedFusion.length !== 3 || acting}
-                style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '10px 24px', borderRadius: 8, cursor: selectedFusion.length === 3 ? 'pointer' : 'not-allowed', opacity: selectedFusion.length === 3 ? 1 : 0.4, marginBottom: 20, fontSize: 14 }}
-              >
-                🔥 Fusionner
-              </button>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {items.length === 0 && <div style={{ color: '#6b7280' }}>Aucun objet en inventaire.</div>}
+
+              <p style={{ color: '#6b7280', fontSize: 12, marginBottom: 12, fontStyle: 'italic' }}>
+                Sélectionnez 3 objets de même rareté. Résultat : rareté supérieure (85% de réussite).
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {items.length === 0 && <div style={{ color: '#4b5563', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>Aucun objet disponible.</div>}
                 {items.map(item => (
-                  <div key={item.id} onClick={() => toggleFusion(item.id)} style={{ background: selectedFusion.includes(item.id) ? '#1e1b4b' : '#1e293b', border: `1px solid ${selectedFusion.includes(item.id) ? '#7c3aed' : '#334155'}`, borderRadius: 8, padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <span style={{ color: rarityColors[item.rarity] ?? '#f1f5f9', fontWeight: 'bold' }}>{item.name}</span>
-                      <span style={{ color: '#6b7280', fontSize: 12, marginLeft: 8 }}>Niv.{item.item_level} • {item.slot}</span>
+                  <div
+                    key={item.id}
+                    onClick={() => toggleFusion(item.id)}
+                    style={{
+                      background: selectedFusion.includes(item.id) ? '#12122a' : '#0d1117',
+                      border: `1px solid ${selectedFusion.includes(item.id) ? '#7c3aed' : '#1f2937'}`,
+                      borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 10,
+                    }}
+                  >
+                    <ItemImage slot={item.slot} rarity={item.rarity} imageUrl={item.image_url} size={36} name={item.name} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: RARITY_COLORS[item.rarity], fontWeight: 600, fontSize: 13 }}>{item.name}</div>
+                      <div style={{ color: '#6b7280', fontSize: 11 }}>Niv.{item.item_level} · {item.slot}</div>
                     </div>
                     <RarityBadge rarity={item.rarity} />
+                    {selectedFusion.includes(item.id) && <span style={{ color: '#7c3aed', fontSize: 16 }}>✓</span>}
                   </div>
                 ))}
               </div>
@@ -200,18 +268,26 @@ export function ForgePage() {
           {/* Dismantle tab */}
           {tab === 'dismantle' && (
             <div>
-              <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 16 }}>Démontez un objet pour récupérer des matériaux. L'objet sera détruit.</p>
-              <div style={{ display: 'grid', gap: 8 }}>
-                {items.length === 0 && <div style={{ color: '#6b7280' }}>Aucun objet en inventaire.</div>}
+              <p style={{ color: '#6b7280', fontSize: 12, marginBottom: 12, fontStyle: 'italic' }}>
+                Démontez un objet pour récupérer des matériaux. L'objet sera détruit définitivement.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {items.length === 0 && <div style={{ color: '#4b5563', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>Aucun objet disponible.</div>}
                 {items.map(item => (
-                  <div key={item.id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <span style={{ color: rarityColors[item.rarity] ?? '#f1f5f9', fontWeight: 'bold' }}>{item.name}</span>
-                      <span style={{ color: '#6b7280', fontSize: 12, marginLeft: 8 }}>Niv.{item.item_level} • {item.slot}</span>
+                  <div key={item.id} style={{
+                    background: '#0d1117', border: '1px solid #1f2937',
+                    borderRadius: 8, padding: '8px 12px',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                  }}>
+                    <ItemImage slot={item.slot} rarity={item.rarity} imageUrl={item.image_url} size={36} name={item.name} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: RARITY_COLORS[item.rarity], fontWeight: 600, fontSize: 13 }}>{item.name}</div>
+                      <div style={{ color: '#6b7280', fontSize: 11 }}>Niv.{item.item_level} · {item.slot}</div>
                     </div>
-                    <button onClick={() => doDismantle(item.id)} style={{ background: '#7f1d1d', color: '#fca5a5', border: 'none', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>
-                      Démonter
-                    </button>
+                    <RarityBadge rarity={item.rarity} />
+                    <GameButton variant="danger" size="sm" onClick={() => doDismantle(item.id)} loading={acting}>
+                      🔨
+                    </GameButton>
                   </div>
                 ))}
               </div>
@@ -220,32 +296,39 @@ export function ForgePage() {
 
           {/* Recipes tab */}
           {tab === 'recipes' && (
-            <div style={{ display: 'grid', gap: 12 }}>
-              {recipes.length === 0 && <div style={{ color: '#6b7280' }}>Aucune recette connue. Continuez à crafter pour en découvrir.</div>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {recipes.length === 0 && (
+                <div style={{ color: '#4b5563', fontStyle: 'italic', textAlign: 'center', padding: 32 }}>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>📖</div>
+                  <p style={{ margin: 0 }}>Aucune recette connue. Continuez à crafter.</p>
+                </div>
+              )}
               {recipes.map(recipe => (
-                <div key={recipe.id} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 16 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                    <h3 style={{ color: '#f1f5f9', margin: 0 }}>{recipe.name}</h3>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      {recipe.gold_cost > 0 && <span style={{ color: '#fbbf24', fontSize: 13 }}>{recipe.gold_cost} 💰</span>}
-                      <RarityBadge rarity={recipe.result_rarity} />
+                <GamePanel key={recipe.id} variant="magic" noPadding>
+                  <div style={{ padding: '12px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                      <h3 className="game-title" style={{ margin: 0, fontSize: 14, color: '#f9fafb' }}>{recipe.name}</h3>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        {recipe.gold_cost > 0 && <span style={{ color: '#fbbf24', fontSize: 12 }}>💰 {recipe.gold_cost}</span>}
+                        <RarityBadge rarity={recipe.result_rarity} />
+                      </div>
+                    </div>
+                    <p style={{ color: '#9ca3af', fontSize: 12, margin: '0 0 8px', fontStyle: 'italic' }}>{recipe.description}</p>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                      {recipe.ingredients.map((ing, i) => (
+                        <span key={i} style={{ background: '#0d1117', border: '1px solid #4c1d95', borderRadius: 4, padding: '2px 7px', fontSize: 11, color: '#a78bfa' }}>
+                          {MATERIAL_ICONS[ing.slug] ?? '🔩'} {ing.qty}× {ing.slug.replace(/_/g, ' ')}
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#6b7280', fontSize: 12 }}>→ {recipe.result_name}</span>
+                      <GameButton variant="gold" size="sm" icon="⚒️" onClick={() => doCraft(recipe.id)} loading={acting}>
+                        Fabriquer
+                      </GameButton>
                     </div>
                   </div>
-                  <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 10px' }}>{recipe.description}</p>
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-                    {recipe.ingredients.map((ing, i) => (
-                      <span key={i} style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#c084fc' }}>
-                        {ing.qty}× {ing.slug.replace(/_/g, ' ')}
-                      </span>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: '#6b7280', fontSize: 12 }}>→ {recipe.result_name}</span>
-                    <button onClick={() => doCraft(recipe.id)} style={{ background: '#064e3b', color: '#6ee7b7', border: 'none', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
-                      ⚒️ Fabriquer
-                    </button>
-                  </div>
-                </div>
+                </GamePanel>
               ))}
             </div>
           )}
@@ -253,77 +336,82 @@ export function ForgePage() {
           {/* Enchantment tab */}
           {tab === 'enchant' && (
             <div>
-              <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 20 }}>
-                Enchantez un objet <strong>Rare ou supérieur</strong>. Max 2 enchantements par objet (le dernier est remplacé si plein).
+              <p style={{ color: '#6b7280', fontSize: 12, marginBottom: 16, fontStyle: 'italic' }}>
+                Enchantez un objet <strong>Rare ou supérieur</strong>. Max 2 enchantements par objet.
               </p>
 
-              {/* Step 1: pick item */}
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ color: '#f1f5f9', fontSize: 15, marginBottom: 12 }}>1. Choisir l'objet à enchanter</h3>
-                {enchantableItems.length === 0 && (
-                  <div style={{ color: '#6b7280', fontSize: 13 }}>Aucun objet Rare+ en inventaire.</div>
-                )}
-                <div style={{ display: 'grid', gap: 8 }}>
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)' }}>
+                  1. Choisir l'objet
+                </div>
+                {enchantableItems.length === 0 && <div style={{ color: '#4b5563', fontSize: 13, fontStyle: 'italic' }}>Aucun objet Rare+ en inventaire.</div>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                   {enchantableItems.map(item => (
                     <div
                       key={item.id}
                       onClick={() => setEnchantTarget(item.id === enchantTarget ? null : item.id)}
-                      style={{ background: enchantTarget === item.id ? '#1e1b4b' : '#1e293b', border: `1px solid ${enchantTarget === item.id ? '#7c3aed' : '#334155'}`, borderRadius: 8, padding: '10px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                      style={{
+                        background: enchantTarget === item.id ? '#12122a' : '#0d1117',
+                        border: `1px solid ${enchantTarget === item.id ? '#7c3aed' : '#1f2937'}`,
+                        borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                      }}
                     >
-                      <div>
-                        <span style={{ color: rarityColors[item.rarity], fontWeight: 'bold' }}>{item.name}</span>
-                        <span style={{ color: '#6b7280', fontSize: 12, marginLeft: 8 }}>Niv.{item.item_level} • {item.slot}</span>
-                        {(item as any).enchant_count > 0 && (
-                          <span style={{ color: '#a78bfa', fontSize: 11, marginLeft: 8 }}>✨ ×{(item as any).enchant_count}</span>
-                        )}
+                      <ItemImage slot={item.slot} rarity={item.rarity} imageUrl={item.image_url} size={36} name={item.name} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ color: RARITY_COLORS[item.rarity], fontWeight: 600, fontSize: 13 }}>{item.name}</div>
+                        <div style={{ color: '#6b7280', fontSize: 11 }}>Niv.{item.item_level} · {item.slot}</div>
                       </div>
                       <RarityBadge rarity={item.rarity} />
+                      {(item as any).enchant_count > 0 && (
+                        <span style={{ color: '#a78bfa', fontSize: 11 }}>✨×{(item as any).enchant_count}</span>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Step 2: pick enchantment */}
               {enchantTarget && (
                 <div>
-                  <h3 style={{ color: '#f1f5f9', fontSize: 15, marginBottom: 12 }}>2. Choisir l'enchantement</h3>
-                  <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'var(--font-title)' }}>
+                    2. Choisir l'enchantement
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {enchantments.map(ench => {
                       const matMap = Object.fromEntries(materials.map(m => [m.slug, m.quantity]))
                       const canAfford = ench.materials.every(m => (matMap[m.slug] ?? 0) >= m.qty)
+                      const tier = TIER_CONFIG[ench.tier] ?? TIER_CONFIG.base
                       return (
-                        <div key={ench.slug} style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 14, opacity: canAfford ? 1 : 0.5 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                              <span style={{ color: '#f1f5f9', fontWeight: 'bold' }}>{ench.name}</span>
-                              <span style={{ background: tierColors[ench.tier], color: 'white', fontSize: 10, padding: '1px 6px', borderRadius: 4 }}>
-                                {tierLabels[ench.tier]}
-                              </span>
-                            </div>
-                            <span style={{ color: '#fbbf24', fontSize: 13 }}>{ench.gold_cost.toLocaleString()} 💰</span>
-                          </div>
-                          <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 8px' }}>{ench.description}</p>
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-                            {ench.materials.map((m, i) => {
-                              const have = matMap[m.slug] ?? 0
-                              return (
-                                <span key={i} style={{ background: '#0f172a', border: `1px solid ${have >= m.qty ? '#334155' : '#7f1d1d'}`, borderRadius: 6, padding: '2px 8px', fontSize: 11, color: have >= m.qty ? '#a78bfa' : '#fca5a5' }}>
-                                  {m.qty}× {m.slug.replace(/_/g, ' ')} ({have} dispo)
+                        <GamePanel key={ench.slug} variant="magic" noPadding style={{ opacity: canAfford ? 1 : 0.5 }}>
+                          <div style={{ padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <span style={{ color: '#f9fafb', fontWeight: 700, fontSize: 13 }}>{ench.name}</span>
+                                <span style={{ background: tier.bg, color: tier.color, fontSize: 10, padding: '1px 6px', borderRadius: 4, border: '1px solid currentColor' }}>
+                                  {tier.label}
                                 </span>
-                              )
-                            })}
+                              </div>
+                              <span style={{ color: '#fbbf24', fontSize: 12 }}>💰 {ench.gold_cost.toLocaleString()}</span>
+                            </div>
+                            <p style={{ color: '#9ca3af', fontSize: 12, margin: '0 0 7px', fontStyle: 'italic' }}>{ench.description}</p>
+                            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginBottom: 7 }}>
+                              {ench.materials.map((m, i) => {
+                                const have = matMap[m.slug] ?? 0
+                                return (
+                                  <span key={i} style={{ background: '#0d1117', border: `1px solid ${have >= m.qty ? '#4c1d95' : '#7f1d1d'}`, borderRadius: 4, padding: '2px 6px', fontSize: 11, color: have >= m.qty ? '#a78bfa' : '#fca5a5' }}>
+                                    {m.qty}× {m.slug.replace(/_/g, ' ')} ({have})
+                                  </span>
+                                )
+                              })}
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: '#6b7280', fontSize: 11, fontStyle: 'italic' }}>{ench.gerard_comment}</span>
+                              <GameButton variant="primary" size="sm" icon="✨" onClick={() => doEnchant(ench.slug)} disabled={!canAfford} loading={acting}>
+                                Enchanter
+                              </GameButton>
+                            </div>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: '#6b7280', fontSize: 11, fontStyle: 'italic' }}>{ench.gerard_comment}</span>
-                            <button
-                              onClick={() => doEnchant(ench.slug)}
-                              disabled={!canAfford || acting}
-                              style={{ background: canAfford ? '#4c1d95' : '#1e293b', color: canAfford ? '#c4b5fd' : '#6b7280', border: 'none', padding: '6px 14px', borderRadius: 6, cursor: canAfford ? 'pointer' : 'not-allowed', fontSize: 13 }}
-                            >
-                              ✨ Enchanter
-                            </button>
-                          </div>
-                        </div>
+                        </GamePanel>
                       )
                     })}
                   </div>
@@ -335,14 +423,30 @@ export function ForgePage() {
 
         {/* Materials sidebar */}
         <div>
-          <h3 style={{ color: '#94a3b8', fontSize: 14, marginBottom: 12 }}>Matériaux</h3>
-          {materials.length === 0 && <div style={{ color: '#6b7280', fontSize: 13 }}>Aucun matériau. Démontez des objets.</div>}
-          {materials.map(m => (
-            <div key={m.slug} style={{ background: '#1e293b', borderRadius: 8, padding: '8px 12px', marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: '#e2e8f0', fontSize: 13 }}>{m.name}</span>
-              <span style={{ color: '#a78bfa', fontWeight: 'bold', fontSize: 13 }}>{m.quantity}</span>
+          <GamePanel icon="🔩" title="Matériaux" variant="default" noPadding>
+            <div style={{ padding: '12px 12px' }}>
+              {materials.length === 0 ? (
+                <div style={{ color: '#4b5563', fontSize: 12, fontStyle: 'italic', textAlign: 'center', padding: '12px 0' }}>
+                  Démontez des objets pour obtenir des matériaux.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  {materials.map(m => (
+                    <div key={m.slug} style={{
+                      background: '#0d1117', borderRadius: 6, padding: '7px 10px',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      border: '1px solid #1a1f2e',
+                    }}>
+                      <span style={{ color: '#d1d5db', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {MATERIAL_ICONS[m.slug] ?? '🔩'} {m.name}
+                      </span>
+                      <span style={{ color: '#a78bfa', fontWeight: 700, fontSize: 14 }}>{m.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
+          </GamePanel>
         </div>
       </div>
     </div>
