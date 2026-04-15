@@ -43,3 +43,8 @@ Schedule::command('zones:generate')->weekly()->mondays()->at('02:00')
 Schedule::command('world-boss:auto-attack')->everyTwoHours()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Every 5 minutes: process queued jobs (GenerateLootImage, GenerateHeroImage, etc.)
+Schedule::command('queue:work --stop-when-empty --tries=2 --timeout=90')->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();

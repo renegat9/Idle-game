@@ -1,3 +1,5 @@
+import React from 'react'
+
 interface ItemImageProps {
   slot: string
   rarity: string
@@ -116,6 +118,7 @@ const RARITY_SVG_COLOR: Record<string, string> = {
 }
 
 export function ItemImage({ slot, rarity, imageUrl, size = 64, name }: ItemImageProps) {
+  const [imgError, setImgError] = React.useState(false)
   const borderColor = RARITY_BORDER[rarity] ?? '#4b5563'
   const bgColor     = RARITY_BG[rarity] ?? '#0d1117'
   const glow        = RARITY_GLOW[rarity] ?? 'none'
@@ -123,6 +126,7 @@ export function ItemImage({ slot, rarity, imageUrl, size = 64, name }: ItemImage
   const svgFn       = SLOT_SVG[slot]
   const isWtf       = rarity === 'wtf'
   const isLegend    = rarity === 'legendaire'
+  const showImage   = imageUrl && !imgError
 
   return (
     <div
@@ -142,12 +146,12 @@ export function ItemImage({ slot, rarity, imageUrl, size = 64, name }: ItemImage
         position: 'relative',
       }}
     >
-      {imageUrl ? (
+      {showImage ? (
         <img
-          src={imageUrl.startsWith('http') ? imageUrl : `/${imageUrl}`}
+          src={imageUrl!.startsWith('http') ? imageUrl! : `/${imageUrl}`}
           alt={name ?? slot}
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          onError={() => setImgError(true)}
         />
       ) : svgFn ? (
         <div style={{ width: size - 12, height: size - 12 }}>
