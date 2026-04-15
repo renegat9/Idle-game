@@ -362,7 +362,7 @@ class IdleService
      * Guérison au repos : 10% des PV max par heure depuis last_idle_calc_at.
      * Déclenché uniquement quand les héros ne sont PAS en exploration.
      */
-    private function healHeroesAtRest(User $user): void
+    public function healHeroesAtRest(User $user): void
     {
         $lastCalc = $user->last_idle_calc_at;
         if (!$lastCalc) {

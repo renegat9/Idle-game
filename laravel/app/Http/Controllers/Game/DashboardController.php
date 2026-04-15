@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Game;
 
 use App\Http\Controllers\Controller;
+use App\Services\IdleService;
 use App\Services\NarratorService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,7 +12,8 @@ use Illuminate\Support\Facades\DB;
 class DashboardController extends Controller
 {
     public function __construct(
-        private readonly NarratorService $narrator
+        private readonly NarratorService $narrator,
+        private readonly IdleService $idleService,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -97,11 +99,16 @@ class DashboardController extends Controller
 
     /**
      * Endpoint de polling léger — < 50ms.
-     * NE déclenche PAS le calcul offline.
+     * NE déclenche PAS le calcul offline, mais applique la guérison au repos.
      */
     public function poll(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $user = $request->user()->fresh();
+
+        // Guérison au repos si pas d'exploration active (opération légère)
+        if (!$user->activeExploration()->exists()) {
+            $this->idleService->healHeroesAtRest($user);
+        }
 
         $unreadCount = DB::table('idle_event_log')
             ->where('user_id', $user->id)
