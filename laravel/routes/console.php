@@ -53,3 +53,12 @@ Schedule::command('queue:work --stop-when-empty --tries=2 --timeout=90')->everyF
 Schedule::command('heroes:heal-at-rest')->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+// Daily at 01:00: clean up expired tavern recruits and stale quests
+Schedule::command('tavern:cleanup-expired')->dailyAt('01:00')
+    ->withoutOverlapping()
+    ->runInBackground();
+
+Schedule::command('quests:cleanup-stale')->dailyAt('01:05')
+    ->withoutOverlapping()
+    ->runInBackground();
