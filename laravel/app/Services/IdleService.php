@@ -261,12 +261,12 @@ class IdleService
                 $this->reputationService->addReputation($user->id, $zone->id, $repGained);
             }
 
-            // Mettre à jour progression de zone
-            UserZoneProgress::updateOrCreate(
+            // Mettre à jour progression de zone (DB::table évite le cast Eloquent sur DB::raw)
+            DB::table('user_zone_progress')->updateOrInsert(
                 ['user_id' => $user->id, 'zone_id' => $zone->id],
                 [
-                    'total_combats' => \DB::raw('total_combats + ' . ($victories + $defeats)),
-                    'total_victories' => \DB::raw('total_victories + ' . $victories),
+                    'total_combats'   => DB::raw('COALESCE(total_combats, 0) + ' . ($victories + $defeats)),
+                    'total_victories' => DB::raw('COALESCE(total_victories, 0) + ' . $victories),
                 ]
             );
 
