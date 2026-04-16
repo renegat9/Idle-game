@@ -91,9 +91,26 @@ if ! $SKIP_BUILD; then
     cp -r "$FRONTEND_DIR/dist/." "$WEBROOT/"
     ok "Fichiers React copiés."
 
-    # Symlink api/ → Laravel public/ pour que /api/* atteigne Laravel
-    ln -sfn "$LARAVEL_DIR/public" "$WEBROOT/api"
-    ok "Symlink api/ → $LARAVEL_DIR/public créé."
+    # Gateway api/ → Laravel (répertoire réel, pas symlink)
+    # Un symlink causerait SCRIPT_NAME=/api/index.php → Symfony strip /api → routes 404
+    # Avec un vrai répertoire + gateway PHP qui override SCRIPT_NAME, Laravel reçoit le bon chemin
+    [ -L "$WEBROOT/api" ] && rm "$WEBROOT/api"
+    mkdir -p "$WEBROOT/api"
+    cat > "$WEBROOT/api/index.php" << PHPEOF
+<?php
+// Override SCRIPT_NAME so Symfony/Laravel computes REQUEST_URI correctly:
+// dirname('/index.php') = '' → pathInfo = /api/auth/login → matches api.php routes
+\$_SERVER['SCRIPT_NAME'] = '/index.php';
+\$_SERVER['PHP_SELF']    = '/index.php';
+require '${LARAVEL_DIR}/public/index.php';
+PHPEOF
+    cat > "$WEBROOT/api/.htaccess" << 'HTEOF'
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [L]
+HTEOF
+    ok "Gateway api/ créé → $LARAVEL_DIR/public."
 fi
 
 # ─── 4. Cache Laravel ─────────────────────────────────────────────────────────

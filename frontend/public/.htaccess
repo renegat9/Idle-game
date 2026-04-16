@@ -4,7 +4,7 @@ DirectoryIndex index.html
 RewriteEngine On
 RewriteBase /
 
-# Requêtes API → symlink api/ pointe vers laravel/public (géré par Laravel)
+# Requêtes API → répertoire api/ contient un gateway PHP vers laravel/public
 RewriteRule ^api - [L,NC]
 
 # Ne pas réécrire les fichiers/dossiers existants (assets, storage, etc.)
