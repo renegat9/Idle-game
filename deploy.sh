@@ -98,14 +98,22 @@ if ! $SKIP_BUILD; then
     mkdir -p "$WEBROOT/api"
     cat > "$WEBROOT/api/index.php" << PHPEOF
 <?php
-// Override SCRIPT_NAME so Symfony/Laravel computes REQUEST_URI correctly:
-// dirname('/index.php') = '' → pathInfo = /api/auth/login → matches api.php routes
+// Fix SCRIPT_NAME so Symfony/Laravel computes pathInfo = /api/... (not stripped)
 \$_SERVER['SCRIPT_NAME'] = '/index.php';
 \$_SERVER['PHP_SELF']    = '/index.php';
+// Apache CGI/FPM strips the Authorization header by default.
+// Restore it from the env var set by the RewriteRule below.
+if (empty(\$_SERVER['HTTP_AUTHORIZATION'])) {
+    \$_SERVER['HTTP_AUTHORIZATION'] = \$_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+}
 require '${LARAVEL_DIR}/public/index.php';
 PHPEOF
     cat > "$WEBROOT/api/.htaccess" << 'HTEOF'
 RewriteEngine On
+# Pass Authorization header to PHP — Apache strips it for CGI/FPM by default
+RewriteCond %{HTTP:Authorization} .
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+# Route everything to the gateway
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ index.php [L]
