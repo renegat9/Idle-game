@@ -20,7 +20,7 @@ export function LoginPage() {
     try {
       const { data } = await authApi.login({ email, password })
       setAuth(data.user, data.token)
-      setGold(data.user.gold)
+      setGold(data.user?.gold ?? 0)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err.response?.data?.message || err.response?.data?.errors?.email?.[0] || 'Erreur de connexion')

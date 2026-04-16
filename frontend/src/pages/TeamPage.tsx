@@ -47,7 +47,7 @@ export function TeamPage() {
       apiClient.get('/reference/traits'),
       apiClient.get('/heroes/synergies'),
     ]).then(([heroRes, raceRes, classRes, traitRes, synRes]) => {
-      const loadedHeroes = heroRes.data.heroes
+      const loadedHeroes = heroRes.data.heroes ?? []
       setLocalHeroes(loadedHeroes)
       setHeroes(loadedHeroes)
       setRaces(raceRes.data.races ?? [])

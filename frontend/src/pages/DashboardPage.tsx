@@ -32,8 +32,8 @@ export function DashboardPage() {
         const data = dashRes.data
         setDashboard(data)
         setHeroes(data.heroes)
-        setGold(data.user.gold)
-        updateUser(data.user)
+        setGold(data.user?.gold ?? 0)
+        updateUser(data.user ?? {})
         if (data.offline_result) setOfflineResult(data.offline_result)
         setExploring(data.exploration?.is_active ?? false, data.exploration?.zone_name)
         setActiveEvents(eventsRes.data.active_events ?? [])
@@ -49,8 +49,8 @@ export function DashboardPage() {
       const { data } = await explorationApi.collect()
       setCollectResult(data.result)
       setOfflineResult(data.result)
-      setGold(data.user.gold)
-      updateUser(data.user)
+      setGold(data.user?.gold ?? 0)
+      updateUser(data.user ?? {})
       setHeroes(data.heroes as any)
     } finally {
       setCollecting(false)

@@ -24,8 +24,8 @@ export function MapPage() {
 
   useEffect(() => {
     Promise.all([zoneApi.list(), reputationApi.all()]).then(([zoneRes, repRes]) => {
-      setLocalZones(zoneRes.data.zones)
-      setZones(zoneRes.data.zones)
+      setLocalZones(zoneRes.data.zones ?? [])
+      setZones(zoneRes.data.zones ?? [])
       const repMap: Record<number, ZoneReputation> = {}
       for (const rep of (repRes.data.reputations ?? [])) {
         repMap[rep.zone_id] = rep
