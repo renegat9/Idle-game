@@ -40,7 +40,6 @@ class GenerateDailyQuests implements ShouldQueue
 
         // Get all active zones
         $zones = DB::table('zones')
-            ->where('is_active', true)
             ->orderBy('order_index')
             ->get(['id', 'slug', 'name', 'level_min']);
 
