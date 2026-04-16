@@ -85,11 +85,12 @@ export function MapPage() {
       {message && <NarratorBubble comment={message} />}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 16 }}>
-        {zones.map((zone) => {
+        {zones.map((zone, idx) => {
           const rep = reputations[zone.id]
           const elemIcon = ELEMENT_ICON[zone.dominant_element] ?? '⚔️'
           const elemColor = ELEMENT_COLOR[zone.dominant_element] ?? '#9ca3af'
           const repMax = 200
+          const prevZone = idx > 0 ? zones[idx - 1] : null
 
           return (
             <div
@@ -201,9 +202,24 @@ export function MapPage() {
                       Explorer cette zone
                     </GameButton>
                   ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#4b5563', fontSize: 12 }}>
-                      <span style={{ fontSize: 14 }}>🔒</span>
-                      Vaincre le boss de la zone précédente
+                    <div style={{ background: '#0d1117', border: '1px solid #374151', borderRadius: 6, padding: '8px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#6b7280', fontSize: 12, marginBottom: prevZone ? 4 : 0 }}>
+                        <span style={{ fontSize: 14 }}>🔒</span>
+                        <span>Zone verrouillée</span>
+                        <span style={{ marginLeft: 'auto', color: '#4b5563', fontSize: 11 }}>Niv. {zone.level_min}+ requis</span>
+                      </div>
+                      {prevZone && (
+                        <div style={{ color: '#9ca3af', fontSize: 11 }}>
+                          Terminer le donjon de{' '}
+                          <span style={{ color: '#c4b5fd', fontWeight: 600 }}>«&nbsp;{prevZone.name}&nbsp;»</span>
+                          {!prevZone.boss_defeated && (
+                            <span style={{ color: '#4b5563' }}> (boss non vaincu)</span>
+                          )}
+                          {prevZone.boss_defeated && (
+                            <span style={{ color: '#22c55e' }}> ✓ vaincu</span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

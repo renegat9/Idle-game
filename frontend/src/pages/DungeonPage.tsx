@@ -102,7 +102,11 @@ export function DungeonPage() {
     try {
       const { data } = await dungeonApi.enter(status.dungeon_id)
       const narration = data.room_result?.narration ?? data.narration ?? data.summary
-      if (narration) setMessage({ text: narration, ok: data.outcome !== 'failed' })
+      let text = narration ?? ''
+      if (data.dungeon_over && data.outcome === 'completed' && data.unlocked_zone) {
+        text = (text ? text + ' ' : '') + `🔓 Nouvelle zone débloquée : ${data.unlocked_zone} !`
+      }
+      if (text) setMessage({ text, ok: data.outcome !== 'failed' })
       await loadStatus()
     } catch (e: any) {
       setMessage({ text: e.response?.data?.message ?? 'Erreur.', ok: false })

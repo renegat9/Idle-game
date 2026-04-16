@@ -6,6 +6,7 @@ use App\Models\Dungeon;
 use App\Models\Hero;
 use App\Models\Monster;
 use App\Models\User;
+use App\Models\UserZoneProgress;
 use App\Models\Zone;
 use Illuminate\Support\Carbon;
 
@@ -242,16 +243,36 @@ class DungeonService
             $dungeon->available_at = now()->addHours($cooldownHours);
             $dungeon->save();
 
+            // Marquer le boss de cette zone comme vaincu et débloquer la zone suivante
+            $zone = $dungeon->zone;
+            $unlockedZoneName = null;
+            if ($zone) {
+                UserZoneProgress::updateOrCreate(
+                    ['user_id' => $user->id, 'zone_id' => $zone->id],
+                    ['boss_defeated' => true]
+                );
+
+                $nextZone = Zone::where('order_index', $zone->order_index + 1)->first();
+                if ($nextZone) {
+                    UserZoneProgress::firstOrCreate(
+                        ['user_id' => $user->id, 'zone_id' => $nextZone->id],
+                        ['total_combats' => 0, 'total_victories' => 0, 'boss_defeated' => false]
+                    );
+                    $unlockedZoneName = $nextZone->name;
+                }
+            }
+
             return [
-                'success'      => true,
-                'room_result'  => $result,
-                'dungeon_over' => true,
-                'outcome'      => 'completed',
-                'gold_gained'  => $dungeon->gold_gained,
-                'bonus_gold'   => $bonusGold,
-                'loot_count'   => count($dungeon->loot_gained ?? []),
-                'available_at' => $dungeon->available_at->toIso8601String(),
-                'narrator'     => $this->narrator->getComment('dungeon_completed'),
+                'success'           => true,
+                'room_result'       => $result,
+                'dungeon_over'      => true,
+                'outcome'           => 'completed',
+                'gold_gained'       => $dungeon->gold_gained,
+                'bonus_gold'        => $bonusGold,
+                'loot_count'        => count($dungeon->loot_gained ?? []),
+                'available_at'      => $dungeon->available_at->toIso8601String(),
+                'unlocked_zone'     => $unlockedZoneName,
+                'narrator'          => $this->narrator->getComment('dungeon_completed'),
             ];
         }
 
