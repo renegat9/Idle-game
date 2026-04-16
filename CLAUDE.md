@@ -20,6 +20,16 @@ Read ALL design documents before coding. They contain exact formulas, parameteri
 - **Async jobs:** Laravel cron (`php artisan schedule:run` every minute)
 - **Offline calc:** Computed at reconnection (not a permanent worker)
 
+## Server Environment (cPanel Production)
+
+- **PHP binary:** `/opt/cpanel/ea-php83/root/usr/bin/php`
+- Always use the full path when running `php artisan` commands on the server.
+
+Example:
+```bash
+/opt/cpanel/ea-php83/root/usr/bin/php /home/techfg/public_html/donjon/laravel/artisan optimize:clear
+```
+
 ## Commands
 
 ```bash
