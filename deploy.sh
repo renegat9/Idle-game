@@ -90,6 +90,10 @@ if ! $SKIP_BUILD; then
     [ ! -d "$WEBROOT" ] && fail "Webroot introuvable : $WEBROOT"
     cp -r "$FRONTEND_DIR/dist/." "$WEBROOT/"
     ok "Fichiers React copiés."
+
+    # Symlink api/ → Laravel public/ pour que /api/* atteigne Laravel
+    ln -sfn "$LARAVEL_DIR/public" "$WEBROOT/api"
+    ok "Symlink api/ → $LARAVEL_DIR/public créé."
 fi
 
 # ─── 4. Cache Laravel ─────────────────────────────────────────────────────────

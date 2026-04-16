@@ -1,8 +1,11 @@
-Options -MultiViews
+Options -MultiViews +SymLinksIfOwnerMatch
 DirectoryIndex index.html
 
 RewriteEngine On
 RewriteBase /
+
+# Requêtes API → symlink api/ pointe vers laravel/public (géré par Laravel)
+RewriteRule ^api - [L,NC]
 
 # Ne pas réécrire les fichiers/dossiers existants (assets, storage, etc.)
 RewriteCond %{REQUEST_FILENAME} !-f
