@@ -387,11 +387,12 @@ class IdleService
             return ['initialized' => true, 'elapsed_minutes' => 0, 'heal_percent' => 0.0, 'heroes' => []];
         }
 
-        $elapsedSeconds = Carbon::now()->diffInSeconds($lastCalc);
-        $elapsedHours   = $elapsedSeconds / 3600;
-        if ($elapsedHours <= 0) {
+        // getTimestamp() évite l'ambiguïté de signe de diffInSeconds() selon les versions Carbon
+        $elapsedSeconds = Carbon::now()->getTimestamp() - $lastCalc->getTimestamp();
+        if ($elapsedSeconds <= 0) {
             return ['initialized' => false, 'elapsed_minutes' => 0, 'heal_percent' => 0.0, 'heroes' => []];
         }
+        $elapsedHours = $elapsedSeconds / 3600;
 
         $healPercentPerHour = $this->settings->get('REST_HEAL_PERCENT_PER_HOUR', 10);
         $healPercent = min(100.0, $elapsedHours * $healPercentPerHour);
