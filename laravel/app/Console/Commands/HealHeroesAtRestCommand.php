@@ -22,7 +22,6 @@ class HealHeroesAtRestCommand extends Command
                 $q->where('is_active', true)->whereColumn('current_hp', '<', 'max_hp');
             })
             ->whereDoesntHave('activeExploration')
-            ->with('heroes')
             ->get();
 
         if ($users->isEmpty()) {
@@ -36,18 +35,28 @@ class HealHeroesAtRestCommand extends Command
 
             $this->line("── <fg=yellow>{$user->email}</> ({$result['elapsed_minutes']} min écoulées, {$result['heal_percent']}% soin)");
 
+            // Toujours afficher les PV actuels de chaque héros (en DB)
+            $heroes = $user->heroes()->where('is_active', true)
+                ->with(['race', 'gameClass', 'equippedItems'])
+                ->get();
+            foreach ($heroes as $hero) {
+                $trueMax = $hero->computedStats()['max_hp'];
+                $status  = $hero->current_hp >= $trueMax ? '<fg=green>FULL</>' : '<fg=red>BLESSÉ</>';
+                $this->line("   {$status} {$hero->name} : {$hero->current_hp} / {$trueMax} PV (DB max_hp={$hero->max_hp})");
+            }
+
             if ($result['initialized']) {
-                $this->line('   <fg=cyan>→ Timer initialisé (pas de soin cette fois)</fg=cyan>');
+                $this->line('   <fg=cyan>→ Timer initialisé, soin au prochain passage</fg=cyan>');
                 continue;
             }
 
             if (empty($result['heroes'])) {
-                $this->line('   <fg=gray>→ Aucun héros soigné (déjà à fond ou heal_percent=0)</fg=gray>');
+                $this->line('   <fg=gray>→ Pas de soin appliqué (heal_percent=0 ou tous à fond)</fg=gray>');
                 continue;
             }
 
             foreach ($result['heroes'] as $h) {
-                $this->line("   <fg=green>✓</fg=green> {$h['name']} : {$h['hp_before']} → {$h['hp_after']} / {$h['max_hp']} PV (+{$h['gained']})");
+                $this->line("   <fg=green>✓ Soigné :</> {$h['name']} : {$h['hp_before']} → {$h['hp_after']} / {$h['max_hp']} PV (+{$h['gained']})");
                 $totalHealed++;
             }
         }
