@@ -362,40 +362,58 @@ class IdleService
      * Guérison au repos : 10% des PV max par heure depuis last_idle_calc_at.
      * Déclenché uniquement quand les héros ne sont PAS en exploration.
      */
-    public function healHeroesAtRest(User $user): void
+    /**
+     * @return array{initialized: bool, elapsed_minutes: int, heal_percent: float, heroes: list<array{name: string, hp_before: int, hp_after: int, max_hp: int, gained: int}>}
+     */
+    public function healHeroesAtRest(User $user): array
     {
         $lastCalc = $user->last_idle_calc_at;
         if (!$lastCalc) {
             // Première fois : initialiser le timer, soin au prochain passage
             $user->last_idle_calc_at = Carbon::now();
             $user->save();
-            return;
+            return ['initialized' => true, 'elapsed_minutes' => 0, 'heal_percent' => 0.0, 'heroes' => []];
         }
 
-        $elapsedHours = Carbon::now()->diffInSeconds($lastCalc) / 3600;
+        $elapsedSeconds = Carbon::now()->diffInSeconds($lastCalc);
+        $elapsedHours   = $elapsedSeconds / 3600;
         if ($elapsedHours <= 0) {
-            return;
+            return ['initialized' => false, 'elapsed_minutes' => 0, 'heal_percent' => 0.0, 'heroes' => []];
         }
 
         $healPercentPerHour = $this->settings->get('REST_HEAL_PERCENT_PER_HOUR', 10);
-        // Garder en float pour éviter la troncature à 0 sur les petits intervalles
         $healPercent = min(100.0, $elapsedHours * $healPercentPerHour);
 
         if ($healPercent <= 0) {
-            return;
+            return ['initialized' => false, 'elapsed_minutes' => (int) round($elapsedSeconds / 60), 'heal_percent' => 0.0, 'heroes' => []];
         }
 
+        $heroResults = [];
         $heroes = $user->activeHeroes()->get();
         foreach ($heroes as $hero) {
             if ($hero->current_hp < $hero->max_hp) {
-                // ceil : garantit au moins 1 PV soigné dès qu'il y a du temps écoulé
+                $hpBefore = $hero->current_hp;
                 $heal = max(1, (int) ceil($hero->max_hp * $healPercent / 100));
                 $hero->current_hp = min($hero->max_hp, $hero->current_hp + $heal);
                 $hero->save();
+                $heroResults[] = [
+                    'name'     => $hero->name,
+                    'hp_before' => $hpBefore,
+                    'hp_after'  => $hero->current_hp,
+                    'max_hp'    => $hero->max_hp,
+                    'gained'    => $hero->current_hp - $hpBefore,
+                ];
             }
         }
 
         $user->last_idle_calc_at = Carbon::now();
         $user->save();
+
+        return [
+            'initialized'    => false,
+            'elapsed_minutes' => (int) round($elapsedSeconds / 60),
+            'heal_percent'   => round($healPercent, 2),
+            'heroes'         => $heroResults,
+        ];
     }
 }
