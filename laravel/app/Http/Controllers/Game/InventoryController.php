@@ -15,7 +15,7 @@ class InventoryController extends Controller
         $user = $request->user();
 
         $items = $user->items()
-            ->with('effects')
+            ->with(['effects', 'template'])
             ->orderByRaw("CASE rarity WHEN 'wtf' THEN 0 WHEN 'legendaire' THEN 1 WHEN 'epique' THEN 2 WHEN 'rare' THEN 3 WHEN 'peu_commun' THEN 4 ELSE 5 END")
             ->orderBy('item_level', 'desc')
             ->get();
@@ -98,7 +98,10 @@ class InventoryController extends Controller
             'sell_value' => $item->sell_value,
             'equipped_by_hero_id' => $item->equipped_by_hero_id,
             'is_ai_generated' => $item->is_ai_generated,
-            'image_url' => $item->image_url,
+            'image_url' => $item->image_url
+                ?? ($item->template?->image_path && !str_starts_with($item->template->image_path, 'images/placeholders/')
+                    ? $item->template->image_path
+                    : null),
             'effects' => $item->effects->map(fn($e) => [
                 'key' => $e->effect_key,
                 'description' => $e->description,

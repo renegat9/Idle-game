@@ -40,6 +40,11 @@ class Item extends Model
         return $this->belongsTo(Hero::class, 'equipped_by_hero_id');
     }
 
+    public function template()
+    {
+        return $this->belongsTo(ItemTemplate::class);
+    }
+
     public function effects()
     {
         return $this->hasMany(ItemEffect::class);
