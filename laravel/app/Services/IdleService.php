@@ -366,6 +366,9 @@ class IdleService
     {
         $lastCalc = $user->last_idle_calc_at;
         if (!$lastCalc) {
+            // Première fois : initialiser le timer, soin au prochain passage
+            $user->last_idle_calc_at = Carbon::now();
+            $user->save();
             return;
         }
 
@@ -375,7 +378,8 @@ class IdleService
         }
 
         $healPercentPerHour = $this->settings->get('REST_HEAL_PERCENT_PER_HOUR', 10);
-        $healPercent = min(100, (int) ($elapsedHours * $healPercentPerHour));
+        // Garder en float pour éviter la troncature à 0 sur les petits intervalles
+        $healPercent = min(100.0, $elapsedHours * $healPercentPerHour);
 
         if ($healPercent <= 0) {
             return;
@@ -384,7 +388,8 @@ class IdleService
         $heroes = $user->activeHeroes()->get();
         foreach ($heroes as $hero) {
             if ($hero->current_hp < $hero->max_hp) {
-                $heal = intdiv($hero->max_hp * $healPercent, 100);
+                // ceil : garantit au moins 1 PV soigné dès qu'il y a du temps écoulé
+                $heal = max(1, (int) ceil($hero->max_hp * $healPercent / 100));
                 $hero->current_hp = min($hero->max_hp, $hero->current_hp + $heal);
                 $hero->save();
             }

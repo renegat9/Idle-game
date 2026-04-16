@@ -23,7 +23,6 @@ class HealHeroesAtRestCommand extends Command
                 $q->where('is_active', true)->whereColumn('current_hp', '<', 'max_hp');
             })
             ->whereDoesntHave('activeExploration')
-            ->whereNotNull('last_idle_calc_at')
             ->get();
 
         $healed = 0;
