@@ -1,4 +1,4 @@
-import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useGameStore } from '../../store/gameStore'
 import { usePolling } from '../../hooks/usePolling'
@@ -23,7 +23,6 @@ const NAV_ITEMS = [
 export function AppShell() {
   const { user, logout } = useAuthStore()
   const { gold, unreadEventsCount, narratorComment, isExploring, currentZoneName } = useGameStore()
-  const navigate = useNavigate()
   const location = useLocation()
 
   usePolling(15000)
@@ -31,7 +30,6 @@ export function AppShell() {
   const handleLogout = async () => {
     try { await authApi.logout() } catch { /* ok */ }
     logout()
-    navigate('/login')
   }
 
   const displayGold = (gold || user?.gold || 0).toLocaleString()
