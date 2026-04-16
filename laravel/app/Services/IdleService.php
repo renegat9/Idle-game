@@ -389,18 +389,22 @@ class IdleService
         }
 
         $heroResults = [];
-        $heroes = $user->activeHeroes()->get();
+        $heroes = $user->activeHeroes()->with(['race', 'gameClass', 'equippedItems'])->get();
         foreach ($heroes as $hero) {
-            if ($hero->current_hp < $hero->max_hp) {
+            // Utiliser le max_hp calculé (inclut les bonus d'équipement)
+            $trueMaxHp = $hero->computedStats()['max_hp'];
+            if ($hero->current_hp < $trueMaxHp) {
                 $hpBefore = $hero->current_hp;
-                $heal = max(1, (int) ceil($hero->max_hp * $healPercent / 100));
-                $hero->current_hp = min($hero->max_hp, $hero->current_hp + $heal);
+                $heal = max(1, (int) ceil($trueMaxHp * $healPercent / 100));
+                $hero->current_hp = min($trueMaxHp, $hero->current_hp + $heal);
+                // Synchroniser max_hp en DB avec la vraie valeur calculée
+                $hero->max_hp = $trueMaxHp;
                 $hero->save();
                 $heroResults[] = [
-                    'name'     => $hero->name,
+                    'name'      => $hero->name,
                     'hp_before' => $hpBefore,
                     'hp_after'  => $hero->current_hp,
-                    'max_hp'    => $hero->max_hp,
+                    'max_hp'    => $trueMaxHp,
                     'gained'    => $hero->current_hp - $hpBefore,
                 ];
             }
