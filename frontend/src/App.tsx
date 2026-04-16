@@ -22,7 +22,7 @@ import { LandingPage } from './pages/LandingPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
-  return isAuthenticated ? <>{children}</> : <Navigate to="/" replace />
+  return isAuthenticated ? <>{children}</> : <Navigate to="/info" replace />
 }
 
 function RequireGuest({ children }: { children: React.ReactNode }) {
@@ -60,7 +60,8 @@ export default function App() {
       <AuthInitializer>
       <Routes>
         {/* Landing page publique */}
-        <Route path="/" element={<RequireGuest><LandingPage /></RequireGuest>} />
+        <Route path="/" element={<Navigate to="/info" replace />} />
+        <Route path="/info" element={<RequireGuest><LandingPage /></RequireGuest>} />
 
         {/* Auth routes (redirect to dashboard if already logged in) */}
         <Route path="/login" element={<RequireGuest><LoginPage /></RequireGuest>} />

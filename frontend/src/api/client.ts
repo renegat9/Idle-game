@@ -21,9 +21,9 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_user')
-      const publicPaths = ['/', '/login', '/register']
+      const publicPaths = ['/info', '/login', '/register']
       if (!publicPaths.includes(window.location.pathname)) {
-        window.location.href = '/'
+        window.location.href = '/info'
       }
     }
     return Promise.reject(error)
