@@ -47,7 +47,7 @@ class IdleService
         $lastCalc = $user->last_idle_calc_at ?? $exploration->started_at;
 
         $maxSeconds = $this->settings->get('OFFLINE_MAX_HOURS', 12) * 3600;
-        $elapsed = min((int) $now->diffInSeconds($lastCalc), $maxSeconds);
+        $elapsed = min(max(0, $now->getTimestamp() - $lastCalc->getTimestamp()), $maxSeconds);
 
         if ($elapsed < 30) {
             return [
