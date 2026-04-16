@@ -10,11 +10,16 @@ interface AuthState {
   logout: () => void
 }
 
-const storedUser = localStorage.getItem('auth_user')
+function safeParseUser(raw: string | null): User | null {
+  if (!raw || raw === 'undefined' || raw === 'null') return null
+  try { return JSON.parse(raw) } catch { return null }
+}
+
 const storedToken = localStorage.getItem('auth_token')
+const storedUser  = safeParseUser(localStorage.getItem('auth_user'))
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: storedUser ? JSON.parse(storedUser) : null,
+  user: storedUser,
   token: storedToken,
   isAuthenticated: !!storedToken,
 
