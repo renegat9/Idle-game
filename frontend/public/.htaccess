@@ -1,5 +1,12 @@
 Options -MultiViews
+DirectoryIndex index.html
+
 RewriteEngine On
+RewriteBase /
+
+# Ne pas réécrire les fichiers/dossiers existants (assets, storage, etc.)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
+
+# Toutes les routes SPA → index.html
 RewriteRule ^ index.html [QSA,L]
