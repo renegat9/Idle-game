@@ -33,7 +33,10 @@ class HealHeroesAtRestCommand extends Command
         foreach ($users as $user) {
             $result = $this->idleService->healHeroesAtRest($user);
 
-            $this->line("── <fg=yellow>{$user->email}</> ({$result['elapsed_minutes']} min écoulées, {$result['heal_percent']}% soin)");
+            $lastCalc = $user->fresh()->last_idle_calc_at;
+            $this->line("── <fg=yellow>{$user->email}</>");
+            $this->line("   last_idle_calc_at = " . ($lastCalc ? $lastCalc->toDateTimeString() . ' (il y a ' . $lastCalc->diffForHumans() . ')' : 'NULL'));
+            $this->line("   elapsed={$result['elapsed_minutes']} min, heal={$result['heal_percent']}%");
 
             // Toujours afficher les PV actuels de chaque héros (en DB)
             $heroes = $user->heroes()->where('is_active', true)
