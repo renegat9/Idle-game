@@ -395,7 +395,10 @@ class IdleService
             $trueMaxHp = $hero->computedStats()['max_hp'];
             if ($hero->current_hp < $trueMaxHp) {
                 $hpBefore = $hero->current_hp;
-                $heal = max(1, (int) ceil($trueMaxHp * $healPercent / 100));
+                $heal = intdiv($trueMaxHp * (int) round($healPercent), 100);
+                if ($heal <= 0) {
+                    continue;
+                }
                 $hero->current_hp = min($trueMaxHp, $hero->current_hp + $heal);
                 // Synchroniser max_hp en DB avec la vraie valeur calculée
                 $hero->max_hp = $trueMaxHp;
