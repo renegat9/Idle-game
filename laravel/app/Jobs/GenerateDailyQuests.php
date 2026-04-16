@@ -42,7 +42,7 @@ class GenerateDailyQuests implements ShouldQueue
         $zones = DB::table('zones')
             ->where('is_active', true)
             ->orderBy('order_index')
-            ->get(['id', 'slug', 'name', 'recommended_level']);
+            ->get(['id', 'slug', 'name', 'level_min']);
 
         $totalGenerated = 0;
 
@@ -67,8 +67,8 @@ class GenerateDailyQuests implements ShouldQueue
                 }
 
                 try {
-                    $questData = $gemini->generateQuestText($zone->slug, (int) $zone->recommended_level);
-                    $this->insertDailyQuest($zone->id, $questData, (int) $zone->recommended_level);
+                    $questData = $gemini->generateQuestText($zone->slug, (int) $zone->level_min);
+                    $this->insertDailyQuest($zone->id, $questData, (int) $zone->level_min);
                     $totalGenerated++;
                 } catch (\Throwable $e) {
                     Log::warning("GenerateDailyQuests: failed for zone {$zone->slug}", ['error' => $e->getMessage()]);
