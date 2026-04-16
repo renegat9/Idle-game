@@ -367,6 +367,18 @@ class IdleService
      */
     public function healHeroesAtRest(User $user): array
     {
+        // Toujours charger les héros et synchroniser max_hp en DB dès le début
+        $heroes = $user->activeHeroes()->with(['race', 'gameClass', 'equippedItems'])->get();
+        foreach ($heroes as $hero) {
+            $trueMaxHp = $hero->computedStats()['max_hp'];
+            if ($hero->max_hp !== $trueMaxHp) {
+                $hero->max_hp = $trueMaxHp;
+                // Si current_hp dépasse le nouveau max (cas improbable), le plafonner
+                $hero->current_hp = min($hero->current_hp, $trueMaxHp);
+                $hero->save();
+            }
+        }
+
         $lastCalc = $user->last_idle_calc_at;
         if (!$lastCalc) {
             // Première fois : initialiser le timer, soin au prochain passage
@@ -389,10 +401,8 @@ class IdleService
         }
 
         $heroResults = [];
-        $heroes = $user->activeHeroes()->with(['race', 'gameClass', 'equippedItems'])->get();
         foreach ($heroes as $hero) {
-            // Utiliser le max_hp calculé (inclut les bonus d'équipement)
-            $trueMaxHp = $hero->computedStats()['max_hp'];
+            $trueMaxHp = $hero->max_hp; // déjà synchronisé ci-dessus
             if ($hero->current_hp < $trueMaxHp) {
                 $hpBefore = $hero->current_hp;
                 $heal = intdiv($trueMaxHp * (int) round($healPercent), 100);
@@ -400,8 +410,6 @@ class IdleService
                     continue;
                 }
                 $hero->current_hp = min($trueMaxHp, $hero->current_hp + $heal);
-                // Synchroniser max_hp en DB avec la vraie valeur calculée
-                $hero->max_hp = $trueMaxHp;
                 $hero->save();
                 $heroResults[] = [
                     'name'      => $hero->name,
