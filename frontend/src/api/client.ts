@@ -23,7 +23,7 @@ apiClient.interceptors.response.use(
       localStorage.removeItem('auth_user')
       const publicPaths = ['/', '/login', '/register']
       if (!publicPaths.includes(window.location.pathname)) {
-        window.location.href = '/login'
+        window.location.href = '/'
       }
     }
     return Promise.reject(error)
