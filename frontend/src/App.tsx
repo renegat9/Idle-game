@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from './store/authStore'
+import apiClient from './api/client'
 import { AppShell } from './components/layout/AppShell'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
@@ -20,7 +22,7 @@ import { LandingPage } from './pages/LandingPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore()
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />
+  return isAuthenticated ? <>{children}</> : <Navigate to="/" replace />
 }
 
 function RequireGuest({ children }: { children: React.ReactNode }) {
@@ -28,9 +30,34 @@ function RequireGuest({ children }: { children: React.ReactNode }) {
   return isAuthenticated ? <Navigate to="/dashboard" replace /> : <>{children}</>
 }
 
+/**
+ * Vérifie le token au démarrage. Si invalide, le supprime avant de rendre les routes.
+ * Évite la boucle: token expiré → /dashboard → 401 → /login.
+ */
+function AuthInitializer({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, logout } = useAuthStore()
+  const [ready, setReady] = useState(!isAuthenticated)
+
+  useEffect(() => {
+    if (!isAuthenticated) { setReady(true); return }
+    apiClient.get('/game/poll')
+      .then(() => setReady(true))
+      .catch(() => { logout(); setReady(true) })
+  }, [])
+
+  if (!ready) return (
+    <div className="game-loading">
+      <div className="game-loading-spinner" />
+      <div className="game-loading-text">Chargement…</div>
+    </div>
+  )
+  return <>{children}</>
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <AuthInitializer>
       <Routes>
         {/* Landing page publique */}
         <Route path="/" element={<RequireGuest><LandingPage /></RequireGuest>} />
@@ -57,8 +84,9 @@ export default function App() {
         </Route>
 
         {/* Fallback */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </AuthInitializer>
     </BrowserRouter>
   )
 }
