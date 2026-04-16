@@ -200,7 +200,10 @@ class LootService
             'atq' => $atq, 'def' => $def, 'hp' => $hp,
             'vit' => $vit, 'cha' => $cha, 'int' => $int,
             'sell_value' => $sellValue,
-            'is_ai_generated' => false,
+            'is_ai_generated' => !empty($template->image_path) && !str_starts_with($template->image_path, 'images/placeholders/'),
+            'image_url' => (!empty($template->image_path) && !str_starts_with($template->image_path, 'images/placeholders/'))
+                ? $template->image_path
+                : null,
         ]);
 
         $this->dispatchImageJob($item);
