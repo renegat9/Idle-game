@@ -48,7 +48,7 @@ class GenerateDailyQuests implements ShouldQueue
         foreach ($zones as $zone) {
             // Check if we already have enough daily quests for this zone today
             $existing = Quest::where('zone_id', $zone->id)
-                ->where('quest_type', 'daily')
+                ->where('type', 'daily')
                 ->whereDate('created_at', today())
                 ->count();
 
@@ -83,15 +83,16 @@ class GenerateDailyQuests implements ShouldQueue
         $rewardGold = $level * $this->getGoldMult();
 
         DB::table('quests')->insert([
-            'zone_id'     => $zoneId,
-            'title'       => $data['title'],
-            'description' => $data['description'],
-            'flavor_text' => $data['flavor'] ?? null,
-            'quest_type'  => 'daily',
-            'reward_gold' => $rewardGold,
-            'reward_xp'   => intdiv($rewardGold, 2),
-            'created_at'  => now(),
-            'updated_at'  => now(),
+            'zone_id'         => $zoneId,
+            'title'           => $data['title'],
+            'description'     => $data['description'],
+            'type'            => 'daily',
+            'steps_count'     => count($data['steps'] ?? []) ?: 1,
+            'reward_gold'     => $rewardGold,
+            'reward_xp'       => intdiv($rewardGold, 2),
+            'is_ai_generated' => true,
+            'created_at'      => now(),
+            'updated_at'      => now(),
         ]);
     }
 
