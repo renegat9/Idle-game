@@ -51,6 +51,22 @@ class CraftingController extends Controller
         return response()->json($result);
     }
 
+    public function dismantleBulk(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'item_ids'   => 'required|array|min:1',
+            'item_ids.*' => 'required|integer',
+        ]);
+
+        $result = $this->craftingService->dismantleBulk($request->user(), $validated['item_ids']);
+
+        if (isset($result['error'])) {
+            return response()->json(['message' => $result['error']], 422);
+        }
+
+        return response()->json($result);
+    }
+
     public function craft(Request $request): JsonResponse
     {
         $validated = $request->validate([

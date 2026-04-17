@@ -162,6 +162,44 @@ class CraftingService
         ];
     }
 
+    public function dismantleBulk(User $user, array $itemIds): array
+    {
+        $items = Item::whereIn('id', $itemIds)
+            ->where('user_id', $user->id)
+            ->whereNull('equipped_by_hero_id')
+            ->get();
+
+        if ($items->isEmpty()) {
+            return ['error' => 'Aucun objet valide à démonter.'];
+        }
+
+        // Agréger tous les matériaux
+        $totals = []; // slug => qty
+        foreach ($items as $item) {
+            foreach ($this->getMaterialsForDismantle($item) as ['slug' => $slug, 'qty' => $qty]) {
+                $totals[$slug] = ($totals[$slug] ?? 0) + $qty;
+            }
+        }
+
+        DB::transaction(function () use ($user, $items, $totals) {
+            foreach ($items as $item) {
+                $item->delete();
+            }
+            foreach ($totals as $slug => $qty) {
+                $this->addMaterialBySlug($user->id, $slug, $qty);
+            }
+        });
+
+        $materials = array_map(fn($slug, $qty) => ['slug' => $slug, 'qty' => $qty], array_keys($totals), $totals);
+
+        return [
+            'success'        => true,
+            'dismantled'     => $items->count(),
+            'materials'      => $materials,
+            'gerard_comment' => $this->gerardComment(true, false, 'dismantle'),
+        ];
+    }
+
     // ─── Enchantment ─────────────────────────────────────────────────────────
 
     /** Catalogue des enchantements disponibles (slug → config) */

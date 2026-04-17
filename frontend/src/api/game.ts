@@ -53,6 +53,7 @@ export const craftingApi = {
   get: () => apiClient.get<{ materials: any[]; recipes: any[] }>('/crafting'),
   fuse: (itemIds: number[]) => apiClient.post<any>('/crafting/fuse', { item_ids: itemIds }),
   dismantle: (itemId: number) => apiClient.post<any>('/crafting/dismantle', { item_id: itemId }),
+  dismantleBulk: (itemIds: number[]) => apiClient.post<any>('/crafting/dismantle-bulk', { item_ids: itemIds }),
   craft: (recipeId: number) => apiClient.post<any>('/crafting/craft', { recipe_id: recipeId }),
   enchantments: () => apiClient.get<{ enchantments: any[] }>('/crafting/enchantments'),
   enchant: (itemId: number, enchantmentSlug: string) =>
