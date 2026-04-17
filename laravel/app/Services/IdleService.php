@@ -314,10 +314,13 @@ class IdleService
             // Décrémenter les buffs/debuffs des héros selon les combats simulés
             $heroIds = $heroes->pluck('id')->toArray();
             if (!empty($heroIds) && $combatsToSimulate > 0) {
+                // GREATEST évite le dépassement UNSIGNED quand combatsToSimulate > remaining_combats
                 DB::table('hero_buffs')
                     ->whereIn('hero_id', $heroIds)
                     ->where('remaining_combats', '>', 0)
-                    ->decrement('remaining_combats', $combatsToSimulate);
+                    ->update([
+                        'remaining_combats' => DB::raw('GREATEST(CAST(remaining_combats AS SIGNED) - ' . (int) $combatsToSimulate . ', 0)'),
+                    ]);
 
                 DB::table('hero_buffs')
                     ->whereIn('hero_id', $heroIds)
