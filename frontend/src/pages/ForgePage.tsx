@@ -38,6 +38,7 @@ export function ForgePage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'fusion' | 'dismantle' | 'recipes' | 'enchant'>('fusion')
   const [selectedFusion, setSelectedFusion] = useState<number[]>([])
+  const [selectedDismantle, setSelectedDismantle] = useState<number[]>([])
   const [enchantTarget, setEnchantTarget] = useState<number | null>(null)
   const [result, setResult] = useState<any>(null)
   const [acting, setActing] = useState(false)
@@ -64,17 +65,6 @@ export function ForgePage() {
       const { data } = await craftingApi.fuse(selectedFusion)
       setResult(data); setSelectedFusion([])
       await loadAll()
-    } catch (e: any) { alert(e.response?.data?.message ?? 'Erreur') }
-    setActing(false)
-  }
-
-  async function doDismantle(itemId: number) {
-    if (acting) return
-    if (!confirm('Démonter cet objet ? Il sera détruit.')) return
-    setActing(true); setResult(null)
-    try {
-      const { data } = await craftingApi.dismantle(itemId)
-      setResult(data); await loadAll()
     } catch (e: any) { alert(e.response?.data?.message ?? 'Erreur') }
     setActing(false)
   }
@@ -108,6 +98,28 @@ export function ForgePage() {
       prev.includes(itemId) ? prev.filter(i => i !== itemId)
         : prev.length < 3 ? [...prev, itemId] : prev
     )
+  }
+
+  function toggleDismantle(itemId: number) {
+    setSelectedDismantle(prev =>
+      prev.includes(itemId) ? prev.filter(i => i !== itemId) : [...prev, itemId]
+    )
+  }
+
+  function selectByRarity(...rarities: string[]) {
+    setSelectedDismantle(items.filter(i => rarities.includes(i.rarity)).map(i => i.id))
+  }
+
+  async function doDismantleBulk() {
+    if (selectedDismantle.length === 0 || acting) return
+    if (!confirm(`Démonter ${selectedDismantle.length} objet(s) ? Ils seront détruits.`)) return
+    setActing(true); setResult(null)
+    try {
+      const { data } = await craftingApi.dismantleBulk(selectedDismantle)
+      setResult(data); setSelectedDismantle([])
+      await loadAll()
+    } catch (e: any) { alert(e.response?.data?.message ?? 'Erreur') }
+    setActing(false)
   }
 
   const enchantableItems = items.filter(i => ['rare', 'epique', 'legendaire', 'wtf'].includes(i.rarity))
@@ -268,28 +280,69 @@ export function ForgePage() {
           {/* Dismantle tab */}
           {tab === 'dismantle' && (
             <div>
-              <p style={{ color: '#6b7280', fontSize: 12, marginBottom: 12, fontStyle: 'italic' }}>
-                Démontez un objet pour récupérer des matériaux. L'objet sera détruit définitivement.
+              <p style={{ color: '#6b7280', fontSize: 12, marginBottom: 10, fontStyle: 'italic' }}>
+                Sélectionnez des objets à démonter pour récupérer des matériaux. Les objets seront détruits.
               </p>
+
+              {/* Toolbar */}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+                <GameButton variant="secondary" size="sm" onClick={() => selectByRarity('commun')}>
+                  Communs
+                </GameButton>
+                <GameButton variant="secondary" size="sm" onClick={() => selectByRarity('peu_commun')}>
+                  Peu communs
+                </GameButton>
+                <GameButton variant="secondary" size="sm" onClick={() => selectByRarity('commun', 'peu_commun')}>
+                  Communs + Peu communs
+                </GameButton>
+                {selectedDismantle.length > 0 && (
+                  <GameButton variant="ghost" size="sm" onClick={() => setSelectedDismantle([])}>
+                    Tout désélectionner
+                  </GameButton>
+                )}
+                <div style={{ marginLeft: 'auto' }}>
+                  {selectedDismantle.length > 0 && (
+                    <GameButton variant="danger" icon="🔨" onClick={doDismantleBulk} loading={acting}>
+                      Démonter ({selectedDismantle.length})
+                    </GameButton>
+                  )}
+                </div>
+              </div>
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {items.length === 0 && <div style={{ color: '#4b5563', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>Aucun objet disponible.</div>}
-                {items.map(item => (
-                  <div key={item.id} style={{
-                    background: '#0d1117', border: '1px solid #1f2937',
-                    borderRadius: 8, padding: '8px 12px',
-                    display: 'flex', alignItems: 'center', gap: 10,
-                  }}>
-                    <ItemImage slot={item.slot} rarity={item.rarity} imageUrl={item.image_url} size={36} name={item.name} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ color: RARITY_COLORS[item.rarity], fontWeight: 600, fontSize: 13 }}>{item.name}</div>
-                      <div style={{ color: '#6b7280', fontSize: 11 }}>Niv.{item.item_level} · {item.slot}</div>
+                {items.map(item => {
+                  const selected = selectedDismantle.includes(item.id)
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => toggleDismantle(item.id)}
+                      style={{
+                        background: selected ? '#1a0d1a' : '#0d1117',
+                        border: `1px solid ${selected ? '#7f1d1d' : '#1f2937'}`,
+                        borderRadius: 8, padding: '8px 12px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        transition: 'border-color 0.15s, background 0.15s',
+                      }}
+                    >
+                      <div style={{
+                        width: 18, height: 18, borderRadius: 3, flexShrink: 0,
+                        border: `2px solid ${selected ? '#ef4444' : '#374151'}`,
+                        background: selected ? '#ef4444' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, color: 'white',
+                      }}>
+                        {selected ? '✓' : ''}
+                      </div>
+                      <ItemImage slot={item.slot} rarity={item.rarity} imageUrl={item.image_url} size={36} name={item.name} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ color: RARITY_COLORS[item.rarity], fontWeight: 600, fontSize: 13 }}>{item.name}</div>
+                        <div style={{ color: '#6b7280', fontSize: 11 }}>Niv.{item.item_level} · {item.slot}</div>
+                      </div>
+                      <RarityBadge rarity={item.rarity} />
                     </div>
-                    <RarityBadge rarity={item.rarity} />
-                    <GameButton variant="danger" size="sm" onClick={() => doDismantle(item.id)} loading={acting}>
-                      🔨
-                    </GameButton>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
