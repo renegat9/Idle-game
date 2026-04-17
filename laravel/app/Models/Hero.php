@@ -109,6 +109,22 @@ class Hero extends Model
             $stats['int'] += $item->int;
         }
 
+        // Appliquer les buffs/debuffs actifs
+        $activeBuffs = $this->relationLoaded('buffs')
+            ? $this->buffs->where('remaining_combats', '>', 0)
+            : $this->buffs()->where('remaining_combats', '>', 0)->get();
+
+        foreach ($activeBuffs as $buff) {
+            $affected = $buff->stat_affected;
+            $pct      = (int) $buff->modifier_percent;
+            $applyTo  = ($affected === 'all') ? ['hp', 'atq', 'def', 'vit', 'cha', 'int'] : [$affected];
+            foreach ($applyTo as $s) {
+                if (isset($stats[$s])) {
+                    $stats[$s] = $stats[$s] + intdiv($stats[$s] * $pct, 100);
+                }
+            }
+        }
+
         // Garantir valeurs minimales positives (entiers)
         foreach ($stats as $stat => $value) {
             $stats[$stat] = max(1, (int) $value);

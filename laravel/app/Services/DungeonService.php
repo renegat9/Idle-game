@@ -4,11 +4,13 @@ namespace App\Services;
 
 use App\Models\Dungeon;
 use App\Models\Hero;
+use App\Models\HeroBuff;
 use App\Models\Monster;
 use App\Models\User;
 use App\Models\UserZoneProgress;
 use App\Models\Zone;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DungeonService
 {
@@ -475,7 +477,7 @@ class DungeonService
      */
     private function resolveRoom(array $room, $heroes, Zone $zone, User $user, Dungeon $dungeon): array
     {
-        return match ($room['type']) {
+        $result = match ($room['type']) {
             'combat'   => $this->resolveCombatRoom($room, $heroes, $zone, $user, false),
             'boss'     => $this->resolveCombatRoom($room, $heroes, $zone, $user, true),
             'treasure' => $this->resolveTreasureRoom($room, $zone, $user),
@@ -483,6 +485,31 @@ class DungeonService
             'rest'     => $this->resolveRestRoom($heroes),
             default    => ['summary' => 'Rien ne se passe. C\'est déjà ça.', 'gold' => 0, 'loot_items' => [], 'heroes_wiped' => false],
         };
+
+        // Décrémenter les buffs/debuffs actifs après chaque salle qui compte comme combat
+        if (in_array($room['type'], ['combat', 'boss', 'trap'])) {
+            $this->decrementHeroBuffs($heroes);
+        }
+
+        return $result;
+    }
+
+    private function decrementHeroBuffs($heroes): void
+    {
+        $heroIds = $heroes->pluck('id')->toArray();
+        if (empty($heroIds)) {
+            return;
+        }
+
+        DB::table('hero_buffs')
+            ->whereIn('hero_id', $heroIds)
+            ->where('remaining_combats', '>', 0)
+            ->decrement('remaining_combats');
+
+        DB::table('hero_buffs')
+            ->whereIn('hero_id', $heroIds)
+            ->where('remaining_combats', '<=', 0)
+            ->delete();
     }
 
     /**

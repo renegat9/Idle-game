@@ -273,6 +273,20 @@ class IdleService
             // Marquer exploration comme collectée
             $exploration->last_collected_at = $now;
             $exploration->save();
+
+            // Décrémenter les buffs/debuffs des héros selon les combats simulés
+            $heroIds = $heroes->pluck('id')->toArray();
+            if (!empty($heroIds) && $combatsToSimulate > 0) {
+                DB::table('hero_buffs')
+                    ->whereIn('hero_id', $heroIds)
+                    ->where('remaining_combats', '>', 0)
+                    ->decrement('remaining_combats', $combatsToSimulate);
+
+                DB::table('hero_buffs')
+                    ->whereIn('hero_id', $heroIds)
+                    ->where('remaining_combats', '<=', 0)
+                    ->delete();
+            }
         });
 
         return [
