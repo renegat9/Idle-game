@@ -36,7 +36,7 @@ class IdleService
                 'combats_simulated' => 0,
                 'xp_gained' => 0,
                 'gold_gained' => 0,
-                'items_gained' => [],
+                'materials_gained' => [],
                 'events' => [],
                 'narrator_comment' => $this->narratorService->getComment('offline_return'),
             ];
@@ -56,7 +56,7 @@ class IdleService
                 'combats_simulated' => 0,
                 'xp_gained' => 0,
                 'gold_gained' => 0,
-                'items_gained' => [],
+                'materials_gained' => [],
                 'events' => [],
                 'narrator_comment' => $this->narratorService->getComment('offline_return'),
             ];
@@ -72,7 +72,7 @@ class IdleService
                 'combats_simulated' => 0,
                 'xp_gained' => 0,
                 'gold_gained' => 0,
-                'items_gained' => [],
+                'materials_gained' => [],
                 'events' => [],
                 'narrator_comment' => $this->narratorService->getComment('offline_return'),
             ];
@@ -88,7 +88,7 @@ class IdleService
                 'combats_simulated' => 0,
                 'xp_gained' => 0,
                 'gold_gained' => 0,
-                'items_gained' => [],
+                'materials_gained' => [],
                 'events' => [],
                 'narrator_comment' => 'Aucun héros disponible. Le Narrateur est perplexe.',
             ];
@@ -104,7 +104,7 @@ class IdleService
                 'combats_simulated' => 0,
                 'xp_gained'         => 0,
                 'gold_gained'       => 0,
-                'items_gained'      => [],
+                'materials_gained'  => [],
                 'events'            => [],
                 'narrator_comment'  => 'Vos héros sont à terre. Le Narrateur les regarde avec une indifférence polie.',
             ];
@@ -124,7 +124,7 @@ class IdleService
                 'combats_simulated' => 0,
                 'xp_gained' => 0,
                 'gold_gained' => 0,
-                'items_gained' => [],
+                'materials_gained' => [],
                 'events' => [],
                 'narrator_comment' => 'Pas d\'ennemis à combattre. Le Narrateur est déçu.',
             ];
@@ -148,10 +148,18 @@ class IdleService
 
         $totalXp = 0;
         $totalGold = 0;
-        $items = [];
+        $materialDrops = []; // slug => ['name' => ..., 'qty' => ...]
         $events = [];
         $victories = 0;
         $defeats = 0;
+
+        // Charger matériaux disponibles pour cette zone (zone-specific + génériques)
+        $availableMaterials = DB::table('materials')
+            ->where(function ($q) use ($zone) {
+                $q->where('zone_id', $zone->id)->orWhere('is_generic', true);
+            })
+            ->where('drop_chance', '>', 0)
+            ->get(['slug', 'name', 'drop_chance']);
 
         $eliteChance = $this->settings->get('MONSTER_ELITE_CHANCE', 8);
         $eliteXpBonus = $this->settings->get('MONSTER_ELITE_XP_BONUS', 75);
@@ -207,12 +215,16 @@ class IdleService
                     $xp += $xpBase;
                     $gold += random_int($monster->gold_min, max($monster->gold_min, $monster->gold_max));
 
-                    // Loot (1 sur 3 combats, ou toujours si élite)
-                    $shouldLoot = ($i % 3 === 0) || ($isEliteEncounter && random_int(1, 100) <= intdiv($this->settings->get('LOOT_DROP_CHANCE', 60) * $eliteLootMult, 100));
-                    if ($shouldLoot) {
-                        $item = $this->lootService->rollLoot($zone, $monster, $user);
-                        if ($item) {
-                            $items[] = $item;
+                    // Matériaux (1 combat sur 2, ou toujours si élite)
+                    $shouldDrop = ($i % 2 === 0) || $isEliteEncounter;
+                    if ($shouldDrop) {
+                        $mult = $isEliteEncounter ? $eliteLootMult : 100;
+                        $drop = $this->lootService->rollMaterialDrop($availableMaterials, $mult);
+                        if ($drop) {
+                            if (!isset($materialDrops[$drop['slug']])) {
+                                $materialDrops[$drop['slug']] = ['name' => $drop['name'], 'qty' => 0];
+                            }
+                            $materialDrops[$drop['slug']]['qty'] += $drop['qty'];
                         }
                     }
                 }
@@ -237,7 +249,7 @@ class IdleService
         $repGained = intdiv($victories * $repPerVictory, 10); // 1 rep tous les 10 combats gagnés environ
 
         // Persister les résultats en transaction
-        DB::transaction(function () use ($user, $heroes, $totalXp, $totalGold, $items, $zone, $victories, $defeats, $now, $exploration, $events, $repGained) {
+        DB::transaction(function () use ($user, $heroes, $totalXp, $totalGold, $materialDrops, $zone, $victories, $defeats, $now, $exploration, $events, $repGained, $combatsToSimulate) {
             $user->gold += $totalGold;
             $user->last_idle_calc_at = $now;
             $user->save();
@@ -270,6 +282,31 @@ class IdleService
                 ]
             );
 
+            // Ajouter les matériaux récoltés dans user_materials
+            foreach ($materialDrops as $slug => $drop) {
+                $matId = DB::table('materials')->where('slug', $slug)->value('id');
+                if (!$matId) {
+                    continue;
+                }
+                $existing = DB::table('user_materials')
+                    ->where('user_id', $user->id)
+                    ->where('material_id', $matId)
+                    ->value('quantity');
+                if ($existing !== null) {
+                    DB::table('user_materials')
+                        ->where('user_id', $user->id)
+                        ->where('material_id', $matId)
+                        ->update(['quantity' => $existing + $drop['qty'], 'updated_at' => now()]);
+                } else {
+                    DB::table('user_materials')->insert([
+                        'user_id'     => $user->id,
+                        'material_id' => $matId,
+                        'quantity'    => $drop['qty'],
+                        'updated_at'  => now(),
+                    ]);
+                }
+            }
+
             // Marquer exploration comme collectée
             $exploration->last_collected_at = $now;
             $exploration->save();
@@ -295,11 +332,11 @@ class IdleService
             'combats_simulated' => $combatsToSimulate,
             'victories'         => $victories,
             'defeats'           => $defeats,
-            'xp_gained'         => $totalXp,
-            'gold_gained'       => $totalGold,
-            'reputation_gained' => $repGained,
-            'items_gained'      => $items,
-            'events'            => $events,
+            'xp_gained'           => $totalXp,
+            'gold_gained'         => $totalGold,
+            'reputation_gained'   => $repGained,
+            'materials_gained'    => array_values($materialDrops),
+            'events'              => $events,
             'narrator_comment'  => $this->narratorService->getComment('offline_return'),
         ];
     }

@@ -5,15 +5,10 @@ import { useAuthStore } from '../store/authStore'
 import { useGameStore } from '../store/gameStore'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
 import { HeroCard } from '../components/hero/HeroCard'
-import { ItemImage } from '../components/ui/ItemImage'
 import { GameButton } from '../components/ui/GameButton'
 import { GamePanel } from '../components/ui/GamePanel'
 import type { SeasonalEvent } from '../types'
 
-const RARITY_COLOR: Record<string, string> = {
-  commun: '#9ca3af', peu_commun: '#4ade80', rare: '#60a5fa',
-  epique: '#a78bfa', legendaire: '#fbbf24', wtf: '#f472b6',
-}
 
 export function DashboardPage() {
   const { updateUser } = useAuthStore()
@@ -205,21 +200,19 @@ export function DashboardPage() {
             ))}
           </div>
 
-          {/* Items gained */}
-          {collectResult.items_gained?.length > 0 ? (
+          {/* Materials gained */}
+          {collectResult.materials_gained?.length > 0 ? (
             <div>
               <div style={{ color: '#9ca3af', fontSize: 12, marginBottom: 10 }}>
-                🎒 {collectResult.items_gained.length} objet(s) ajouté(s) à l'inventaire
+                ⚒️ Matériaux récoltés
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {collectResult.items_gained.map((item: any, i: number) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#0d1117', borderRadius: 6, padding: '6px 10px' }}>
-                    <ItemImage slot={item.slot} rarity={item.rarity} imageUrl={item.image_url} size={36} name={item.name} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: RARITY_COLOR[item.rarity] ?? '#9ca3af', fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.name}
-                      </div>
-                      <div style={{ color: '#6b7280', fontSize: 11 }}>Niv. {item.item_level}</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {collectResult.materials_gained.map((mat: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#0d1117', border: '1px solid #1f2937', borderRadius: 6, padding: '5px 10px' }}>
+                    <span style={{ fontSize: 16 }}>🪨</span>
+                    <div>
+                      <div style={{ color: '#c4b5fd', fontWeight: 600, fontSize: 12 }}>{mat.name}</div>
+                      <div style={{ color: '#6b7280', fontSize: 11 }}>×{mat.qty}</div>
                     </div>
                   </div>
                 ))}
@@ -227,7 +220,7 @@ export function DashboardPage() {
             </div>
           ) : (
             <div style={{ color: '#4b5563', fontSize: 13, fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>
-              Aucun objet trouvé. Le Narrateur compatit. (Non, il ne compatit pas.)
+              Aucun matériau récolté. Le Narrateur hausse les épaules.
             </div>
           )}
 

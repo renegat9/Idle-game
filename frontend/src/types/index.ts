@@ -183,6 +183,6 @@ export interface OfflineResult {
   defeats?: number
   xp_gained: number
   gold_gained: number
-  items_gained: Item[]
+  materials_gained: { slug: string; name: string; qty: number }[]
   narrator_comment: string
 }

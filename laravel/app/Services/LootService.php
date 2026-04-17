@@ -331,4 +331,45 @@ class LootService
     {
         return $item->sell_value;
     }
+
+    /**
+     * Tente de dropper un matériau de forge parmi les matériaux disponibles pour cette zone.
+     * Retourne [slug, name, qty] ou null.
+     *
+     * @param \Illuminate\Support\Collection $availableMaterials  (slug, name, drop_chance)
+     * @param int $eliteLootMult  multiplicateur élite (100 = normal)
+     */
+    public function rollMaterialDrop(\Illuminate\Support\Collection $availableMaterials, int $eliteLootMult = 100): ?array
+    {
+        $baseChance = $this->settings->get('EXPLORATION_MATERIAL_CHANCE', 50);
+        $effectiveChance = min(100, intdiv($baseChance * $eliteLootMult, 100));
+
+        if (random_int(1, 100) > $effectiveChance) {
+            return null;
+        }
+
+        $droppable = $availableMaterials->where('drop_chance', '>', 0);
+        if ($droppable->isEmpty()) {
+            return null;
+        }
+
+        // Sélection pondérée par drop_chance
+        $totalWeight = (int) $droppable->sum('drop_chance');
+        $roll = random_int(1, max(1, $totalWeight));
+        $cumulative = 0;
+        foreach ($droppable as $mat) {
+            $cumulative += $mat->drop_chance;
+            if ($roll <= $cumulative) {
+                // Matériaux communs (drop_chance élevé) → plus grande quantité
+                $maxQty = $mat->drop_chance >= 20 ? 3 : ($mat->drop_chance >= 5 ? 2 : 1);
+                return [
+                    'slug' => $mat->slug,
+                    'name' => $mat->name,
+                    'qty'  => random_int(1, $maxQty),
+                ];
+            }
+        }
+
+        return null;
+    }
 }
