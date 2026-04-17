@@ -54,6 +54,17 @@ class GenerateHeroImage implements ShouldQueue
             ->where('id', $this->targetId)
             ->update(['image_path' => $imagePath]);
 
+        // If this was a tavern recruit that was already hired, propagate image to the hero
+        if ($this->targetTable === 'tavern_recruits') {
+            $recruit = DB::table('tavern_recruits')->where('id', $this->targetId)->first(['hired_hero_id']);
+            if ($recruit && $recruit->hired_hero_id) {
+                DB::table('heroes')
+                    ->where('id', $recruit->hired_hero_id)
+                    ->whereNull('image_path')
+                    ->update(['image_path' => $imagePath]);
+            }
+        }
+
         Log::info("GenerateHeroImage: {$this->targetTable}#{$this->targetId} → {$imagePath}");
     }
 }

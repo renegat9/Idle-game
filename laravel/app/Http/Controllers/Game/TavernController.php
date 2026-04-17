@@ -155,9 +155,8 @@ class TavernController extends Controller
 
         $hero = DB::transaction(function () use ($user, $recruit, $race, $class, $baseHp, $slotIndex) {
             $user->decrement('gold', $recruit->hire_cost);
-            $recruit->update(['is_hired' => true]);
 
-            return Hero::create([
+            $hero = Hero::create([
                 'user_id'          => $user->id,
                 'race_id'          => $recruit->race_id,
                 'class_id'         => $recruit->class_id,
@@ -171,23 +170,16 @@ class TavernController extends Controller
                 'talent_points'    => 0,
                 'slot_index'       => $slotIndex,
                 'is_active'        => true,
-                // Réutiliser l'image déjà générée pour le recrutement
                 'image_path'       => $recruit->image_path,
             ]);
+
+            // Link recruit → hero so the image job can propagate the image if it runs later
+            $recruit->update(['is_hired' => true, 'hired_hero_id' => $hero->id]);
+
+            return $hero;
         });
 
         $hero->load(['race', 'gameClass', 'trait_']);
-
-        // If image wasn't ready at hire time, generate it for the hero now
-        if (empty($hero->image_path)) {
-            GenerateHeroImage::dispatch(
-                $hero->id,
-                $race->name,
-                $class->slug,
-                $recruit->trait_->slug ?? null,
-                'heroes',
-            );
-        }
 
         return response()->json([
             'message'          => "{$hero->name} rejoint l\'équipe. Le Narrateur prend ses paris.",
