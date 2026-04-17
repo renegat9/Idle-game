@@ -57,4 +57,15 @@ class User extends Authenticatable
     {
         return $this->hasMany(UserZoneProgress::class);
     }
+
+    public function recalculateLevel(): void
+    {
+        $heroCount = $this->heroes()->count();
+        if ($heroCount === 0) return;
+        $newLevel = max(1, intdiv((int) $this->heroes()->sum('level'), $heroCount));
+        if ($this->level !== $newLevel) {
+            $this->level = $newLevel;
+            $this->save();
+        }
+    }
 }

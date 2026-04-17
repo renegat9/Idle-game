@@ -267,6 +267,7 @@ class IdleService
                 }
                 $hero->save();
             }
+            $user->recalculateLevel();
 
             // Réputation de zone
             if ($repGained > 0) {

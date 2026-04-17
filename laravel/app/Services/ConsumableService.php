@@ -81,6 +81,13 @@ class ConsumableService
                 throw new \RuntimeException('Aucun héros actif pour utiliser ce consommable.');
             }
 
+            if (in_array($consumable->effect_type, ['heal_hp', 'restore_hp_pct'])) {
+                $allFull = $heroes->every(fn($h) => $h->current_hp >= $h->max_hp);
+                if ($allFull) {
+                    throw new \RuntimeException('Tous vos héros sont déjà à pleine santé !');
+                }
+            }
+
             $result = $this->applyEffect($user, $heroes, $consumable);
 
             // Décrémenter la quantité
@@ -131,6 +138,7 @@ class ConsumableService
                     $hero->save();
                     $applied[] = ['hero' => $hero->name, 'xp_gained' => (int) $consumable->effect_value, 'new_level' => $hero->level];
                 }
+                $user->recalculateLevel();
                 break;
 
             case 'gold_boost':

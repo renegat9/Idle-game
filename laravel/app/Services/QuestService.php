@@ -365,8 +365,15 @@ class QuestService
                 break;
         }
 
+        // Multiplicateur de niveau joueur sur les quêtes quotidiennes
+        $levelGoldBonus = 0;
+        if ($quest->type === 'daily' && $user->level > 1) {
+            $mult = $this->settings->get('DAILY_QUEST_USER_LEVEL_GOLD_MULT', 10);
+            $levelGoldBonus = intdiv($gold * ($user->level - 1) * $mult, 100);
+        }
+
         $totalXp   = $xp + $xpBonus;
-        $totalGold = $gold + $goldBonus;
+        $totalGold = $gold + $goldBonus + $levelGoldBonus;
 
         DB::transaction(function () use ($user, $totalXp, $totalGold) {
             $user->increment('gold', $totalGold);
@@ -377,18 +384,21 @@ class QuestService
             }
         });
 
+        $user->recalculateLevel();
+
         $lootItem = null;
         if ($quest->reward_loot_rarity) {
             $lootItem = $this->loot->rollQuestLoot($user, $quest->reward_loot_rarity);
         }
 
         return [
-            'xp'           => $totalXp,
-            'xp_bonus'     => $xpBonus,
-            'gold'         => $totalGold,
-            'gold_bonus'   => $goldBonus,
-            'dominant_voice' => $dominantVoice,
-            'loot'         => $lootItem ? ['name' => $lootItem->name, 'rarity' => $lootItem->rarity] : null,
+            'xp'               => $totalXp,
+            'xp_bonus'         => $xpBonus,
+            'gold'             => $totalGold,
+            'gold_bonus'       => $goldBonus + $levelGoldBonus,
+            'level_gold_bonus' => $levelGoldBonus,
+            'dominant_voice'   => $dominantVoice,
+            'loot'             => $lootItem ? ['name' => $lootItem->name, 'rarity' => $lootItem->rarity] : null,
         ];
     }
 

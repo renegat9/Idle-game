@@ -179,6 +179,7 @@ class GameSettingsSeeder extends Seeder
             ['QUEST_VOICE_HEROIC_XP_BONUS', 25, '% bonus XP voie héroïque'],
             ['QUEST_VOICE_CUNNING_GOLD_BONUS', 25, '% bonus or voie maligne'],
             ['QUEST_VOICE_COMIC_ALL_BONUS', 10, '% bonus toutes récompenses voie comique'],
+            ['DAILY_QUEST_USER_LEVEL_GOLD_MULT', 10, '% bonus or quête quotidienne par niveau joueur au-dessus de 1'],
             ['QUEST_DEBUFF_REMOVE_COST', 100, 'Or × niveau du héros pour retirer un debuff'],
             ['QUEST_POOL_SIZE_TARGET', 50, 'Quêtes à maintenir dans le pool par zone'],
             ['QUEST_POOL_REFILL_THRESHOLD', 20, 'Seuil pour déclencher la régénération du pool'],
