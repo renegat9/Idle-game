@@ -229,6 +229,9 @@ class DungeonService
         }
 
         if ($isLastRoom) {
+            // La zone ne se débloque que si les héros ont gagné le combat du boss
+            $bossVictory = ($result['outcome'] ?? '') === 'victory';
+
             // Dungeon completed — apply completion bonus and set full cooldown
             $bonusGold = intdiv($dungeon->gold_gained * self::COMPLETION_GOLD_BONUS_PERCENT, 100);
             $dungeon->gold_gained = $dungeon->gold_gained + $bonusGold;
@@ -244,21 +247,23 @@ class DungeonService
             $dungeon->save();
 
             // Marquer le boss de cette zone comme vaincu et débloquer la zone suivante
-            $zone = $dungeon->zone;
             $unlockedZoneName = null;
-            if ($zone) {
-                UserZoneProgress::updateOrCreate(
-                    ['user_id' => $user->id, 'zone_id' => $zone->id],
-                    ['boss_defeated' => true]
-                );
-
-                $nextZone = Zone::where('order_index', $zone->order_index + 1)->first();
-                if ($nextZone) {
-                    UserZoneProgress::firstOrCreate(
-                        ['user_id' => $user->id, 'zone_id' => $nextZone->id],
-                        ['total_combats' => 0, 'total_victories' => 0, 'boss_defeated' => false]
+            if ($bossVictory) {
+                $currentZone = $dungeon->zone;
+                if ($currentZone) {
+                    UserZoneProgress::updateOrCreate(
+                        ['user_id' => $user->id, 'zone_id' => $currentZone->id],
+                        ['boss_defeated' => true]
                     );
-                    $unlockedZoneName = $nextZone->name;
+
+                    $nextZone = Zone::where('order_index', $currentZone->order_index + 1)->first();
+                    if ($nextZone) {
+                        UserZoneProgress::firstOrCreate(
+                            ['user_id' => $user->id, 'zone_id' => $nextZone->id],
+                            ['total_combats' => 0, 'total_victories' => 0, 'boss_defeated' => false]
+                        );
+                        $unlockedZoneName = $nextZone->name;
+                    }
                 }
             }
 
@@ -266,13 +271,13 @@ class DungeonService
                 'success'           => true,
                 'room_result'       => $result,
                 'dungeon_over'      => true,
-                'outcome'           => 'completed',
+                'outcome'           => $bossVictory ? 'completed' : 'boss_defeat',
                 'gold_gained'       => $dungeon->gold_gained,
                 'bonus_gold'        => $bonusGold,
                 'loot_count'        => count($dungeon->loot_gained ?? []),
                 'available_at'      => $dungeon->available_at->toIso8601String(),
                 'unlocked_zone'     => $unlockedZoneName,
-                'narrator'          => $this->narrator->getComment('dungeon_completed'),
+                'narrator'          => $this->narrator->getComment($bossVictory ? 'dungeon_completed' : 'dungeon_failed'),
             ];
         }
 

@@ -106,12 +106,17 @@ export function DungeonPage() {
     setMessage(null)
     try {
       const { data } = await dungeonApi.enter(status.dungeon_id)
-      const narration = data.room_result?.narration ?? data.narration ?? data.summary
-      let text = narration ?? ''
+      // room_result.summary = texte du combat ; data.narrator = commentaire global donjon
+      const roomText = data.room_result?.summary ?? data.room_result?.narration ?? ''
+      const dungeonText = data.narrator ?? ''
+      let text = roomText || dungeonText
       if (data.dungeon_over && data.outcome === 'completed' && data.unlocked_zone) {
-        text = (text ? text + ' ' : '') + `🔓 Nouvelle zone débloquée : ${data.unlocked_zone} !`
+        text = (text ? text + ' — ' : '') + `🔓 Nouvelle zone débloquée : ${data.unlocked_zone} !`
       }
-      if (text) setMessage({ text, ok: data.outcome !== 'failed' })
+      if (data.dungeon_over && data.outcome === 'boss_defeat') {
+        text = (text ? text + ' — ' : '') + '💀 Le boss résiste. Revenez plus fort !'
+      }
+      if (text) setMessage({ text, ok: data.outcome !== 'failed' && data.outcome !== 'boss_defeat' })
       await loadStatus()
     } catch (e: any) {
       setMessage({ text: e.response?.data?.message ?? 'Erreur.', ok: false })
