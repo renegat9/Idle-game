@@ -178,6 +178,17 @@ class TavernController extends Controller
 
         $hero->load(['race', 'gameClass', 'trait_']);
 
+        // If image wasn't ready at hire time, generate it for the hero now
+        if (empty($hero->image_path)) {
+            GenerateHeroImage::dispatch(
+                $hero->id,
+                $race->name,
+                $class->slug,
+                $recruit->trait_->slug ?? null,
+                'heroes',
+            );
+        }
+
         return response()->json([
             'message'          => "{$hero->name} rejoint l\'équipe. Le Narrateur prend ses paris.",
             'hero_id'          => $hero->id,
