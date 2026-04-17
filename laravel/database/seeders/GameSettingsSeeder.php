@@ -204,7 +204,7 @@ class GameSettingsSeeder extends Seeder
 
             // Talents
             ['MAX_TALENT_POINTS', 20, 'Points de talent maximum par héros'],
-            ['TALENT_RESET_BASE_COST', 200, 'Coût de base pour réinitialiser les talents (×1.5 par reset)'],
+            ['TALENT_RESET_BASE_COST', 500, 'Coût de base pour réinitialiser les talents (×1.5 par reset)'],
 
             // Durabilité
             ['LOOT_DURABILITY_BASE', 100, 'Durabilité de base des objets'],

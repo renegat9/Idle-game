@@ -181,6 +181,14 @@ class TalentSeeder extends Seeder
         $talents[] = ['class_id' => $ids['necromancien'], 'name' => 'Incompréhensible', 'description' => 'Si imprévisible que personne ne comprend.', 'branch' => 'defaut', 'tier' => 2, 'position' => 5, 'cost' => 1, 'required_points_in_branch' => 3, 'talent_type' => 'reactif', 'effect_data' => '{"effect": "15% chance de confondre l ennemi"}', 'prerequisite_talent_id' => null];
         $talents[] = ['class_id' => $ids['necromancien'], 'name' => 'Boulet de l Équipe', 'description' => 'Ralentit l équipe mais les ennemis aussi.', 'branch' => 'defaut', 'tier' => 3, 'position' => 6, 'cost' => 1, 'required_points_in_branch' => 6, 'talent_type' => 'passif', 'effect_data' => '{"stat": "vit", "bonus_percent": -10, "malus_enemy": "vit_minus_10"}', 'prerequisite_talent_id' => null];
         $talents[] = ['class_id' => $ids['necromancien'], 'name' => 'Catastrophe Ambulante', 'description' => 'Déclenche des événements chaotiques.', 'branch' => 'defaut', 'tier' => 3, 'position' => 7, 'cost' => 1, 'required_points_in_branch' => 6, 'talent_type' => 'reactif', 'effect_data' => '{"effect": "10% chance d effet aléatoire positif ou négatif"}', 'prerequisite_talent_id' => null];
+        // Coûts GDD : capstone (pos 7) = 3pts, positions intermédiaires (3, 5, 6) = 2pts, le reste = 1pt
+        // Total par branche : 1+1+2+1+2+2+3 = 12 pts (conforme au GDD : 12-14 pts)
+        $costByPosition = [1 => 1, 2 => 1, 3 => 2, 4 => 1, 5 => 2, 6 => 2, 7 => 3];
+        foreach ($talents as &$talent) {
+            $talent['cost'] = $costByPosition[$talent['position']] ?? 1;
+        }
+        unset($talent);
+
         DB::table("talents")->insert($talents);
     }
 }
