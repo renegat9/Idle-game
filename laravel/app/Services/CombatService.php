@@ -551,9 +551,26 @@ class CombatService
 
     private function applyTraitOnCombatState(array $traitEvent, int $heroIndex, array &$state, array $heroModels, $heroModel): bool
     {
-        $action = $traitEvent['action'] ?? '';
-        $heroId = $state['heroes'][$heroIndex]['hero_id'];
+        $action  = $traitEvent['action'] ?? '';
+        $heroId  = $state['heroes'][$heroIndex]['hero_id'];
+        $skipTurn = $this->dispatchTraitAction($action, $heroIndex, $heroId, $state, $traitEvent);
 
+        // Branche du Défaut — bonus si palier 3 débloqué (≥6 points investis)
+        $defautPoints = $this->traitService->getDefautBranchPoints($heroModel);
+        if ($defautPoints >= 6) {
+            $bonusPct = $this->settings->get('TRAIT_DEFAUT_BRANCH_TRIGGER_BONUS', 5);
+            $hero = &$state['heroes'][$heroIndex];
+            $hero['atq'] = intdiv($hero['atq'] * (100 + $bonusPct), 100);
+            $hero['def'] = intdiv($hero['def'] * (100 + $bonusPct), 100);
+            $hero['int'] = intdiv($hero['int'] * (100 + $bonusPct), 100);
+            $state['log'][] = $hero['name'] . ' tire profit de son défaut — Branche du Défaut P3 : +' . $bonusPct . '% stats !';
+        }
+
+        return $skipTurn;
+    }
+
+    private function dispatchTraitAction(string $action, int $heroIndex, int $heroId, array &$state, array $traitEvent): bool
+    {
         switch ($action) {
             case 'flee':
                 $state['fled_heroes'][] = $heroId;

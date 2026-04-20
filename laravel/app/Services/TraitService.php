@@ -124,14 +124,10 @@ class TraitService
                 break;
 
             case 'ponder':
-                $intBuff = $effectData['int_buff_percent'] ?? $this->settings->get('TRAIT_PHILOSOPHE_INT_BUFF', 15);
-                // Le buff sera appliqué après le skip
-                $combatState['pending_buffs'][] = [
-                    'hero_id' => $hero->id,
-                    'stat' => 'int',
-                    'percent' => $intBuff,
-                    'duration' => 1,
-                ];
+                // INT buff accumulé dans pending_buffs[hero_id] (entier %)
+                // CombatService::consumePendingIntBuffs() l'applique au tour suivant
+                $intBuff = $effectData['int_buff_percent'] ?? $this->settings->get('TRAIT_PHILOSOPHE_INT_BUFF', 5);
+                $combatState['pending_buffs'][$hero->id] = ($combatState['pending_buffs'][$hero->id] ?? 0) + $intBuff;
                 $event['message'] = $hero->name . ' réfléchit au sens du combat. Il ne participera pas à ce tour.';
                 break;
 
@@ -287,6 +283,18 @@ class TraitService
         }
 
         return $modifiers;
+    }
+
+    /**
+     * Retourne le total de points investis dans la branche du défaut du héros.
+     * Utilisé pour activer les synergies Branche du Défaut × trait.
+     */
+    public function getDefautBranchPoints(Hero $hero): int
+    {
+        if (!$hero->relationLoaded('talents')) {
+            $hero->load('talents');
+        }
+        return $hero->talents->where('branch', 'defaut')->sum('cost');
     }
 
     /**
