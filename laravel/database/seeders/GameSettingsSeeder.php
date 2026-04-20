@@ -60,69 +60,89 @@ class GameSettingsSeeder extends Seeder
             ['MONSTER_ELITE_XP_BONUS', 75, 'Bonus XP pour les monstres élites (%)'],
             ['MONSTER_ELITE_LOOT_BONUS', 75, 'Bonus de chance de loot pour les élites (%)'],
 
-            // Traits — Couard
+            // Traits — Couard (chance décroît avec le niveau, GDD §2.1)
             ['TRAIT_COUARD_CHANCE', 15, 'Chance de déclenchement du trait Couard (%)'],
-            ['TRAIT_COUARD_CHANCE_L26', 18, 'Chance Couard niveau 26-50 (%)'],
-            ['TRAIT_COUARD_CHANCE_L51', 20, 'Chance Couard niveau 51-75 (%)'],
-            ['TRAIT_COUARD_CHANCE_L76', 15, 'Chance Couard niveau 76+ (%)'],
+            ['TRAIT_COUARD_CHANCE_L26', 13, 'Chance Couard niveau 26-50 (%)'],
+            ['TRAIT_COUARD_CHANCE_L51', 11, 'Chance Couard niveau 51-75 (%)'],
+            ['TRAIT_COUARD_CHANCE_L76', 10, 'Chance Couard niveau 76+ (%)'],
 
-            // Traits — Narcoleptique
+            // Traits — Narcoleptique (chance décroît, GDD §2.2)
             ['TRAIT_NARCOLEPTIQUE_CHANCE', 10, 'Chance de déclenchement Narcoleptique (%)'],
-            ['TRAIT_NARCOLEPTIQUE_CHANCE_L26', 12, 'Chance Narcoleptique niveau 26-50 (%)'],
+            ['TRAIT_NARCOLEPTIQUE_CHANCE_L26', 9, 'Chance Narcoleptique niveau 26-50 (%)'],
             ['TRAIT_NARCOLEPTIQUE_CHANCE_L51', 8, 'Chance Narcoleptique niveau 51-75 (%)'],
-            ['TRAIT_NARCOLEPTIQUE_CHANCE_L76', 5, 'Chance Narcoleptique niveau 76+ (%)'],
+            ['TRAIT_NARCOLEPTIQUE_CHANCE_L76', 7, 'Chance Narcoleptique niveau 76+ (%)'],
             ['TRAIT_NARCOLEPTIQUE_DURATION', 2, 'Durée du sommeil en tours'],
-            ['TRAIT_NARCOLEPTIQUE_WAKE_CHANCE', 50, 'Chance de se réveiller avant la fin (%)'],
+            ['TRAIT_NARCOLEPTIQUE_WAKE_CHANCE', 50, 'Chance de se réveiller si touché (%)'],
+            ['TRAIT_NARCOLEPTIQUE_WAKE_VIT_BONUS', 10, 'Bonus VIT au réveil (%)'],
 
-            // Traits — Kleptomane
+            // Traits — Kleptomane (chance décroît, GDD §2.3)
             ['TRAIT_KLEPTOMANE_CHANCE', 20, 'Chance de vol de loot Kleptomane (%)'],
-            ['TRAIT_KLEPTOMANE_CHANCE_L26', 25, 'Chance Kleptomane niveau 26-50 (%)'],
-            ['TRAIT_KLEPTOMANE_CHANCE_L51', 30, 'Chance Kleptomane niveau 51-75 (%)'],
-            ['TRAIT_KLEPTOMANE_CHANCE_L76', 35, 'Chance Kleptomane niveau 76+ (%)'],
+            ['TRAIT_KLEPTOMANE_CHANCE_L26', 18, 'Chance Kleptomane niveau 26-50 (%)'],
+            ['TRAIT_KLEPTOMANE_CHANCE_L51', 16, 'Chance Kleptomane niveau 51-75 (%)'],
+            ['TRAIT_KLEPTOMANE_CHANCE_L76', 15, 'Chance Kleptomane niveau 76+ (%)'],
+            ['TRAIT_KLEPTOMANE_XP_STEAL_PCT', 10, '% XP volé à un allié (%)'],
+            ['TRAIT_KLEPTOMANE_LOOT_STEAL_CHANCE', 30, 'Chance de s\'attribuer un loot Rare+ (%)'],
 
-            // Traits — Pyromane
+            // Traits — Pyromane (chance CONSTANTE, dégâts augmentent, GDD §2.4)
             ['TRAIT_PYROMANE_CHANCE', 20, 'Chance de déclenchement Pyromane (%)'],
-            ['TRAIT_PYROMANE_CHANCE_L26', 22, 'Chance Pyromane niveau 26-50 (%)'],
-            ['TRAIT_PYROMANE_CHANCE_L51', 25, 'Chance Pyromane niveau 51-75 (%)'],
-            ['TRAIT_PYROMANE_CHANCE_L76', 28, 'Chance Pyromane niveau 76+ (%)'],
-            ['TRAIT_PYROMANE_DAMAGE_PERCENT', 8, 'Dégâts de feu Pyromane (% ATQ)'],
+            ['TRAIT_PYROMANE_CHANCE_L26', 20, 'Chance Pyromane niveau 26-50 (% — constante)'],
+            ['TRAIT_PYROMANE_CHANCE_L51', 20, 'Chance Pyromane niveau 51-75 (% — constante)'],
+            ['TRAIT_PYROMANE_CHANCE_L76', 20, 'Chance Pyromane niveau 76+ (% — constante)'],
+            ['TRAIT_PYROMANE_DAMAGE_PERCENT', 8, 'Dégâts de feu Pyromane niveau 1-25 (% ATQ)'],
+            ['TRAIT_PYROMANE_DAMAGE_L26', 10, 'Dégâts de feu Pyromane niveau 26-50 (% ATQ)'],
+            ['TRAIT_PYROMANE_DAMAGE_L51', 12, 'Dégâts de feu Pyromane niveau 51-75 (% ATQ)'],
+            ['TRAIT_PYROMANE_DAMAGE_L76', 15, 'Dégâts de feu Pyromane niveau 76+ (% ATQ)'],
             ['TRAIT_PYROMANE_FRIENDLY_FIRE', 1, 'Le Pyromane blesse aussi ses alliés (1=oui)'],
+            ['TRAIT_PYROMANE_IGNITE_CHANCE', 30, 'Chance d\'appliquer "En feu" sur chaque cible (%)'],
 
-            // Traits — Allergique
+            // Traits — Allergique (chance décroît, GDD §2.5)
             ['TRAIT_ALLERGIQUE_CHANCE', 25, 'Chance de déclenchement Allergique (%)'],
-            ['TRAIT_ALLERGIQUE_CHANCE_L26', 20, 'Chance Allergique niveau 26-50 (%)'],
-            ['TRAIT_ALLERGIQUE_CHANCE_L51', 15, 'Chance Allergique niveau 51-75 (%)'],
-            ['TRAIT_ALLERGIQUE_CHANCE_L76', 10, 'Chance Allergique niveau 76+ (%)'],
+            ['TRAIT_ALLERGIQUE_CHANCE_L26', 22, 'Chance Allergique niveau 26-50 (%)'],
+            ['TRAIT_ALLERGIQUE_CHANCE_L51', 20, 'Chance Allergique niveau 51-75 (%)'],
+            ['TRAIT_ALLERGIQUE_CHANCE_L76', 18, 'Chance Allergique niveau 76+ (%)'],
             ['TRAIT_ALLERGIQUE_MALUS', 20, 'Malus de stats en zone magique (%)'],
+            ['TRAIT_ALLERGIQUE_ENEMY_HIT_BONUS', 10, 'Bonus chance de toucher ennemi après éternuement (%)'],
+            ['TRAIT_ALLERGIQUE_CUMUL_THRESHOLD', 3, 'Nombre d\'éternuements avant malus permanent'],
 
-            // Traits — Philosophe
+            // Traits — Philosophe (chance quasi-stable, INT buff augmente, GDD §2.6)
             ['TRAIT_PHILOSOPHE_CHANCE', 12, 'Chance de déclenchement Philosophe (%)'],
-            ['TRAIT_PHILOSOPHE_CHANCE_L26', 10, 'Chance Philosophe niveau 26-50 (%)'],
-            ['TRAIT_PHILOSOPHE_CHANCE_L51', 8, 'Chance Philosophe niveau 51-75 (%)'],
-            ['TRAIT_PHILOSOPHE_CHANCE_L76', 5, 'Chance Philosophe niveau 76+ (%)'],
-            ['TRAIT_PHILOSOPHE_INT_BUFF', 15, 'Buff d\'INT après réflexion (%)'],
+            ['TRAIT_PHILOSOPHE_CHANCE_L26', 12, 'Chance Philosophe niveau 26-50 (%)'],
+            ['TRAIT_PHILOSOPHE_CHANCE_L51', 11, 'Chance Philosophe niveau 51-75 (%)'],
+            ['TRAIT_PHILOSOPHE_CHANCE_L76', 10, 'Chance Philosophe niveau 76+ (%)'],
+            ['TRAIT_PHILOSOPHE_INT_BUFF', 5, 'Buff INT par déclenchement niveau 1-25 (%, cumulable)'],
+            ['TRAIT_PHILOSOPHE_INT_BUFF_L26', 6, 'Buff INT par déclenchement niveau 26-50 (%)'],
+            ['TRAIT_PHILOSOPHE_INT_BUFF_L51', 7, 'Buff INT par déclenchement niveau 51-75 (%)'],
+            ['TRAIT_PHILOSOPHE_INT_BUFF_L76', 8, 'Buff INT par déclenchement niveau 76+ (%)'],
 
-            // Traits — Gourmand
+            // Traits — Gourmand (chance décroît, GDD §2.7)
             ['TRAIT_GOURMAND_CHANCE', 25, 'Chance de consommer une potion Gourmand (%)'],
-            ['TRAIT_GOURMAND_CHANCE_L26', 30, 'Chance Gourmand niveau 26-50 (%)'],
-            ['TRAIT_GOURMAND_CHANCE_L51', 35, 'Chance Gourmand niveau 51-75 (%)'],
-            ['TRAIT_GOURMAND_CHANCE_L76', 40, 'Chance Gourmand niveau 76+ (%)'],
+            ['TRAIT_GOURMAND_CHANCE_L26', 22, 'Chance Gourmand niveau 26-50 (%)'],
+            ['TRAIT_GOURMAND_CHANCE_L51', 20, 'Chance Gourmand niveau 51-75 (%)'],
+            ['TRAIT_GOURMAND_CHANCE_L76', 18, 'Chance Gourmand niveau 76+ (%)'],
+            ['TRAIT_GOURMAND_POTION_HEAL_PCT', 30, 'Pourcentage de PV récupéré si PV non max (%)'],
 
-            // Traits — Superstitieux
+            // Traits — Superstitieux (chance décroît, GDD §2.8)
             ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE', 15, 'Chance de refus d\'entrer dans un donjon (%)'],
-            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE_L26', 12, 'Chance Superstitieux niveau 26-50 (%)'],
-            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE_L51', 10, 'Chance Superstitieux niveau 51-75 (%)'],
-            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE_L76', 5, 'Chance Superstitieux niveau 76+ (%)'],
+            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE_L26', 13, 'Chance Superstitieux niveau 26-50 (%)'],
+            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE_L51', 12, 'Chance Superstitieux niveau 51-75 (%)'],
+            ['TRAIT_SUPERSTITIEUX_BLOCK_CHANCE_L76', 10, 'Chance Superstitieux niveau 76+ (%)'],
+            ['TRAIT_SUPERSTITIEUX_CONVICTION_PENALTY', 10, 'Malus stats si convaincu par paiement (%)'],
 
-            // Traits — Mythomane
-            ['TRAIT_MYTHOMANE_VARIANCE', 20, 'Variance d\'affichage des stats Mythomane (%)'],
+            // Traits — Mythomane (variance décroît, GDD §2.9)
+            ['TRAIT_MYTHOMANE_VARIANCE', 20, 'Variance d\'affichage des stats niveau 1-25 (%)'],
+            ['TRAIT_MYTHOMANE_VARIANCE_L26', 18, 'Variance Mythomane niveau 26-50 (%)'],
+            ['TRAIT_MYTHOMANE_VARIANCE_L51', 15, 'Variance Mythomane niveau 51-75 (%)'],
+            ['TRAIT_MYTHOMANE_VARIANCE_L76', 12, 'Variance Mythomane niveau 76+ (%)'],
 
-            // Traits — Pacifiste
+            // Traits — Pacifiste (chance et seuil décroissent, GDD §2.10)
             ['TRAIT_PACIFISTE_CHANCE', 15, 'Chance de refus d\'attaquer Pacifiste (%)'],
-            ['TRAIT_PACIFISTE_CHANCE_L26', 12, 'Chance Pacifiste niveau 26-50 (%)'],
-            ['TRAIT_PACIFISTE_CHANCE_L51', 10, 'Chance Pacifiste niveau 51-75 (%)'],
-            ['TRAIT_PACIFISTE_CHANCE_L76', 8, 'Chance Pacifiste niveau 76+ (%)'],
-            ['TRAIT_PACIFISTE_THRESHOLD', 30, 'Seuil de HP ennemi pour le refus d\'attaque (%)'],
+            ['TRAIT_PACIFISTE_CHANCE_L26', 13, 'Chance Pacifiste niveau 26-50 (%)'],
+            ['TRAIT_PACIFISTE_CHANCE_L51', 12, 'Chance Pacifiste niveau 51-75 (%)'],
+            ['TRAIT_PACIFISTE_CHANCE_L76', 10, 'Chance Pacifiste niveau 76+ (%)'],
+            ['TRAIT_PACIFISTE_THRESHOLD', 30, 'Seuil de HP ennemi niveau 1-25 (%)'],
+            ['TRAIT_PACIFISTE_THRESHOLD_L26', 28, 'Seuil HP Pacifiste niveau 26-50 (%)'],
+            ['TRAIT_PACIFISTE_THRESHOLD_L51', 25, 'Seuil HP Pacifiste niveau 51-75 (%)'],
+            ['TRAIT_PACIFISTE_THRESHOLD_L76', 20, 'Seuil HP Pacifiste niveau 76+ (%)'],
 
             // Boss et monde
             ['BOSS_STAT_MULTIPLIER', 300, 'Multiplicateur de stats des boss (%)'],
