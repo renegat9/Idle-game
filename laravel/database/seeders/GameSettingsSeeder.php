@@ -203,10 +203,16 @@ class GameSettingsSeeder extends Seeder
             ['QUEST_POOL_SIZE_TARGET', 50, 'Quêtes à maintenir dans le pool par zone'],
             ['QUEST_POOL_REFILL_THRESHOLD', 20, 'Seuil pour déclencher la régénération du pool'],
             ['DAILY_QUEST_COUNT', 3, 'Nombre de quêtes quotidiennes assignées par joueur'],
+            ['QUEST_WTF_STEPS_MIN', 7, 'Étapes minimum d\'une quête WTF'],
+            ['QUEST_WTF_STEPS_MAX', 12, 'Étapes maximum d\'une quête WTF'],
+            ['QUEST_EVENT_STEPS', 5, 'Étapes d\'une quête événementielle'],
             ['REPUTATION_MAX', 200, 'Score de réputation maximum par zone'],
             ['NPC_RELATION_MAX', 100, 'Score de relation maximum par PNJ'],
+            ['NPC_GIFT_MAX_PER_DAY', 1, 'Cadeaux maximum par PNJ par jour'],
+            ['NPC_GIFT_RELATION_GAIN', 5, 'Points de relation gagnés par cadeau offert'],
             ['ENCHANT_ADVANCED_UNLOCKED', 0, '1 si les enchantements avancés (Magus) sont débloqués'],
             ['IDLE_EVENT_INTERVAL', 30, 'Minutes entre chaque micro-événement idle'],
+            ['IDLE_EVENT_REPEAT_PROTECTION', 5, 'Événements uniques avant qu\'un puisse se répéter'],
 
             // Crafting
             ['CRAFT_FUSION_COUNT', 3, 'Nombre d\'objets requis pour une fusion'],
