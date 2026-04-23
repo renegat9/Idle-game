@@ -951,10 +951,31 @@ class CombatService
         $lootBonusPct = (int) ($synergyMods['loot_bonus_pct'] ?? 0);
 
         if ($result === 'victory') {
-            foreach ($monsterModels as $monster) {
+            $goldKillBase    = $this->settings->get('GOLD_PER_KILL_BASE', 5);
+            $goldLevelMult   = $this->settings->get('GOLD_PER_KILL_LEVEL_MULT', 2);
+            $goldEliteBonus  = $this->settings->get('GOLD_ELITE_BONUS', 50);
+            $goldMinibossMult = $this->settings->get('GOLD_MINIBOSS_MULT', 5);
+            $goldBossMult    = $this->settings->get('GOLD_BOSS_MULT', 15);
+
+            $monsterList = array_values($monsterModels);
+            foreach ($monsterList as $idx => $monster) {
                 $xpGained += $this->calculateXpForKill($monster->level, $avgHeroLevel);
-                $baseGold = random_int($monster->gold_min, max($monster->gold_min, $monster->gold_max));
-                $goldGained += $baseGold;
+
+                $baseGold    = $goldKillBase + ($monster->level * $goldLevelMult);
+                $enemyState  = $state['enemies'][$idx] ?? [];
+                $monsterType = $monster->monster_type ?? 'normal';
+
+                if ($monsterType === 'boss') {
+                    $gold = $baseGold * $goldBossMult;
+                } elseif ($monsterType === 'mini_boss') {
+                    $gold = $baseGold * $goldMinibossMult;
+                } elseif (!empty($enemyState['is_elite'])) {
+                    $gold = intdiv($baseGold * (100 + $goldEliteBonus), 100);
+                } else {
+                    $gold = $baseGold;
+                }
+
+                $goldGained += $gold;
             }
         }
 

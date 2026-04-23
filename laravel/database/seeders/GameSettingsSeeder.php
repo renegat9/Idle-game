@@ -187,6 +187,22 @@ class GameSettingsSeeder extends Seeder
             ['SHOP_ITEMS_COUNT', 6, 'Nombre d\'articles dans la boutique'],
             ['SHOP_PRICE_MARKUP', 300, 'Majoration du prix boutique vs base (%)'],
 
+            // Or par combat (ECONOMY.md §2.1)
+            ['GOLD_PER_KILL_BASE', 5, 'Or de base par monstre tué'],
+            ['GOLD_PER_KILL_LEVEL_MULT', 2, 'Or supplémentaire par niveau du monstre'],
+            ['GOLD_ELITE_BONUS', 50, '% bonus or pour un monstre élite'],
+            ['GOLD_MINIBOSS_MULT', 5, 'Multiplicateur or pour un mini-boss'],
+            ['GOLD_BOSS_MULT', 15, 'Multiplicateur or pour un boss de zone'],
+            ['GOLD_QUEST_DAILY_MULT', 20, 'Or = niveau_joueur × ce mult (quêtes quotidiennes)'],
+            ['GOLD_QUEST_ZONE_MULT', 30, 'Or = niveau_zone × ce mult × numéro_quête'],
+            ['GOLD_OFFLINE_EFFICIENCY', 75, '% or normal gagné en idle offline'],
+
+            // Matériaux (ECONOMY.md §2.2)
+            ['MATERIAL_DROP_CHANCE', 30, '% de chance de drop de matériau par combat'],
+            ['MATERIAL_ELITE_BONUS', 100, '% de chance bonus matériau pour les élites (30+30=60%)'],
+            ['MATERIAL_BOSS_GUARANTEED', 3, 'Nombre de matériaux garantis par boss'],
+            ['MATERIAL_RARE_CHANCE', 5, '% chance matériau rare cross-zone par combat'],
+
             // Quêtes
             ['QUEST_DAILY_COUNT', 3, 'Quêtes quotidiennes par jour'],
             ['QUEST_DAILY_STEPS_MIN', 3, 'Étapes minimum d\'une quête quotidienne'],
