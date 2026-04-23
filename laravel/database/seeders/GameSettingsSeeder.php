@@ -58,8 +58,13 @@ class GameSettingsSeeder extends Seeder
             ['LOOT_STAT_VARIANCE', 15, 'Variance des stats d\'objet générées (%)'],
             ['LOOT_AI_GENERATION_MIN_RARITY', 3, 'Rareté minimum pour déclencher Gemini (3 = Rare)'],
             ['MONSTER_ELITE_CHANCE', 8, 'Probabilité qu\'un monstre soit élite (%)'],
+            ['MONSTER_ELITE_STAT_MULT', 150, 'Multiplicateur de stats global pour les élites (%)'],
             ['MONSTER_ELITE_XP_BONUS', 75, 'Bonus XP pour les monstres élites (%)'],
             ['MONSTER_ELITE_LOOT_BONUS', 75, 'Bonus de chance de loot pour les élites (%)'],
+            ['MONSTER_SKILL_COOLDOWN_MIN', 2, 'CD minimum des compétences de monstres (tours)'],
+            ['MONSTER_SKILL_COOLDOWN_MAX', 5, 'CD maximum des compétences de monstres (tours)'],
+            ['BOSS_PHASE_HP_THRESHOLD', 50, '% PV sous lequel le boss passe en phase 2'],
+            ['WORLD_BOSS_MECHANIC_INTERVAL', 3, 'Tours entre chaque activation de mécanique spéciale'],
 
             // Traits — Couard (chance décroît avec le niveau, GDD §2.1)
             ['TRAIT_COUARD_CHANCE', 15, 'Chance de déclenchement du trait Couard (%)'],

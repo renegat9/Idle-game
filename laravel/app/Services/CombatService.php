@@ -13,7 +13,8 @@ class CombatService
 
     public function __construct(
         private readonly SettingsService $settings,
-        private readonly TraitService $traitService
+        private readonly TraitService    $traitService,
+        private readonly MonsterService  $monsterService,
     ) {}
 
     /**
@@ -178,7 +179,7 @@ class CombatService
     {
         $enemies = [];
         foreach ($monsterModels as $monster) {
-            $enemies[] = array_merge($monster->toStatArray(), ['is_alive' => true]);
+            $enemies[] = $this->monsterService->buildCombatEnemy($monster);
         }
         return $enemies;
     }
@@ -324,6 +325,11 @@ class CombatService
         if ($target['current_hp'] <= 0) {
             $target['is_alive'] = false;
             $state['log'][] = $target['name'] . ' est vaincu !';
+            // Elite death explosion triggered when hero kills an elite
+            $this->monsterService->applyEliteOnDeath($targetIndex, $state);
+        } elseif (!empty($target['phase2_data'])) {
+            // Check boss phase 2 transition every time an enemy takes damage
+            $this->monsterService->checkPhaseTransition($targetIndex, $state);
         }
 
         // 8. Trait Pyromane (after_attack) — déclenché APRÈS l'attaque normale
@@ -342,49 +348,140 @@ class CombatService
             return;
         }
 
+        // Tick temp buffs (DEF, ATQ, dodge, reflect, immune, retreat)
+        $this->monsterService->tickTempBuffs($enemyIndex, $state);
+
+        // Elite regen (Béni prefix) at turn start
+        $this->monsterService->applyEliteTurnStart($enemyIndex, $state);
+
+        // Skip turn if retreated
+        if ($enemy['retreated']) {
+            $state['log'][] = $enemy['name'] . ' est en retraite tactique ce tour.';
+            return;
+        }
+
         $targetIndex = $this->findLiveHero($state);
         if ($targetIndex === null) {
             return;
         }
 
-        $target = &$state['heroes'][$targetIndex];
-
-        // Vérification esquive
-        if ($this->rollDodge($target, $enemy)) {
-            $state['log'][] = $target['name'] . ' esquive l\'attaque de ' . $enemy['name'] . '.';
-            return;
-        }
-
         $variance = random_int(
-            $this->settings->get('VARIANCE_MIN', 90),
-            $this->settings->get('VARIANCE_MAX', 110)
+            (int) $this->settings->get('VARIANCE_MIN', 90),
+            (int) $this->settings->get('VARIANCE_MAX', 110)
         );
 
-        $damage = $this->calculatePhysicalDamage($enemy, $target, $variance);
+        // Select action: skill or basic attack
+        $action = $this->monsterService->selectAction($enemyIndex, $state);
 
-        // Modificateur élémentaire
-        $elemMult = $this->applyElementalMultiplier($enemy['element'] ?? 'physique', $target['element'] ?? 'physique');
-        if ($elemMult !== 100) {
-            $damage = intdiv($damage * $elemMult, 100);
-            $damage = max($damage, $this->settings->get('MIN_DAMAGE', 1));
-        }
+        if ($action !== 'attack' && $action !== 'retreated') {
+            // Execute the chosen skill
+            $this->monsterService->executeSkill($action, $enemyIndex, $state, $variance, $targetIndex);
+        } else {
+            // ── Basic attack ──────────────────────────────────────────────────
+            $target = &$state['heroes'][$targetIndex];
 
-        $state['log'][] = $enemy['name'] . ' attaque ' . $target['name'] . ' pour ' . $damage . ' dégâts.';
-
-        $target['current_hp'] = max(0, $target['current_hp'] - $damage);
-        if ($target['current_hp'] <= 0) {
-            $target['is_alive'] = false;
-            $state['log'][] = $target['name'] . ' est KO !';
-        }
-
-        // Si le héros ciblé était endormi (Narcoleptique) → chance de réveil sur coup
-        $heroId = $target['hero_id'] ?? null;
-        if ($heroId && isset($state['sleeping'][$heroId]) && $target['is_alive']) {
-            $wakeChance = $this->settings->get('TRAIT_NARCOLEPTIQUE_WAKE_CHANCE', 50);
-            if (random_int(1, 100) <= $wakeChance) {
-                unset($state['sleeping'][$heroId]);
-                $state['log'][] = $target['name'] . ' se réveille sous le choc ! La douleur, ça réveille.';
+            // Spectral elite: chance to phase through entirely
+            if ($this->monsterService->rollPhaseResist($enemy)) {
+                $state['log'][] = $enemy['name'] . ' passe à travers ! (Spectral — attaque résistée)';
+                return;
             }
+
+            // Dodge check (include elite dodge bonus)
+            $effectiveTarget = $target;
+            if ($enemy['temp_dodge_pct'] > 0) {
+                // Dodge is on the enemy vs hero attacks (this is hero defending — we keep standard)
+            }
+            if ($this->rollDodge($target, $enemy)) {
+                $state['log'][] = $target['name'] . ' esquive l\'attaque de ' . $enemy['name'] . '.';
+                return;
+            }
+
+            // Calculate damage using effective ATQ (includes temp buffs)
+            $effectiveEnemy          = $enemy;
+            $effectiveEnemy['atq']   = $this->monsterService->effectiveAtq($enemy);
+            $damage                  = $this->calculatePhysicalDamage($effectiveEnemy, $target, $variance);
+
+            // Elemental multiplier
+            $elemMult = $this->applyElementalMultiplier($enemy['element'] ?? 'physique', $target['element'] ?? 'physique');
+            if ($elemMult !== 100) {
+                $damage = max(
+                    (int) $this->settings->get('MIN_DAMAGE', 1),
+                    intdiv($damage * $elemMult, 100)
+                );
+            }
+
+            // Mirror reflection (MD09) — hero receives reflected damage... but enemy does too
+            if ($enemy['reflect_pct'] > 0) {
+                $reflected = max(0, intdiv($damage * $enemy['reflect_pct'], 100));
+                $enemy['current_hp'] = max(0, $enemy['current_hp'] - $reflected);
+                if ($enemy['current_hp'] <= 0) {
+                    $enemy['is_alive'] = false;
+                }
+                $state['log'][] = $enemy['name'] . ' renvoie ' . $reflected . ' dégâts (miroir).';
+            }
+
+            $state['log'][] = $enemy['name'] . ' attaque ' . $target['name'] . ' pour ' . $damage . ' dégâts.';
+
+            $target['current_hp'] = max(0, $target['current_hp'] - $damage);
+            if ($target['current_hp'] <= 0) {
+                $target['is_alive'] = false;
+                $state['log'][] = $target['name'] . ' est KO !';
+            }
+
+            // Elite passive effects on hit
+            $this->monsterService->applyElitePassiveOnHit($damage, $enemyIndex, $targetIndex, $state);
+
+            // Élite Enragé: double attack below 30% HP
+            if ($enemy['elite_double_attack_below_30'] && $enemy['is_alive']) {
+                $hpPct = $enemy['max_hp'] > 0 ? intdiv($enemy['current_hp'] * 100, $enemy['max_hp']) : 100;
+                if ($hpPct <= 30 && $this->findLiveHero($state) !== null) {
+                    $state['log'][] = $enemy['name'] . ' est Enragé — double attaque !';
+                    // Second basic hit at same target if alive
+                    $t2 = &$state['heroes'][$targetIndex];
+                    if ($t2['is_alive']) {
+                        $dmg2 = $this->calculatePhysicalDamage($effectiveEnemy, $t2, $variance);
+                        $t2['current_hp'] = max(0, $t2['current_hp'] - $dmg2);
+                        if ($t2['current_hp'] <= 0) {
+                            $t2['is_alive'] = false;
+                        }
+                        $state['log'][] = $enemy['name'] . ' frappe à nouveau pour ' . $dmg2 . ' dégâts !';
+                    }
+                }
+            }
+
+            // Élite Géant: cleave — hit a second hero
+            if ($enemy['elite_cleave']) {
+                $altIndex = $this->findLiveHeroExcept($state, $target['hero_id'] ?? -1);
+                if ($altIndex !== null) {
+                    $t2   = &$state['heroes'][$altIndex];
+                    $dmg2 = $this->calculatePhysicalDamage($effectiveEnemy, $t2, $variance);
+                    $t2['current_hp'] = max(0, $t2['current_hp'] - $dmg2);
+                    if ($t2['current_hp'] <= 0) {
+                        $t2['is_alive'] = false;
+                    }
+                    $state['log'][] = $enemy['name'] . ' frappe aussi ' . $t2['name'] . ' (cleave) pour ' . $dmg2 . ' dégâts.';
+                }
+            }
+
+            // Narcoleptique wake check
+            $heroId = $target['hero_id'] ?? null;
+            if ($heroId && isset($state['sleeping'][$heroId]) && $target['is_alive']) {
+                $wakeChance = (int) $this->settings->get('TRAIT_NARCOLEPTIQUE_WAKE_CHANCE', 50);
+                if (random_int(1, 100) <= $wakeChance) {
+                    unset($state['sleeping'][$heroId]);
+                    $state['log'][] = $target['name'] . ' se réveille sous le choc ! La douleur, ça réveille.';
+                }
+            }
+        }
+
+        // Check boss phase 2 transition after any damage
+        if ($enemy['is_alive'] && !empty($enemy['phase2_data'])) {
+            $this->monsterService->checkPhaseTransition($enemyIndex, $state);
+        }
+
+        // Elite death explosion check
+        if (!$enemy['is_alive']) {
+            $this->monsterService->applyEliteOnDeath($enemyIndex, $state);
         }
     }
 
