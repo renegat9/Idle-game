@@ -56,6 +56,7 @@ class GameSettingsSeeder extends Seeder
             ['LOOT_LEVEL_RANGE', 2, 'Variation du niveau d\'objet autour du niveau de zone'],
             ['LOOT_SELL_PERCENT', 30, 'Pourcentage de la valeur de vente vs valeur réelle'],
             ['LOOT_STAT_VARIANCE', 15, 'Variance des stats d\'objet générées (%)'],
+            ['LOOT_AI_GENERATION_MIN_RARITY', 3, 'Rareté minimum pour déclencher Gemini (3 = Rare)'],
             ['MONSTER_ELITE_CHANCE', 8, 'Probabilité qu\'un monstre soit élite (%)'],
             ['MONSTER_ELITE_XP_BONUS', 75, 'Bonus XP pour les monstres élites (%)'],
             ['MONSTER_ELITE_LOOT_BONUS', 75, 'Bonus de chance de loot pour les élites (%)'],

@@ -81,34 +81,41 @@ class CraftingService
         $gerardComment = $this->gerardComment($success, false);
 
         if (!$success) {
-            // Failure: destroy all 3, refund 1 material
-            DB::transaction(function () use ($user, $items, $fusionCost) {
+            // Failure: destroy all 3, refund 1 material; 10% chance to drop Larme de Gérard
+            $dropLarme = rand(1, 100) <= 10;
+            DB::transaction(function () use ($user, $items, $fusionCost, $dropLarme) {
                 $user->decrement('gold', $fusionCost);
                 Item::whereIn('id', $items->pluck('id'))->delete();
-                // Give back 1 material of appropriate type
                 $this->grantMaterialForRarity($user, $items->first()->rarity, 1);
+                if ($dropLarme) {
+                    $this->addMaterialBySlug($user->id, 'larme_gerard', 1);
+                }
             });
 
             return [
-                'success' => false,
-                'message' => 'La fusion a échoué. Les objets sont partis en fumée.',
-                'gerard_comment' => $gerardComment,
+                'success'          => false,
+                'message'          => 'La fusion a échoué. Les objets sont partis en fumée.',
+                'drop_larme'       => $dropLarme,
+                'gerard_comment'   => $gerardComment,
                 'narrator_comment' => $this->narrator->getComment('craft_failure', []),
             ];
         }
 
         // Success: determine result rarity
-        $critRoll       = rand(1, 100);
-        $isCrit         = ($critRoll <= $critChance);
+        $critRoll        = rand(1, 100);
+        $isCrit          = ($critRoll <= $critChance);
         $resultRarityIdx = min($rarityIdx + ($isCrit ? 2 : 1), count(self::RARITY_ORDER) - 1);
         $resultRarity    = self::RARITY_ORDER[$resultRarityIdx];
 
         // Determine result slot
-        $slots = $items->pluck('slot')->values()->toArray();
+        $slots      = $items->pluck('slot')->values()->toArray();
         $resultSlot = $sameSlot ? $slots[0] : $slots[array_rand($slots)];
 
         $resultLevel = min($avgLevel + rand(0, 3), 99);
         $resultItem  = $this->loot->generateItemForCrafting($user, $resultRarity, $resultSlot, $resultLevel);
+
+        // Check if all 3 input items have special effects → 40% chance to inherit one
+        $inheritedEffect = $this->maybeInheritEffect($items->pluck('id')->toArray(), $resultItem);
 
         DB::transaction(function () use ($user, $items, $fusionCost, $resultItem) {
             $user->decrement('gold', $fusionCost);
@@ -124,13 +131,47 @@ class CraftingService
         }
 
         return [
-            'success'        => true,
-            'is_critical'    => $isCrit,
-            'result_item'    => $this->itemResponse($resultItem),
-            'gold_spent'     => $fusionCost,
-            'gerard_comment' => $this->gerardComment(true, $isCrit),
-            'new_recipe'     => $newRecipe?->name,
+            'success'          => true,
+            'is_critical'      => $isCrit,
+            'result_item'      => $this->itemResponse($resultItem),
+            'gold_spent'       => $fusionCost,
+            'inherited_effect' => $inheritedEffect,
+            'gerard_comment'   => $this->gerardComment(true, $isCrit),
+            'new_recipe'       => $newRecipe?->name,
         ];
+    }
+
+    /**
+     * If all 3 input items have a special effect, there is a 40% chance the result
+     * inherits one of those effects (in addition to any rolled for its own rarity).
+     */
+    private function maybeInheritEffect(array $itemIds, Item $resultItem): ?string
+    {
+        $effects = DB::table('item_effects')
+            ->whereIn('item_id', $itemIds)
+            ->where('is_enchantment', false)
+            ->get();
+
+        // Need at least one effect per input item (3 effects total minimum)
+        $byItem = $effects->groupBy('item_id');
+        if ($byItem->count() < 3) {
+            return null;
+        }
+
+        if (rand(1, 100) > 40) {
+            return null;
+        }
+
+        $chosen = $effects->random();
+        DB::table('item_effects')->insert([
+            'item_id'       => $resultItem->id,
+            'effect_key'    => $chosen->effect_key . '_inherited',
+            'description'   => '[Hérité] ' . $chosen->description,
+            'effect_data'   => $chosen->effect_data,
+            'is_enchantment'=> 0,
+        ]);
+
+        return $chosen->description;
     }
 
     // ─── Dismantling ─────────────────────────────────────────────────────────
@@ -601,10 +642,10 @@ class CraftingService
             'vit'         => $stats['vit'] ?? 0,
             'cha'         => $stats['cha'] ?? 0,
             'int'         => $stats['int'] ?? 0,
-            'max_durability' => $this->settings->get('LOOT_DURABILITY_BASE', 100),
-            'current_durability' => $this->settings->get('LOOT_DURABILITY_BASE', 100),
-            'sell_value'  => intdiv($level * $sellBase * 30, 100),
-            'ai_generated' => false,
+            'durability_max'     => (int) $this->settings->get('LOOT_DURABILITY_BASE', 100),
+            'durability_current' => (int) $this->settings->get('LOOT_DURABILITY_BASE', 100),
+            'sell_value'         => max(1, intdiv($level * $sellBase * 30, 100)),
+            'is_ai_generated'    => false,
         ]);
     }
 
