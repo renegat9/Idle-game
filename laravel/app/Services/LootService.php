@@ -494,7 +494,7 @@ class LootService
         };
     }
 
-    private function rollAndApplyEffect(Item $item): void
+    public function rollAndApplyEffect(Item $item): void
     {
         $effect = $this->rollSpecialEffect($item->rarity, $item->slot);
         if ($effect !== null) {

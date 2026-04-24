@@ -13,13 +13,13 @@ const SLOT_LABELS: Record<string, string> = {
   bottes: 'Bottes', accessoire: 'Accessoire', truc_bizarre: 'Truc Bizarre',
 }
 
-const STAT_LABELS: Array<[keyof Item, string, string, string]> = [
-  ['atq', 'ATQ', '#ef4444', '⚔️'],
-  ['def', 'DEF', '#3b82f6', '🛡️'],
-  ['hp',  'HP',  '#22c55e', '❤️'],
-  ['vit', 'VIT', '#86efac', '💨'],
-  ['cha', 'CHA', '#fbbf24', '✨'],
-  ['int', 'INT', '#8b5cf6', '📖'],
+const STAT_LABELS: Array<[keyof Item, string, string, string, string]> = [
+  ['atq', 'ATQ', '#ef4444', '⚔️', 'Attaque'],
+  ['def', 'DEF', '#3b82f6', '🛡️', 'Défense'],
+  ['hp',  'HP',  '#22c55e', '❤️', 'Points de vie'],
+  ['vit', 'VIT', '#86efac', '💨', 'Vitesse'],
+  ['cha', 'CHA', '#fbbf24', '✨', 'Charisme'],
+  ['int', 'INT', '#8b5cf6', '📖', 'Intelligence'],
 ]
 
 export function InventoryPage() {
@@ -104,7 +104,7 @@ export function InventoryPage() {
   }
 
   const ItemCard = ({ item, canSell, canUnequip }: { item: Item; canSell: boolean; canUnequip?: boolean }) => {
-    const stats = STAT_LABELS.filter(([key]) => (item[key] as number) > 0)
+    const stats = STAT_LABELS.filter(([key]) => (item[key] as number) > 0) as typeof STAT_LABELS
     return (
       <div className={`item-card rarity-frame rarity-frame-${item.rarity}`} style={{ display: 'flex', flexDirection: 'column' }}>
         {/* Image zone */}
@@ -139,10 +139,10 @@ export function InventoryPage() {
           {/* Stats */}
           {stats.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
-              {stats.map(([key, label, color, icon]) => (
-                <div key={key as string} style={{
+              {stats.map(([key, label, color, icon, tooltip]) => (
+                <div key={key as string} title={tooltip} style={{
                   textAlign: 'center', background: '#0d1117', borderRadius: 4,
-                  padding: '4px 2px', border: '1px solid #1a1f2e',
+                  padding: '4px 2px', border: '1px solid #1a1f2e', cursor: 'help',
                 }}>
                   <div style={{ fontSize: 11 }}>{icon}</div>
                   <div style={{ color, fontWeight: 700, fontSize: 13 }}>+{item[key] as number}</div>

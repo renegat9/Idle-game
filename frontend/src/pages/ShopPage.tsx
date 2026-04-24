@@ -20,6 +20,7 @@ type ShopItem = {
   shop_price: number
   expires_at: string
   image_url?: string | null
+  effect_description?: string | null
 }
 
 const RARITY_LABEL: Record<string, string> = {
@@ -150,13 +151,23 @@ export function ShopPage() {
 
               {/* Stats */}
               <div style={{ padding: '10px 16px', display: 'flex', flexWrap: 'wrap', gap: '4px 14px' }}>
-                {item.atq > 0 && <span style={{ color: '#ef4444', fontSize: 12 }}>⚔️ +{item.atq}</span>}
-                {item.def > 0 && <span style={{ color: '#3b82f6', fontSize: 12 }}>🛡️ +{item.def}</span>}
-                {item.hp  > 0 && <span style={{ color: '#22c55e', fontSize: 12 }}>❤️ +{item.hp}</span>}
-                {item.vit > 0 && <span style={{ color: '#06b6d4', fontSize: 12 }}>💨 +{item.vit}</span>}
-                {item.cha > 0 && <span style={{ color: '#ec4899', fontSize: 12 }}>✨ +{item.cha}</span>}
-                {item.int > 0 && <span style={{ color: '#a855f7', fontSize: 12 }}>📖 +{item.int}</span>}
+                {item.atq > 0 && <span title="Attaque"   style={{ color: '#ef4444', fontSize: 12 }}>⚔️ +{item.atq}</span>}
+                {item.def > 0 && <span title="Défense"   style={{ color: '#3b82f6', fontSize: 12 }}>🛡️ +{item.def}</span>}
+                {item.hp  > 0 && <span title="Points de vie" style={{ color: '#22c55e', fontSize: 12 }}>❤️ +{item.hp}</span>}
+                {item.vit > 0 && <span title="Vitesse"   style={{ color: '#06b6d4', fontSize: 12 }}>💨 +{item.vit}</span>}
+                {item.cha > 0 && <span title="Charisme"  style={{ color: '#ec4899', fontSize: 12 }}>✨ +{item.cha}</span>}
+                {item.int > 0 && <span title="Intelligence" style={{ color: '#a855f7', fontSize: 12 }}>📖 +{item.int}</span>}
               </div>
+
+              {/* Special effect */}
+              {item.effect_description && (
+                <div style={{ margin: '0 16px 10px', background: '#0f0a2e', border: '1px solid #4c1d95', borderRadius: 6, padding: '6px 10px' }}>
+                  <div style={{ fontSize: 9, color: '#7c3aed', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 3 }}>
+                    ✦ Effet spécial
+                  </div>
+                  <div style={{ color: '#c4b5fd', fontSize: 11, lineHeight: 1.4 }}>{item.effect_description}</div>
+                </div>
+              )}
 
               {/* Footer */}
               <div style={{ padding: '10px 16px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1f2937' }}>

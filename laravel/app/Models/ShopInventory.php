@@ -20,6 +20,9 @@ class ShopInventory extends Model
         'cha',
         'int',
         'sell_value',
+        'effect_key',
+        'effect_description',
+        'effect_data',
         'shop_price',
         'is_sold',
         'is_active',
@@ -27,18 +30,19 @@ class ShopInventory extends Model
     ];
 
     protected $casts = [
-        'item_level' => 'integer',
-        'atq'        => 'integer',
-        'def'        => 'integer',
-        'hp'         => 'integer',
-        'vit'        => 'integer',
-        'cha'        => 'integer',
-        'int'        => 'integer',
-        'sell_value' => 'integer',
-        'shop_price' => 'integer',
-        'is_sold'    => 'boolean',
-        'is_active'  => 'boolean',
-        'expires_at' => 'datetime',
+        'item_level'  => 'integer',
+        'atq'         => 'integer',
+        'def'         => 'integer',
+        'hp'          => 'integer',
+        'vit'         => 'integer',
+        'cha'         => 'integer',
+        'int'         => 'integer',
+        'sell_value'  => 'integer',
+        'shop_price'  => 'integer',
+        'is_sold'     => 'boolean',
+        'is_active'   => 'boolean',
+        'expires_at'  => 'datetime',
+        'effect_data' => 'array',
     ];
 
     public function zone()

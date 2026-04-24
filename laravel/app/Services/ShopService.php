@@ -117,6 +117,19 @@ class ShopService
                 'is_ai_generated' => false,
             ]);
 
+            // Apply the pre-rolled special effect stored at stock generation
+            if ($shopItem->effect_key && $shopItem->effect_description) {
+                DB::table('item_effects')->insert([
+                    'item_id'        => $newItem->id,
+                    'effect_key'     => $shopItem->effect_key,
+                    'description'    => $shopItem->effect_description,
+                    'effect_data'    => $shopItem->effect_data
+                        ? (is_string($shopItem->effect_data) ? $shopItem->effect_data : json_encode($shopItem->effect_data))
+                        : '{}',
+                    'is_enchantment' => 0,
+                ]);
+            }
+
             DB::table('economy_log')->insert([
                 'user_id'          => $user->id,
                 'transaction_type' => 'depense',
@@ -185,31 +198,37 @@ class ShopService
             $slot      = $this->loot->rollSlot();
             $itemLevel = max(1, $zoneLevel);
 
-            // Generate a temporary Item to derive stats — delete right after reading
-            $tempItem = $this->loot->generateItemForCrafting($tempUser, $rarity, $slot, $itemLevel);
+            // Generate a temporary Item to derive stats and roll effect
+            $tempItem  = $this->loot->generateItemForCrafting($tempUser, $rarity, $slot, $itemLevel);
             $shopPrice = $this->calculateShopPrice($rarity, $itemLevel, $markup);
 
+            // Read any effect generated on the temp item, then delete it
+            $tempEffect = DB::table('item_effects')->where('item_id', $tempItem->id)->first();
+
             ShopInventory::create([
-                'zone_id'    => $zoneId,
-                'user_id'    => $userId,
-                'name'       => $tempItem->name,
-                'rarity'     => $rarity,
-                'slot'       => $slot,
-                'item_level' => $itemLevel,
-                'atq'        => $tempItem->atq,
-                'def'        => $tempItem->def,
-                'hp'         => $tempItem->hp,
-                'vit'        => $tempItem->vit,
-                'cha'        => $tempItem->cha,
-                'int'        => $tempItem->int,
-                'sell_value' => $tempItem->sell_value,
-                'shop_price' => $shopPrice,
-                'is_sold'    => false,
-                'is_active'  => true,
-                'expires_at' => $expiresAt,
+                'zone_id'            => $zoneId,
+                'user_id'            => $userId,
+                'name'               => $tempItem->name,
+                'rarity'             => $rarity,
+                'slot'               => $slot,
+                'item_level'         => $itemLevel,
+                'atq'                => $tempItem->atq,
+                'def'                => $tempItem->def,
+                'hp'                 => $tempItem->hp,
+                'vit'                => $tempItem->vit,
+                'cha'                => $tempItem->cha,
+                'int'                => $tempItem->int,
+                'sell_value'         => $tempItem->sell_value,
+                'effect_key'         => $tempEffect?->effect_key,
+                'effect_description' => $tempEffect?->description,
+                'effect_data'        => $tempEffect ? $tempEffect->effect_data : null,
+                'shop_price'         => $shopPrice,
+                'is_sold'            => false,
+                'is_active'          => true,
+                'expires_at'         => $expiresAt,
             ]);
 
-            // Remove the temporary item from the user's inventory
+            // Remove the temporary item (and its cascaded item_effects row)
             $tempItem->delete();
         }
     }
@@ -239,21 +258,22 @@ class ShopService
             ->value('image_path');
 
         return [
-            'id'         => $s->id,
-            'name'       => $s->name,
-            'rarity'     => $s->rarity,
-            'slot'       => $s->slot,
-            'item_level' => $s->item_level,
-            'atq'        => $s->atq,
-            'def'        => $s->def,
-            'hp'         => $s->hp,
-            'vit'        => $s->vit,
-            'cha'        => $s->cha,
-            'int'        => $s->int,
-            'sell_value' => $s->sell_value,
-            'shop_price' => $s->shop_price,
-            'expires_at' => $s->expires_at,
-            'image_url'  => $templateImage,
+            'id'                 => $s->id,
+            'name'               => $s->name,
+            'rarity'             => $s->rarity,
+            'slot'               => $s->slot,
+            'item_level'         => $s->item_level,
+            'atq'                => $s->atq,
+            'def'                => $s->def,
+            'hp'                 => $s->hp,
+            'vit'                => $s->vit,
+            'cha'                => $s->cha,
+            'int'                => $s->int,
+            'sell_value'         => $s->sell_value,
+            'shop_price'         => $s->shop_price,
+            'expires_at'         => $s->expires_at,
+            'image_url'          => $templateImage,
+            'effect_description' => $s->effect_description,
         ];
     }
 
