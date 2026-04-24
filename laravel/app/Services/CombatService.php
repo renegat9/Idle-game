@@ -80,6 +80,16 @@ class CombatService
             unset($enemy);
         }
 
+        // Fuite garantie pré-combat (Parchemin de Fuite)
+        foreach ($heroModels as $hero) {
+            $fleeBuff = $hero->buffs()->where('buff_key', 'guaranteed_flee')->where('remaining_combats', '>', 0)->first();
+            if ($fleeBuff) {
+                $state['fled_heroes'][] = $hero->id;
+                $state['log'][] = $hero->name . ' utilise un Parchemin de Fuite — fuite garantie !';
+                $fleeBuff->decrement('remaining_combats');
+            }
+        }
+
         // Boucle de combat
         while ($state['turn'] < $maxTurns) {
             $state['turn']++;

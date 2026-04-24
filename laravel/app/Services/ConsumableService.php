@@ -119,7 +119,7 @@ class ConsumableService
 
             case 'restore_hp_pct':
                 foreach ($heroes as $hero) {
-                    $amount = (int) ($hero->max_hp * (int) $consumable->effect_value / 100);
+                    $amount = intdiv($hero->max_hp * (int) $consumable->effect_value, 100);
                     $healed = $this->healHero($hero, $amount);
                     $applied[] = ['hero' => $hero->name, 'healed' => $healed];
                 }
@@ -128,11 +128,10 @@ class ConsumableService
             case 'xp_boost':
                 foreach ($heroes as $hero) {
                     $hero->xp += (int) $consumable->effect_value;
-                    // Vérifier montée de niveau
                     while ($hero->xp >= $hero->xp_to_next_level) {
                         $hero->xp -= $hero->xp_to_next_level;
                         $hero->level += 1;
-                        $hero->xp_to_next_level = (int) ($hero->xp_to_next_level * 150 / 100);
+                        $hero->xp_to_next_level = intdiv($hero->xp_to_next_level * 150, 100);
                         $hero->talent_points += 1;
                     }
                     $hero->save();
@@ -150,8 +149,100 @@ class ConsumableService
 
             case 'cure_debuff':
                 foreach ($heroes as $hero) {
-                    $removed = $hero->buffs()->where('duration_remaining', '>', 0)->delete();
+                    $removed = $hero->buffs()->where('is_debuff', true)->where('remaining_combats', '>', 0)->delete();
+                    DB::table('hero_combat_status_effects')
+                        ->where('hero_id', $hero->id)
+                        ->delete();
                     $applied[] = ['hero' => $hero->name, 'debuffs_removed' => $removed];
+                }
+                break;
+
+            case 'cure_poison':
+                foreach ($heroes as $hero) {
+                    $removed = DB::table('hero_combat_status_effects')
+                        ->where('hero_id', $hero->id)
+                        ->where('effect_slug', 'empoisonne')
+                        ->delete();
+                    $applied[] = ['hero' => $hero->name, 'poison_removed' => $removed > 0];
+                }
+                break;
+
+            case 'buff_atq_pct':
+            case 'buff_def_pct':
+            case 'buff_vit_pct':
+                $statMap = ['buff_atq_pct' => 'atq', 'buff_def_pct' => 'def', 'buff_vit_pct' => 'vit'];
+                $stat    = $statMap[$consumable->effect_type];
+                $pct     = (int) $consumable->effect_value;
+                $turns   = (int) $consumable->duration_turns;
+                foreach ($heroes as $hero) {
+                    $hero->buffs()->create([
+                        'buff_key'          => $consumable->effect_type,
+                        'name'              => $consumable->name,
+                        'is_buff'           => true,
+                        'is_debuff'         => false,
+                        'value'             => 0,
+                        'modifier_percent'  => $pct,
+                        'stat_affected'     => $stat,
+                        'remaining_combats' => max(1, $turns),
+                        'source'            => 'consumable',
+                    ]);
+                    $applied[] = ['hero' => $hero->name, 'stat' => $stat, 'bonus_pct' => $pct, 'combats' => max(1, $turns)];
+                }
+                break;
+
+            case 'guaranteed_flee':
+                foreach ($heroes as $hero) {
+                    $hero->buffs()->create([
+                        'buff_key'          => 'guaranteed_flee',
+                        'name'              => $consumable->name,
+                        'is_buff'           => true,
+                        'is_debuff'         => false,
+                        'value'             => 1,
+                        'modifier_percent'  => 0,
+                        'stat_affected'     => 'none',
+                        'remaining_combats' => 1,
+                        'source'            => 'consumable',
+                    ]);
+                    $applied[] = ['hero' => $hero->name, 'flee_guaranteed' => true];
+                }
+                break;
+
+            case 'repair_durability':
+                $repairAmount = (int) $consumable->effect_value;
+                $item = DB::table('items')
+                    ->whereNotNull('equipped_by_hero_id')
+                    ->whereIn('equipped_by_hero_id', $heroes->pluck('id'))
+                    ->where('durability_current', '<', DB::raw('durability_max'))
+                    ->orderByRaw('durability_max - durability_current DESC')
+                    ->first();
+                if ($item) {
+                    $newDurability = min((int) $item->durability_max, (int) $item->durability_current + $repairAmount);
+                    DB::table('items')->where('id', $item->id)->update(['durability_current' => $newDurability]);
+                    $applied[] = ['item' => $item->name, 'repaired' => $newDurability - (int) $item->durability_current];
+                } else {
+                    $applied[] = ['info' => 'Tous les objets sont déjà en parfait état.'];
+                }
+                break;
+
+            case 'dungeon_torch':
+                foreach ($heroes as $hero) {
+                    $existing = $hero->buffs()->where('buff_key', 'dungeon_torch')->where('remaining_combats', '>', 0)->first();
+                    if ($existing) {
+                        $existing->increment('remaining_combats', 10);
+                    } else {
+                        $hero->buffs()->create([
+                            'buff_key'          => 'dungeon_torch',
+                            'name'              => $consumable->name,
+                            'is_buff'           => true,
+                            'is_debuff'         => false,
+                            'value'             => 1,
+                            'modifier_percent'  => 0,
+                            'stat_affected'     => 'none',
+                            'remaining_combats' => 10,
+                            'source'            => 'consumable',
+                        ]);
+                    }
+                    $applied[] = ['hero' => $hero->name, 'torch_active' => true];
                 }
                 break;
 
