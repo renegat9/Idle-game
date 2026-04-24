@@ -77,8 +77,8 @@ export function InventoryPage() {
     }
   }
 
-  const handleEquip = async (item: Item) => {
-    const heroId = selectedHero[item.id]
+  const handleEquip = async (item: Item & { _heroOverride?: number }) => {
+    const heroId = item._heroOverride ?? selectedHero[item.id]
     if (!heroId) return
     setEquipping(item.id)
     setMessage('')
@@ -87,6 +87,7 @@ export function InventoryPage() {
       setMessage(data.message)
       setUnequipped((prev) => prev.filter((i) => i.id !== item.id))
       setEquipped((prev) => [...prev, { ...item, equipped_by_hero_id: heroId }])
+      setSelectedHero((prev) => { const next = { ...prev }; delete next[item.id]; return next })
     } catch (err: any) {
       setMessage(err.response?.data?.message || 'Erreur lors de l\'équipement')
     } finally {
@@ -167,7 +168,15 @@ export function InventoryPage() {
 
           {/* Actions */}
           {canUnequip && (
-            <div style={{ marginTop: 'auto', paddingTop: 6 }}>
+            <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {item.equipped_by_hero_id && (() => {
+                const hero = heroes.find((h) => h.id === item.equipped_by_hero_id)
+                return hero ? (
+                  <div style={{ color: '#9ca3af', fontSize: 11, textAlign: 'center' }}>
+                    ⚔️ Équipé par <span style={{ color: '#c4b5fd', fontWeight: 600 }}>{hero.name}</span> Niv.{hero.level}
+                  </div>
+                ) : null
+              })()}
               <GameButton
                 variant="ghost"
                 size="sm"
@@ -182,30 +191,25 @@ export function InventoryPage() {
           {canSell && (
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
               {heroes.length > 0 && (
-                <div style={{ display: 'flex', gap: 5 }}>
-                  <select
-                    value={selectedHero[item.id] ?? ''}
-                    onChange={(e) => setSelectedHero((prev) => ({ ...prev, [item.id]: +e.target.value }))}
-                    style={{
-                      flex: 1, background: '#1f2937', border: '1px solid #374151',
-                      borderRadius: 5, color: '#d1d5db', fontSize: 11, padding: '5px 6px',
-                    }}
-                  >
-                    <option value="">— Choisir un héros —</option>
-                    {heroes.map((h) => (
-                      <option key={h.id} value={h.id}>{h.name} Niv.{h.level}</option>
-                    ))}
-                  </select>
-                  <GameButton
-                    variant="primary"
-                    size="sm"
-                    onClick={() => handleEquip(item)}
-                    disabled={!selectedHero[item.id]}
-                    loading={equipping === item.id}
-                  >
-                    Équiper
-                  </GameButton>
-                </div>
+                <select
+                  value={selectedHero[item.id] ?? ''}
+                  onChange={(e) => {
+                    const heroId = +e.target.value
+                    setSelectedHero((prev) => ({ ...prev, [item.id]: heroId }))
+                    if (heroId) handleEquip({ ...item, _heroOverride: heroId } as any)
+                  }}
+                  disabled={equipping === item.id}
+                  style={{
+                    width: '100%', background: '#1f2937', border: '1px solid #374151',
+                    borderRadius: 5, color: '#d1d5db', fontSize: 11, padding: '5px 6px',
+                    cursor: equipping === item.id ? 'wait' : 'pointer',
+                  }}
+                >
+                  <option value="">— Équiper sur un héros —</option>
+                  {heroes.map((h) => (
+                    <option key={h.id} value={h.id}>{h.name} Niv.{h.level}</option>
+                  ))}
+                </select>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: '#fbbf24', fontSize: 12, fontWeight: 600 }}>
