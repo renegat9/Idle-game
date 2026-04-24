@@ -1001,3 +1001,111 @@ body {
     0 0 24px rgba(34,197,94,0.25),
     0 0 0 1px rgba(34,197,94,0.2);
 }
+
+/* ── Responsive — Mobile Sidebar ────────────────────────────────── */
+
+/* Mobile top bar (hidden on desktop) */
+.mobile-topbar {
+  display: none;
+}
+
+/* Close button in sidebar (hidden on desktop) */
+.sidebar-close-btn {
+  display: none;
+}
+
+/* Dark overlay behind sidebar on mobile */
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* Sidebar slides in from left, hidden by default */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 200;
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* Dark overlay */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 199;
+  }
+
+  /* Close button visible on mobile */
+  .sidebar-close-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--color-border-light);
+    border-radius: 4px;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .sidebar-close-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: var(--color-text);
+  }
+
+  /* Main content takes full width */
+  .main-content {
+    margin-left: 0;
+  }
+
+  /* Mobile top bar */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: linear-gradient(90deg, #0d0d1a, #0a0a0f);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  /* Hamburger button */
+  .mobile-menu-btn {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  .mobile-menu-btn span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--color-text-muted);
+    border-radius: 2px;
+    transition: background 0.15s;
+  }
+
+  .mobile-menu-btn:hover span {
+    background: var(--color-text);
+  }
+
+  /* Tighter page padding on mobile */
+  .page-container {
+    padding: 16px 14px;
+  }
+}
