@@ -51,6 +51,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Inventory
     Route::get('/inventory', [InventoryController::class, 'index']);
     Route::post('/inventory/sell', [InventoryController::class, 'sell']);
+    Route::post('/inventory/unequip', [InventoryController::class, 'unequip']);
 
     // Zones
     Route::get('/zones', [ZoneController::class, 'index']);

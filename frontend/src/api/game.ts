@@ -24,6 +24,8 @@ export const inventoryApi = {
   list: () => apiClient.get<{ equipped: Item[]; unequipped: Item[]; total_count: number }>('/inventory'),
   sell: (itemId: number) =>
     apiClient.post<{ message: string; gold_earned: number; new_gold_total: number }>('/inventory/sell', { item_id: itemId }),
+  unequip: (itemId: number) =>
+    apiClient.post<{ message: string }>('/inventory/unequip', { item_id: itemId }),
 }
 
 export const zoneApi = {

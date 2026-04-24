@@ -30,6 +30,34 @@ class InventoryController extends Controller
         ]);
     }
 
+    public function unequip(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'item_id' => 'required|integer|exists:items,id',
+        ]);
+
+        $item = Item::where('id', $validated['item_id'])
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$item) {
+            return response()->json(['message' => 'Objet introuvable.'], 404);
+        }
+
+        if ($item->equipped_by_hero_id === null) {
+            return response()->json(['message' => 'Cet objet n\'est pas équipé.'], 422);
+        }
+
+        $item->equipped_by_hero_id = null;
+        $item->save();
+
+        return response()->json([
+            'message' => $item->name . ' déséquipé. Le héros se sent soudainement plus léger.',
+        ]);
+    }
+
     public function sell(Request $request): JsonResponse
     {
         $user = $request->user();

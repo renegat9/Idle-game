@@ -31,6 +31,7 @@ export function InventoryPage() {
   const [loading, setLoading] = useState(true)
   const [selling, setSelling] = useState<number | null>(null)
   const [equipping, setEquipping] = useState<number | null>(null)
+  const [unequipping, setUnequipping] = useState<number | null>(null)
   const [selectedHero, setSelectedHero] = useState<Record<number, number>>({})
   const [message, setMessage] = useState('')
 
@@ -61,6 +62,21 @@ export function InventoryPage() {
     }
   }
 
+  const handleUnequip = async (item: Item) => {
+    setUnequipping(item.id)
+    setMessage('')
+    try {
+      const { data } = await inventoryApi.unequip(item.id)
+      setEquipped((prev) => prev.filter((i) => i.id !== item.id))
+      setUnequipped((prev) => [{ ...item, equipped_by_hero_id: null }, ...prev])
+      setMessage(data.message)
+    } catch (err: any) {
+      setMessage(err.response?.data?.message || 'Erreur')
+    } finally {
+      setUnequipping(null)
+    }
+  }
+
   const handleEquip = async (item: Item) => {
     const heroId = selectedHero[item.id]
     if (!heroId) return
@@ -87,7 +103,7 @@ export function InventoryPage() {
     )
   }
 
-  const ItemCard = ({ item, canSell }: { item: Item; canSell: boolean }) => {
+  const ItemCard = ({ item, canSell, canUnequip }: { item: Item; canSell: boolean; canUnequip?: boolean }) => {
     const stats = STAT_LABELS.filter(([key]) => (item[key] as number) > 0)
     return (
       <div className={`item-card rarity-frame rarity-frame-${item.rarity}`} style={{ display: 'flex', flexDirection: 'column' }}>
@@ -145,6 +161,19 @@ export function InventoryPage() {
           )}
 
           {/* Actions */}
+          {canUnequip && (
+            <div style={{ marginTop: 'auto', paddingTop: 6 }}>
+              <GameButton
+                variant="ghost"
+                size="sm"
+                onClick={() => handleUnequip(item)}
+                loading={unequipping === item.id}
+                style={{ width: '100%' }}
+              >
+                Déséquiper
+              </GameButton>
+            </div>
+          )}
           {canSell && (
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
               {heroes.length > 0 && (
@@ -212,7 +241,7 @@ export function InventoryPage() {
         <GamePanel icon="⚔️" title={`Équipés (${equipped.length})`} variant="success" style={{ marginBottom: 24 }} noPadding>
           <div style={{ padding: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
-              {equipped.map((item) => <ItemCard key={item.id} item={item} canSell={false} />)}
+              {equipped.map((item) => <ItemCard key={item.id} item={item} canSell={false} canUnequip={true} />)}
             </div>
           </div>
         </GamePanel>
