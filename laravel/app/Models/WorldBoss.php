@@ -14,6 +14,7 @@ class WorldBoss extends Model
         'status',
         'special_mechanic',
         'description',
+        'image_path',
         'spawned_at',
         'defeated_at',
     ];

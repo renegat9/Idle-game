@@ -10,6 +10,7 @@ type WorldBoss = {
   status: 'inactive' | 'active' | 'defeated'
   special_mechanic: string | null
   description: string | null
+  image_path: string | null
   spawned_at: string | null
   defeated_at: string | null
 }
@@ -122,9 +123,19 @@ export function WorldBossPage() {
           className={`game-panel ${status.active_boss!.status === 'defeated' ? '' : 'game-panel-danger'}`}
           style={{ marginBottom: 24, overflow: 'hidden' }}
         >
-          {/* Boss header with large icon */}
+          {/* Boss header with portrait */}
           <div style={{ padding: '20px 20px 16px', background: 'linear-gradient(135deg, #1a0505, #0a0202)', borderBottom: '1px solid #7f1d1d', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-            <div className="anim-breathe" style={{ fontSize: 56, lineHeight: 1, flexShrink: 0 }}>🐉</div>
+            <div className="anim-breathe" style={{ flexShrink: 0, width: 96, height: 96, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {status.active_boss!.image_path ? (
+                <img
+                  src={`/${status.active_boss!.image_path}`}
+                  alt={status.active_boss!.name}
+                  style={{ width: 96, height: 96, objectFit: 'contain', imageRendering: 'auto' }}
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'block' }}
+                />
+              ) : null}
+              <span style={{ fontSize: 64, lineHeight: 1, display: status.active_boss!.image_path ? 'none' : 'block' }}>🐉</span>
+            </div>
             <div style={{ flex: 1 }}>
               <h2 className="game-title" style={{ margin: '0 0 6px', fontSize: 22, color: '#f9fafb' }}>
                 {status.active_boss!.name}

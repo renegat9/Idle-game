@@ -222,9 +222,12 @@ class WorldBossService
             'status'           => 'active',
             'special_mechanic' => $definition['special_mechanic'] ?? $aiText['mechanic'],
             'description'      => $aiText['description'],
+            'image_path'       => null,
             'spawned_at'       => now(),
             'defeated_at'      => null,
         ]);
+
+        \App\Jobs\GenerateBossImage::dispatch($boss->id, $boss->name, $boss->slug);
 
         return $boss;
     }

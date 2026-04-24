@@ -40,6 +40,7 @@ class WorldBossController extends Controller
                 'status'           => $boss->status,
                 'special_mechanic' => $boss->special_mechanic,
                 'description'      => $boss->description,
+                'image_path'       => $boss->image_path,
                 'spawned_at'       => $boss->spawned_at?->toIso8601String(),
                 'hp_percent'       => intdiv($boss->current_hp * 100, max(1, $boss->total_hp)),
             ],

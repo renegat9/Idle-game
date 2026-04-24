@@ -339,6 +339,35 @@ class GeminiService
     }
 
     /**
+     * Generate a boss portrait illustration via Imagen.
+     * Uses a green-screen background so the creature floats over the dark UI.
+     * Falls back to a static placeholder.
+     */
+    public function generateBossImage(int $bossId, string $bossName, string $bossSlug): string
+    {
+        if (!$this->canCall('boss_image')) {
+            return $this->fallbackBossImage($bossSlug);
+        }
+
+        $prompt = "Epic fantasy RPG world boss portrait, {$bossName}, enormous terrifying creature, "
+            . "dramatic pose, glowing eyes, dark fantasy art style, detailed illustration, "
+            . "cinematic lighting, highly detailed, ominous atmosphere, "
+            . "solid #00FF00 bright green background, no shadows on background, centered, square format.";
+
+        try {
+            $filename = "boss_{$bossId}_" . time() . '.png';
+            $path = $this->callImageApi($prompt, 'boss_image', $filename, true);
+            if ($path !== null) {
+                return $path;
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateBossImage failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackBossImage($bossSlug);
+    }
+
+    /**
      * Return the music track for the given style.
      * Priority: tavern_music cache → Vertex AI Lyria → Gemini Lyria → static fallback.
      * Every resolved track is persisted to tavern_music for future cache hits.
@@ -719,6 +748,7 @@ class GeminiService
         $subdir = match (true) {
             str_starts_with($filename, 'hero_')    => 'heroes',
             str_starts_with($filename, 'monster_') => 'monsters',
+            str_starts_with($filename, 'boss_')    => 'bosses',
             str_starts_with($filename, 'zone_')    => 'zones',
             str_starts_with($filename, 'page_')    => 'pages',
             default                                => 'loot_images',
@@ -1167,6 +1197,11 @@ class GeminiService
             'description' => $descriptions[array_rand($descriptions)],
             'flavor'      => $flavors[array_rand($flavors)],
         ];
+    }
+
+    private function fallbackBossImage(string $bossSlug): string
+    {
+        return "images/placeholders/boss_{$bossSlug}.png";
     }
 
     /** @return array{description: string, mechanic: string} */
