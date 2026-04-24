@@ -153,9 +153,14 @@ export function InventoryPage() {
           )}
 
           {item.effects && item.effects.length > 0 && (
-            <div style={{ background: '#0f0a2e', border: '1px solid #4c1d95', borderRadius: 4, padding: '4px 8px' }}>
+            <div style={{ background: '#0f0a2e', border: '1px solid #4c1d95', borderRadius: 6, padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ fontSize: 9, color: '#7c3aed', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 2 }}>
+                ✦ Effet{item.effects.length > 1 ? 's' : ''} spécial{item.effects.length > 1 ? 'x' : ''}
+              </div>
               {item.effects.map((e, i) => (
-                <span key={i} style={{ color: '#a78bfa', fontSize: 11 }}>✦ {e.description}</span>
+                <div key={i} style={{ color: '#c4b5fd', fontSize: 11, lineHeight: 1.4 }}>
+                  {e.description}
+                </div>
               ))}
             </div>
           )}

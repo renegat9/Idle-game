@@ -304,7 +304,7 @@ class LootService
         DB::table('item_effects')->insert([
             'item_id'       => $itemId,
             'effect_key'    => $effect['id'],
-            'description'   => $effect['desc'],
+            'description'   => $effect['name'] . ' — ' . $effect['desc'],
             'effect_data'   => json_encode($effect['data']),
             'is_enchantment'=> 0,
         ]);
