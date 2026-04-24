@@ -236,22 +236,6 @@ class IdleService
                         $gold += $baseGold;
                     }
 
-                    // Matériaux (ECONOMY.md §2.2)
-                    $effectiveMaterialChance = $isEliteEncounter
-                        ? min(100, $materialChance + intdiv($materialChance * $materialEliteBonus, 100))
-                        : $materialChance;
-                    if (random_int(1, 100) <= $effectiveMaterialChance) {
-                        $isRare = random_int(1, 100) <= $materialRareChance;
-                        $slug   = $isRare
-                            ? ($zone->rare_material_slug ?? 'essence_mineure')
-                            : ($zone->material_slug ?? 'ferraille');
-                        DB::table('user_materials')->upsert(
-                            ['user_id' => $user->id, 'material_slug' => $slug, 'quantity' => 1, 'created_at' => $now, 'updated_at' => $now],
-                            ['user_id', 'material_slug'],
-                            ['quantity' => DB::raw('quantity + 1'), 'updated_at' => $now]
-                        );
-                    }
-
                     // Matériaux (1 combat sur 2, ou toujours si élite)
                     $shouldDrop = ($i % 2 === 0) || $isEliteEncounter;
                     if ($shouldDrop) {
