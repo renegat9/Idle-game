@@ -8,8 +8,8 @@ interface HeroCardProps {
 }
 
 const CLASS_ANIM: Record<string, string> = {
-  guerrier:      'anim-shake',
-  barbare:       'anim-shake',
+  guerrier:      'anim-breathe',
+  barbare:       'anim-breathe',
   mage:          'anim-float',
   necromancien:  'anim-ghost',
   barde:         'anim-sway',
