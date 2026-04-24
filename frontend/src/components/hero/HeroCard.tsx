@@ -1,5 +1,6 @@
 import type { Hero } from '../../types'
 import { HeroPortrait } from '../ui/HeroPortrait'
+import { Tooltip } from '../ui/Tooltip'
 
 interface HeroCardProps {
   hero: Hero
@@ -107,19 +108,22 @@ export function HeroCard({ hero, onClick, selected }: HeroCardProps) {
             {hero.race.name} · {hero.class.name}
           </div>
           {hero.trait && (
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 4,
-              background: '#2d0a0a',
-              border: '1px solid #7f1d1d',
-              borderRadius: 4,
-              padding: '2px 7px',
-              fontSize: 11,
-              color: '#fca5a5',
-            }}>
-              ⚠ {hero.trait.name}
-            </div>
+            <Tooltip content={hero.trait.description} position="bottom">
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                background: '#2d0a0a',
+                border: '1px solid #7f1d1d',
+                borderRadius: 4,
+                padding: '2px 7px',
+                fontSize: 11,
+                color: '#fca5a5',
+                cursor: 'help',
+              }}>
+                ⚠ {hero.trait.name}
+              </div>
+            </Tooltip>
           )}
         </div>
       </div>

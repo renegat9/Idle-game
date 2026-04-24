@@ -3,6 +3,15 @@ import { questApi } from '../api/game'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
 import { RarityBadge } from '../components/hero/RarityBadge'
 import { GameButton } from '../components/ui/GameButton'
+import { Tooltip } from '../components/ui/Tooltip'
+
+const EFFECT_TOOLTIPS: Record<string, string> = {
+  buff:        'Amélioration temporaire des statistiques d\'un ou plusieurs héros.',
+  debuff:      'Réduction temporaire des statistiques d\'un ou plusieurs héros.',
+  gold:        'Or gagné ou perdu suite à ce choix.',
+  reputation:  'Points de réputation gagnés dans la zone actuelle.',
+  loot:        'Objet récupéré en récompense.',
+}
 import { GamePanel } from '../components/ui/GamePanel'
 import { StatBar } from '../components/ui/StatBar'
 import type { DailyQuest } from '../types'
@@ -151,13 +160,15 @@ export function QuestPage() {
           {result.effects_applied?.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
               {result.effects_applied.map((e: any, i: number) => (
-                <span key={i} style={{ background: '#1a0733', border: '1px solid #4c1d95', borderRadius: 4, padding: '2px 7px', fontSize: 11, color: '#a78bfa' }}>
-                  {e.type === 'buff' && `🔺 ${e.id}`}
-                  {e.type === 'debuff' && `🔻 ${e.id}`}
-                  {e.type === 'gold' && `💰 ${e.amount > 0 ? '+' : ''}${e.amount}`}
-                  {e.type === 'reputation' && `⭐ +${e.amount}`}
-                  {e.type === 'loot' && `🎁 ${e.item_name}`}
-                </span>
+                <Tooltip key={i} content={EFFECT_TOOLTIPS[e.type] ?? e.type}>
+                  <span style={{ background: '#1a0733', border: '1px solid #4c1d95', borderRadius: 4, padding: '2px 7px', fontSize: 11, color: '#a78bfa', cursor: 'help' }}>
+                    {e.type === 'buff' && `🔺 ${e.id}`}
+                    {e.type === 'debuff' && `🔻 ${e.id}`}
+                    {e.type === 'gold' && `💰 ${e.amount > 0 ? '+' : ''}${e.amount}`}
+                    {e.type === 'reputation' && `⭐ +${e.amount}`}
+                    {e.type === 'loot' && `🎁 ${e.item_name}`}
+                  </span>
+                </Tooltip>
               ))}
             </div>
           )}

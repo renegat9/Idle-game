@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react'
 import { worldBossApi } from '../api/game'
+import { Tooltip } from '../components/ui/Tooltip'
+
+const MECHANIC_DESCRIPTIONS: Record<string, string> = {
+  enrage:       'En dessous de 30% de HP, le boss entre en rage : ses dégâts sont doublés et il attaque plus fréquemment.',
+  shield_phase: 'Périodiquement, le boss génère un bouclier magique qui absorbe tous les dégâts jusqu\'à ce qu\'il soit brisé par des attaques concentrées.',
+}
 
 type WorldBoss = {
   id: number
@@ -143,11 +149,16 @@ export function WorldBossPage() {
               {status.active_boss!.description && (
                 <p className="flavor-text" style={{ margin: '0 0 8px' }}>{status.active_boss!.description}</p>
               )}
-              {status.active_boss!.special_mechanic && (
-                <span style={{ color: '#f59e0b', fontSize: 12, background: '#1a0d00', padding: '3px 10px', borderRadius: 4, border: '1px solid #b45309' }}>
-                  ⚡ {status.active_boss!.special_mechanic}
-                </span>
-              )}
+              {status.active_boss!.special_mechanic && (() => {
+                const mechanic = status.active_boss!.special_mechanic!
+                const desc = MECHANIC_DESCRIPTIONS[mechanic]
+                const tag = (
+                  <span style={{ color: '#f59e0b', fontSize: 12, background: '#1a0d00', padding: '3px 10px', borderRadius: 4, border: '1px solid #b45309', cursor: desc ? 'help' : 'default' }}>
+                    ⚡ {mechanic}
+                  </span>
+                )
+                return desc ? <Tooltip content={desc}>{tag}</Tooltip> : tag
+              })()}
             </div>
             <span style={{
               color: status.active_boss!.status === 'defeated' ? '#6b7280' : '#ef4444',

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { heroApi, talentApi } from '../api/game'
 import { GameButton } from '../components/ui/GameButton'
 import { GamePanel } from '../components/ui/GamePanel'
+import { Tooltip } from '../components/ui/Tooltip'
 
 type Hero = {
   id: number
@@ -55,10 +56,10 @@ const BRANCH_BG = {
   defaut:    '#1a0f00',
 }
 
-const TYPE_BADGES: Record<string, { label: string; color: string }> = {
-  passif:  { label: 'Passif',   color: '#9ca3af' },
-  actif:   { label: 'Actif',    color: '#22c55e' },
-  reactif: { label: 'Réactif',  color: '#f59e0b' },
+const TYPE_BADGES: Record<string, { label: string; color: string; desc: string }> = {
+  passif:  { label: 'Passif',  color: '#9ca3af', desc: 'Toujours actif sans action requise. Le bonus s\'applique en permanence.' },
+  actif:   { label: 'Actif',   color: '#22c55e', desc: 'Doit être déclenché manuellement en combat pour produire son effet.' },
+  reactif: { label: 'Réactif', color: '#f59e0b', desc: 'Se déclenche automatiquement en réaction à un événement spécifique (coup critique, fuite, etc.).' },
 }
 
 export function TalentsPage() {
@@ -160,12 +161,14 @@ export function TalentsPage() {
                         {talent.is_unlocked ? '✓ ' : ''}{talent.name}
                       </span>
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0, marginLeft: 6 }}>
-                        <span style={{
-                          color: TYPE_BADGES[talent.talent_type]?.color ?? '#9ca3af',
-                          fontSize: 10, background: '#0d1117', padding: '1px 5px', borderRadius: 3,
-                        }}>
-                          {TYPE_BADGES[talent.talent_type]?.label}
-                        </span>
+                        <Tooltip content={TYPE_BADGES[talent.talent_type]?.desc ?? ''}>
+                          <span style={{
+                            color: TYPE_BADGES[talent.talent_type]?.color ?? '#9ca3af',
+                            fontSize: 10, background: '#0d1117', padding: '1px 5px', borderRadius: 3, cursor: 'help',
+                          }}>
+                            {TYPE_BADGES[talent.talent_type]?.label}
+                          </span>
+                        </Tooltip>
                         {!talent.is_unlocked && (
                           <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 700 }}>{talent.cost}pt</span>
                         )}
