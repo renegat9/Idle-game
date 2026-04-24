@@ -40,6 +40,7 @@ class TavernController extends Controller
         private readonly SettingsService $settings,
         private readonly NarratorService $narrator,
         private readonly GeminiService $gemini,
+        private readonly \App\Services\ConsumableService $consumables,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -90,10 +91,24 @@ class TavernController extends Controller
             }
         }
 
+        $consumableCatalog = DB::table('consumables')
+            ->orderByRaw("CASE rarity WHEN 'commun' THEN 1 WHEN 'peu_commun' THEN 2 WHEN 'rare' THEN 3 ELSE 4 END")
+            ->orderBy('buy_price')
+            ->get()
+            ->map(fn($c) => (array) $c)
+            ->values();
+
+        $userConsumables = DB::table('user_consumables')
+            ->where('user_id', $user->id)
+            ->where('quantity', '>', 0)
+            ->pluck('quantity', 'consumable_slug');
+
         return response()->json([
-            'recruits'    => $recruits->values(),
-            'hero_debuffs'=> $heroDebuffs,
-            'narrator_comment' => $this->narrator->getComment('tavern_visited', []),
+            'recruits'          => $recruits->values(),
+            'hero_debuffs'      => $heroDebuffs,
+            'consumables'       => $consumableCatalog,
+            'owned_quantities'  => $userConsumables,
+            'narrator_comment'  => $this->narrator->getComment('tavern_visited', []),
         ]);
     }
 
@@ -227,6 +242,56 @@ class TavernController extends Controller
         return response()->json([
             'message'    => 'Debuff retiré. Gérard a fait brûler des herbes. Ça sentait mauvais.',
             'gold_spent' => $cost,
+        ]);
+    }
+
+    public function buyConsumable(Request $request, string $slug): JsonResponse
+    {
+        $user = $request->user();
+
+        $consumable = DB::table('consumables')->where('slug', $slug)->first();
+        if (!$consumable) {
+            return response()->json(['message' => 'Consommable introuvable.'], 404);
+        }
+
+        $price = (int) $consumable->buy_price;
+        if ($user->gold < $price) {
+            return response()->json([
+                'message' => "Or insuffisant. Prix : {$price} or, vous avez : {$user->gold} or.",
+            ], 422);
+        }
+
+        $existing = DB::table('user_consumables')
+            ->where('user_id', $user->id)
+            ->where('consumable_slug', $slug)
+            ->first();
+
+        $stackMax = (int) $consumable->stack_max;
+        if ($existing && (int) $existing->quantity >= $stackMax) {
+            return response()->json([
+                'message' => "Stock maximum atteint ({$stackMax}) pour {$consumable->name}.",
+            ], 422);
+        }
+
+        DB::transaction(function () use ($user, $consumable, $slug, $price) {
+            $user->decrement('gold', $price);
+            $this->consumables->addToInventory($user, $slug, 1);
+
+            DB::table('economy_log')->insert([
+                'user_id'          => $user->id,
+                'transaction_type' => 'depense',
+                'source'           => 'achat_consommable',
+                'amount'           => $price,
+                'balance_after'    => $user->gold - $price,
+                'description'      => 'Acheté : ' . $consumable->name,
+            ]);
+        });
+
+        $user->refresh();
+
+        return response()->json([
+            'message'   => "{$consumable->name} acheté !",
+            'new_gold'  => $user->gold,
         ]);
     }
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { tavernApi, musicApi } from '../api/game'
 import { useGameStore } from '../store/gameStore'
+import { useAuthStore } from '../store/authStore'
 import { NarratorBubble } from '../components/narrator/NarratorBubble'
 import { HeroPortrait } from '../components/ui/HeroPortrait'
 import { GameButton } from '../components/ui/GameButton'
@@ -20,11 +21,35 @@ type Recruit = {
   trait: { id: number; name: string; description: string }
 }
 
+type Consumable = {
+  slug: string
+  name: string
+  description: string
+  flavor_text: string
+  effect_type: string
+  effect_value: number
+  duration_turns: number
+  rarity: string
+  buy_price: number
+  sell_value: number
+  stack_max: number
+}
+
 type HeroDebuffs = {
   hero_id: number
   hero_name: string
   removal_cost: number
   debuffs: Array<{ id: number; source: string; stat_affected: string; modifier_percent: number; remaining_combats: number }>
+}
+
+const RARITY_COLOR: Record<string, string> = {
+  commun: '#9ca3af', peu_commun: '#22c55e', rare: '#3b82f6', epique: '#a855f7', legendaire: '#f59e0b',
+}
+
+const EFFECT_ICON: Record<string, string> = {
+  heal_hp: '❤️', restore_hp_pct: '💖', xp_boost: '✨', gold_boost: '💰',
+  cure_debuff: '🧹', cure_poison: '🍃', buff_atq_pct: '⚔️', buff_def_pct: '🛡️',
+  buff_vit_pct: '💨', guaranteed_flee: '🏃', repair_durability: '🔧', dungeon_torch: '🔦',
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -38,11 +63,15 @@ const STYLE_LABELS: Record<string, string> = {
 
 export function TavernPage() {
   useGameStore()
+  const { updateUser } = useAuthStore()
   const [recruits, setRecruits] = useState<Recruit[]>([])
   const [heroDebuffs, setHeroDebuffs] = useState<HeroDebuffs[]>([])
+  const [consumables, setConsumables] = useState<Consumable[]>([])
+  const [ownedQty, setOwnedQty] = useState<Record<string, number>>({})
   const [narratorComment, setNarratorComment] = useState('')
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
+  const [buyingSlug, setBuyingSlug] = useState<string | null>(null)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
   const [currentTrack, setCurrentTrack] = useState<{ style: string; context: string; file_path: string } | null>(null)
   const [selectedStyle, setSelectedStyle] = useState<string>('taverne')
@@ -59,6 +88,8 @@ export function TavernPage() {
       const { data } = await tavernApi.get()
       setRecruits(data.recruits ?? [])
       setHeroDebuffs(data.hero_debuffs ?? [])
+      setConsumables(data.consumables ?? [])
+      setOwnedQty(data.owned_quantities ?? {})
       setNarratorComment(data.narrator_comment ?? '')
     } catch { /* ok */ }
     setLoading(false)
@@ -76,6 +107,21 @@ export function TavernPage() {
       setMessage({ text: e.response?.data?.message ?? 'Erreur', ok: false })
     }
     setActing(false)
+  }
+
+  async function buyConsumable(slug: string) {
+    if (buyingSlug) return
+    setBuyingSlug(slug)
+    setMessage(null)
+    try {
+      const { data } = await tavernApi.buyConsumable(slug)
+      setMessage({ text: data.message, ok: true })
+      updateUser({ gold: data.new_gold })
+      await loadTavern()
+    } catch (e: any) {
+      setMessage({ text: e.response?.data?.message ?? 'Erreur', ok: false })
+    }
+    setBuyingSlug(null)
   }
 
   async function removeDebuff(heroId: number, buffId: number) {
@@ -270,6 +316,59 @@ export function TavernPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Consumable shop */}
+      {consumables.length > 0 && (
+        <div style={{ marginBottom: 32 }}>
+          <h2 className="game-title" style={{ fontSize: 18, marginBottom: 14 }}>🧪 Potions & consommables</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+            {consumables.map((c) => {
+              const owned = ownedQty[c.slug] ?? 0
+              const atMax = owned >= c.stack_max
+              return (
+                <div key={c.slug} className={`game-panel rarity-frame rarity-frame-${c.rarity}`}>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                      <div className="game-title" style={{ fontSize: 14, color: '#f9fafb' }}>
+                        {EFFECT_ICON[c.effect_type] ?? '🧴'} {c.name}
+                      </div>
+                      {owned > 0 && (
+                        <span style={{ background: '#1f2937', color: '#f9fafb', borderRadius: 20, padding: '2px 10px', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-title)' }}>
+                          ×{owned}
+                        </span>
+                      )}
+                    </div>
+                    <span style={{
+                      display: 'inline-block', marginBottom: 8,
+                      color: RARITY_COLOR[c.rarity] ?? '#9ca3af',
+                      background: '#0d1117', padding: '2px 8px', borderRadius: 4, fontSize: 10,
+                      fontFamily: 'var(--font-title)', textTransform: 'uppercase', letterSpacing: '0.05em',
+                    }}>
+                      {c.rarity.replace('_', ' ')}
+                    </span>
+                    <p style={{ color: '#9ca3af', fontSize: 12, margin: '0 0 4px' }}>{c.description}</p>
+                    {c.flavor_text && (
+                      <p style={{ color: '#4b5563', fontSize: 11, fontStyle: 'italic', margin: '0 0 10px' }}>« {c.flavor_text} »</p>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #1f2937', paddingTop: 10 }}>
+                      <span style={{ color: '#fbbf24', fontSize: 13, fontWeight: 700 }}>💰 {c.buy_price} or</span>
+                      <GameButton
+                        variant="gold"
+                        size="sm"
+                        onClick={() => buyConsumable(c.slug)}
+                        loading={buyingSlug === c.slug}
+                        disabled={atMax || buyingSlug !== null}
+                      >
+                        {atMax ? 'Plein' : 'Acheter'}
+                      </GameButton>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 

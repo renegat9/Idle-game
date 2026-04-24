@@ -76,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/tavern/music', [TavernController::class, 'music']);
     Route::post('/tavern/hire/{recruitId}', [TavernController::class, 'hire']);
     Route::post('/tavern/remove-debuff', [TavernController::class, 'removeDebuff']);
+    Route::post('/tavern/consumables/{slug}/buy', [TavernController::class, 'buyConsumable']);
 
     // Boutique
     Route::get('/shop', [ShopController::class, 'index']);

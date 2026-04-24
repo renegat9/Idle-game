@@ -69,6 +69,8 @@ export const tavernApi = {
     apiClient.post<any>('/tavern/remove-debuff', { hero_id: heroId, buff_id: buffId }),
   music: (style?: string) =>
     apiClient.get<{ style: string; file_path: string; prompt: string }>('/tavern/music', { params: style ? { style } : {} }),
+  buyConsumable: (slug: string) =>
+    apiClient.post<{ message: string; new_gold: number }>(`/tavern/consumables/${slug}/buy`),
 }
 
 export const reputationApi = {
