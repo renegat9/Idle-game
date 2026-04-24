@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 import { useGameStore } from '../../store/gameStore'
@@ -24,6 +25,7 @@ export function AppShell() {
   const { user, logout } = useAuthStore()
   const { gold, unreadEventsCount, narratorComment, isExploring, currentZoneName } = useGameStore()
   const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   usePolling(15000)
 
@@ -34,16 +36,34 @@ export function AppShell() {
 
   const displayGold = (gold || user?.gold || 0).toLocaleString()
 
+  const closeSidebar = () => setSidebarOpen(false)
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0f' }}>
 
+      {/* ── Mobile overlay ── */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={closeSidebar}
+          aria-hidden
+        />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="sidebar">
+      <aside className={`sidebar${sidebarOpen ? ' sidebar-open' : ''}`}>
 
         {/* Logo */}
-        <div className="sidebar-logo">
-          <div style={{ fontSize: 22, marginBottom: 6 }}>🏰</div>
-          <div className="sidebar-logo-text">Le Donjon<br />des Incompétents</div>
+        <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div>
+            <div style={{ fontSize: 22, marginBottom: 6 }}>🏰</div>
+            <div className="sidebar-logo-text">Le Donjon<br />des Incompétents</div>
+          </div>
+          <button
+            className="sidebar-close-btn"
+            onClick={closeSidebar}
+            aria-label="Fermer le menu"
+          >✕</button>
         </div>
 
         {/* Resources */}
@@ -79,6 +99,7 @@ export function AppShell() {
                 key={to}
                 to={to}
                 className={`sidebar-nav-link${isActive ? ' active' : ''}`}
+                onClick={closeSidebar}
               >
                 <span className="nav-icon">{icon}</span>
                 <span>{label}</span>
@@ -124,6 +145,20 @@ export function AppShell() {
 
       {/* ── Main Content ── */}
       <main className="main-content" style={{ flex: 1, position: 'relative' }}>
+        {/* Mobile top bar */}
+        <div className="mobile-topbar">
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Ouvrir le menu"
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+          <div className="sidebar-logo-text" style={{ fontSize: 12 }}>Le Donjon des Incompétents</div>
+          <span style={{ color: '#fbbf24', fontSize: 13, fontWeight: 600 }}>{displayGold} 💰</span>
+        </div>
         <PageBackground pathname={location.pathname} />
         <div className="page-container" style={{ position: 'relative', zIndex: 1 }}>
           <Outlet />

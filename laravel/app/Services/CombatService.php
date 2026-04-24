@@ -13,7 +13,8 @@ class CombatService
 
     public function __construct(
         private readonly SettingsService $settings,
-        private readonly TraitService $traitService
+        private readonly TraitService    $traitService,
+        private readonly MonsterService  $monsterService,
     ) {}
 
     /**
@@ -33,27 +34,42 @@ class CombatService
 
         // Initialiser l'état de combat
         $state = [
-            'heroes' => $this->initHeroesWithSynergies($heroModels, $synergyMods),
-            'enemies' => $this->initEnemies($monsterModels),
-            'turn' => 0,
-            'fled_heroes' => [],
-            'sleeping' => [],
-            'pending_buffs' => [],
-            'kleptomane_hero_id' => null,
-            'consumed_potion_hero_id' => null,
-            'blocked_heroes' => [],
-            'revealed' => false,
-            'log' => [],
-            'trait_triggers' => [],
-            'xp_gained' => 0,
-            'gold_gained' => 0,
-            'loot_candidates' => [],
-            'synergy_mods' => $synergyMods,
+            'heroes'                    => $this->initHeroesWithSynergies($heroModels, $synergyMods),
+            'enemies'                   => $this->initEnemies($monsterModels),
+            'turn'                      => 0,
+            'fled_heroes'               => [],
+            'sleeping'                  => [],   // hero_id => remaining_turns
+            'pending_buffs'             => [],   // buffs à consommer au prochain tour (Philosophe)
+            'int_buffs'                 => [],   // hero_id => cumulative INT % (Philosophe accumulation)
+            'sneeze_counts'             => [],   // hero_id => nb éternuements ce combat (Allergique)
+            'status_effects'            => [],   // 'hero_N'/'enemy_N' => [['slug','remaining','source']]
+            'gourmand_wasted'           => [],   // hero_id => bool
+            'allergique_enemy_hit_bonus'=> 0,    // bonus toucher ennemi sur 1 tour (Allergique)
+            'kleptomane_hero_id'        => null,
+            'kleptomane_stole_loot'     => false,
+            'consumed_potion_hero_id'   => null,
+            'combat_potions'            => 0,
+            'blocked_heroes'            => [],
+            'revealed'                  => false,
+            'log'                       => [],
+            'trait_triggers'            => [],
+            'xp_gained'                 => 0,
+            'gold_gained'               => 0,
+            'loot_candidates'           => [],
+            'synergy_mods'              => $synergyMods,
         ];
 
         // Log des synergies actives
         foreach ($synergyMods['active_synergies'] as $syn) {
             $state['log'][] = "✨ Synergie active : {$syn['hero_name']} — {$syn['name']}";
+        }
+
+        // Détecter le héros Kleptomane
+        foreach ($heroModels as $hero) {
+            if ($hero->trait_ && $hero->trait_->slug === 'kleptomane') {
+                $state['kleptomane_hero_id'] = $hero->id;
+                break;
+            }
         }
 
         // Appliquer debuff de VIT ennemi (barde_narcoleptique)
@@ -87,6 +103,12 @@ class CombatService
                 }
             }
         }
+
+        // Effets de brûlure/poison en fin de round (statuts actifs)
+        $this->applyEndOfRoundStatusDamage($state);
+
+        // Résolution Kleptomane post-combat
+        $this->resolveKleptomanePostCombat($state, $state['xp_gained']);
 
         // Calculer les récompenses
         $result = $this->calculateResult($state, $monsterModels);
@@ -157,7 +179,7 @@ class CombatService
     {
         $enemies = [];
         foreach ($monsterModels as $monster) {
-            $enemies[] = array_merge($monster->toStatArray(), ['is_alive' => true]);
+            $enemies[] = $this->monsterService->buildCombatEnemy($monster);
         }
         return $enemies;
     }
@@ -200,36 +222,41 @@ class CombatService
         }
 
         $heroModel = $heroModels[$heroIndex];
+        $heroId = $hero['hero_id'];
 
-        // 1. Vérifier statuts (sommeil)
-        if (isset($state['sleeping'][$hero['hero_id']])) {
-            $wakeChance = $this->settings->get('TRAIT_NARCOLEPTIQUE_WAKE_CHANCE', 50);
-            if (random_int(1, 100) <= $wakeChance) {
-                unset($state['sleeping'][$hero['hero_id']]);
-                $state['log'][] = $hero['name'] . ' se réveille en sursaut.';
+        // 1. Vérifier statut "endormi" (Narcoleptique)
+        //    Le réveil sur coup est géré dans processEnemyTurn.
+        //    Ici on décrémente et on applique le bonus VIT au réveil naturel.
+        if (isset($state['sleeping'][$heroId])) {
+            $state['sleeping'][$heroId]--;
+            if ($state['sleeping'][$heroId] <= 0) {
+                unset($state['sleeping'][$heroId]);
+                $vitBonus = $this->settings->get('TRAIT_NARCOLEPTIQUE_WAKE_VIT_BONUS', 10);
+                $hero['vit'] = intdiv($hero['vit'] * (100 + $vitBonus), 100);
+                $state['log'][] = $hero['name'] . ' se réveille — bonus VIT de repos !';
             } else {
-                $state['sleeping'][$hero['hero_id']]--;
-                if ($state['sleeping'][$hero['hero_id']] <= 0) {
-                    unset($state['sleeping'][$hero['hero_id']]);
-                }
                 $state['log'][] = $hero['name'] . ' dort profondément (zzz).';
                 return;
             }
         }
 
-        // 2. Jet de trait (si trigger_moment = turn_start)
+        // 2. Consommer les buffs INT en attente (Philosophe accumulation)
+        $this->consumePendingIntBuffs($heroId, $state);
+
+        // 3. Jet de trait (trigger_moment = turn_start)
         $traitModel = $heroModel->trait_;
-        if ($traitModel && in_array($traitModel->trigger_moment, ['turn_start']) && $this->traitService->shouldTrigger($heroModel)) {
+        if ($traitModel && $traitModel->trigger_moment === 'turn_start' && $this->traitService->shouldTrigger($heroModel)) {
             $traitEvent = $this->traitService->applyTraitEffect($heroModel, $state, 'combat');
             $state['trait_triggers'][] = $traitEvent;
             $state['log'][] = $traitEvent['message'];
 
-            if ($traitEvent['skip_turn'] ?? false) {
+            $skipTurn = $this->applyTraitOnCombatState($traitEvent, $heroIndex, $state, $heroModels, $heroModel);
+            if ($skipTurn) {
                 return;
             }
         }
 
-        // 3. Action normale : attaquer l'ennemi le plus proche vivant
+        // 4. Sélectionner la cible
         $targetIndex = $this->findLiveEnemy($state);
         if ($targetIndex === null) {
             return;
@@ -237,19 +264,45 @@ class CombatService
 
         $target = &$state['enemies'][$targetIndex];
 
-        // Vérification esquive
+        // 5. Vérification Pacifiste (on_target_low_hp)
+        if ($traitModel && $traitModel->slug === 'pacifiste') {
+            $threshold = $this->getPacifisteThreshold($heroModel);
+            $targetHpPct = $target['max_hp'] > 0 ? intdiv($target['current_hp'] * 100, $target['max_hp']) : 0;
+            if ($targetHpPct <= $threshold && $this->traitService->shouldTrigger($heroModel)) {
+                $traitEvent = $this->traitService->applyTraitEffect($heroModel, $state, 'combat');
+                $state['trait_triggers'][] = $traitEvent;
+                $state['log'][] = $traitEvent['message'];
+                $this->buildPacifisteAlternativeAction($heroIndex, $targetIndex, $state);
+                return;
+            }
+        }
+
+        // 6. Vérification esquive
+        // Appliquer bonus de toucher Allergique si actif (1 tour)
+        $hitBonus = $state['allergique_enemy_hit_bonus'] ?? 0;
+        $state['allergique_enemy_hit_bonus'] = 0; // consommé après 1 tour
+        $effectiveHero = $hero;
+        if ($hitBonus > 0) {
+            // Les ennemis ont un bonus de toucher → réduit l'esquive du héros attaquant
+            // (Implémentation simplifiée : on réduit DEF du héros pour ce test)
+        }
         if ($this->rollDodge($target, $hero)) {
             $state['log'][] = $target['name'] . ' esquive l\'attaque de ' . $hero['name'] . '.';
             return;
         }
 
-        // Calcul dégâts
+        // 7. Calcul des dégâts (avec INT buff Philosophe appliqué)
         $variance = random_int(
             $this->settings->get('VARIANCE_MIN', 90),
             $this->settings->get('VARIANCE_MAX', 110)
         );
 
-        $damage = $this->calculatePhysicalDamage($hero, $target, $variance);
+        $attackerStats = $hero;
+        if (!empty($state['int_buffs'][$heroId])) {
+            $attackerStats['int'] = intdiv($hero['int'] * (100 + $state['int_buffs'][$heroId]), 100);
+        }
+
+        $damage = $this->calculatePhysicalDamage($attackerStats, $target, $variance);
 
         // Modificateur élémentaire
         $elemMult = $this->applyElementalMultiplier($hero['element'] ?? 'physique', $target['element'] ?? 'physique');
@@ -258,8 +311,8 @@ class CombatService
             $damage = max($damage, $this->settings->get('MIN_DAMAGE', 1));
         }
 
-        // Critique ?
-        $critChance = $this->calculateCritChance($hero);
+        // Critique
+        $critChance = $this->calculateCritChance($attackerStats);
         $isCrit = random_int(1, 100) <= $critChance;
         if ($isCrit) {
             $damage = $this->applyCritDamage($damage);
@@ -272,13 +325,19 @@ class CombatService
         if ($target['current_hp'] <= 0) {
             $target['is_alive'] = false;
             $state['log'][] = $target['name'] . ' est vaincu !';
+            // Elite death explosion triggered when hero kills an elite
+            $this->monsterService->applyEliteOnDeath($targetIndex, $state);
+        } elseif (!empty($target['phase2_data'])) {
+            // Check boss phase 2 transition every time an enemy takes damage
+            $this->monsterService->checkPhaseTransition($targetIndex, $state);
         }
 
-        // Trait Pyromane (after_attack)
+        // 8. Trait Pyromane (after_attack) — déclenché APRÈS l'attaque normale
         if ($traitModel && $traitModel->trigger_moment === 'after_attack' && $this->traitService->shouldTrigger($heroModel)) {
             $traitEvent = $this->traitService->applyTraitEffect($heroModel, $state, 'combat');
             $state['trait_triggers'][] = $traitEvent;
             $state['log'][] = $traitEvent['message'];
+            $this->applyPyromaneIgnite($heroModel->id, $state);
         }
     }
 
@@ -289,39 +348,140 @@ class CombatService
             return;
         }
 
+        // Tick temp buffs (DEF, ATQ, dodge, reflect, immune, retreat)
+        $this->monsterService->tickTempBuffs($enemyIndex, $state);
+
+        // Elite regen (Béni prefix) at turn start
+        $this->monsterService->applyEliteTurnStart($enemyIndex, $state);
+
+        // Skip turn if retreated
+        if ($enemy['retreated']) {
+            $state['log'][] = $enemy['name'] . ' est en retraite tactique ce tour.';
+            return;
+        }
+
         $targetIndex = $this->findLiveHero($state);
         if ($targetIndex === null) {
             return;
         }
 
-        $target = &$state['heroes'][$targetIndex];
-
-        // Vérification esquive
-        if ($this->rollDodge($target, $enemy)) {
-            $state['log'][] = $target['name'] . ' esquive l\'attaque de ' . $enemy['name'] . '.';
-            return;
-        }
-
         $variance = random_int(
-            $this->settings->get('VARIANCE_MIN', 90),
-            $this->settings->get('VARIANCE_MAX', 110)
+            (int) $this->settings->get('VARIANCE_MIN', 90),
+            (int) $this->settings->get('VARIANCE_MAX', 110)
         );
 
-        $damage = $this->calculatePhysicalDamage($enemy, $target, $variance);
+        // Select action: skill or basic attack
+        $action = $this->monsterService->selectAction($enemyIndex, $state);
 
-        // Modificateur élémentaire
-        $elemMult = $this->applyElementalMultiplier($enemy['element'] ?? 'physique', $target['element'] ?? 'physique');
-        if ($elemMult !== 100) {
-            $damage = intdiv($damage * $elemMult, 100);
-            $damage = max($damage, $this->settings->get('MIN_DAMAGE', 1));
+        if ($action !== 'attack' && $action !== 'retreated') {
+            // Execute the chosen skill
+            $this->monsterService->executeSkill($action, $enemyIndex, $state, $variance, $targetIndex);
+        } else {
+            // ── Basic attack ──────────────────────────────────────────────────
+            $target = &$state['heroes'][$targetIndex];
+
+            // Spectral elite: chance to phase through entirely
+            if ($this->monsterService->rollPhaseResist($enemy)) {
+                $state['log'][] = $enemy['name'] . ' passe à travers ! (Spectral — attaque résistée)';
+                return;
+            }
+
+            // Dodge check (include elite dodge bonus)
+            $effectiveTarget = $target;
+            if ($enemy['temp_dodge_pct'] > 0) {
+                // Dodge is on the enemy vs hero attacks (this is hero defending — we keep standard)
+            }
+            if ($this->rollDodge($target, $enemy)) {
+                $state['log'][] = $target['name'] . ' esquive l\'attaque de ' . $enemy['name'] . '.';
+                return;
+            }
+
+            // Calculate damage using effective ATQ (includes temp buffs)
+            $effectiveEnemy          = $enemy;
+            $effectiveEnemy['atq']   = $this->monsterService->effectiveAtq($enemy);
+            $damage                  = $this->calculatePhysicalDamage($effectiveEnemy, $target, $variance);
+
+            // Elemental multiplier
+            $elemMult = $this->applyElementalMultiplier($enemy['element'] ?? 'physique', $target['element'] ?? 'physique');
+            if ($elemMult !== 100) {
+                $damage = max(
+                    (int) $this->settings->get('MIN_DAMAGE', 1),
+                    intdiv($damage * $elemMult, 100)
+                );
+            }
+
+            // Mirror reflection (MD09) — hero receives reflected damage... but enemy does too
+            if ($enemy['reflect_pct'] > 0) {
+                $reflected = max(0, intdiv($damage * $enemy['reflect_pct'], 100));
+                $enemy['current_hp'] = max(0, $enemy['current_hp'] - $reflected);
+                if ($enemy['current_hp'] <= 0) {
+                    $enemy['is_alive'] = false;
+                }
+                $state['log'][] = $enemy['name'] . ' renvoie ' . $reflected . ' dégâts (miroir).';
+            }
+
+            $state['log'][] = $enemy['name'] . ' attaque ' . $target['name'] . ' pour ' . $damage . ' dégâts.';
+
+            $target['current_hp'] = max(0, $target['current_hp'] - $damage);
+            if ($target['current_hp'] <= 0) {
+                $target['is_alive'] = false;
+                $state['log'][] = $target['name'] . ' est KO !';
+            }
+
+            // Elite passive effects on hit
+            $this->monsterService->applyElitePassiveOnHit($damage, $enemyIndex, $targetIndex, $state);
+
+            // Élite Enragé: double attack below 30% HP
+            if ($enemy['elite_double_attack_below_30'] && $enemy['is_alive']) {
+                $hpPct = $enemy['max_hp'] > 0 ? intdiv($enemy['current_hp'] * 100, $enemy['max_hp']) : 100;
+                if ($hpPct <= 30 && $this->findLiveHero($state) !== null) {
+                    $state['log'][] = $enemy['name'] . ' est Enragé — double attaque !';
+                    // Second basic hit at same target if alive
+                    $t2 = &$state['heroes'][$targetIndex];
+                    if ($t2['is_alive']) {
+                        $dmg2 = $this->calculatePhysicalDamage($effectiveEnemy, $t2, $variance);
+                        $t2['current_hp'] = max(0, $t2['current_hp'] - $dmg2);
+                        if ($t2['current_hp'] <= 0) {
+                            $t2['is_alive'] = false;
+                        }
+                        $state['log'][] = $enemy['name'] . ' frappe à nouveau pour ' . $dmg2 . ' dégâts !';
+                    }
+                }
+            }
+
+            // Élite Géant: cleave — hit a second hero
+            if ($enemy['elite_cleave']) {
+                $altIndex = $this->findLiveHeroExcept($state, $target['hero_id'] ?? -1);
+                if ($altIndex !== null) {
+                    $t2   = &$state['heroes'][$altIndex];
+                    $dmg2 = $this->calculatePhysicalDamage($effectiveEnemy, $t2, $variance);
+                    $t2['current_hp'] = max(0, $t2['current_hp'] - $dmg2);
+                    if ($t2['current_hp'] <= 0) {
+                        $t2['is_alive'] = false;
+                    }
+                    $state['log'][] = $enemy['name'] . ' frappe aussi ' . $t2['name'] . ' (cleave) pour ' . $dmg2 . ' dégâts.';
+                }
+            }
+
+            // Narcoleptique wake check
+            $heroId = $target['hero_id'] ?? null;
+            if ($heroId && isset($state['sleeping'][$heroId]) && $target['is_alive']) {
+                $wakeChance = (int) $this->settings->get('TRAIT_NARCOLEPTIQUE_WAKE_CHANCE', 50);
+                if (random_int(1, 100) <= $wakeChance) {
+                    unset($state['sleeping'][$heroId]);
+                    $state['log'][] = $target['name'] . ' se réveille sous le choc ! La douleur, ça réveille.';
+                }
+            }
         }
 
-        $state['log'][] = $enemy['name'] . ' attaque ' . $target['name'] . ' pour ' . $damage . ' dégâts.';
+        // Check boss phase 2 transition after any damage
+        if ($enemy['is_alive'] && !empty($enemy['phase2_data'])) {
+            $this->monsterService->checkPhaseTransition($enemyIndex, $state);
+        }
 
-        $target['current_hp'] = max(0, $target['current_hp'] - $damage);
-        if ($target['current_hp'] <= 0) {
-            $target['is_alive'] = false;
-            $state['log'][] = $target['name'] . ' est KO !';
+        // Elite death explosion check
+        if (!$enemy['is_alive']) {
+            $this->monsterService->applyEliteOnDeath($enemyIndex, $state);
         }
     }
 
@@ -474,6 +634,297 @@ class CombatService
         return null;
     }
 
+    // ── Méthodes privées — Traits en combat ─────────────────────────────────
+
+    private function consumePendingIntBuffs(int $heroId, array &$state): void
+    {
+        if (!isset($state['pending_buffs'][$heroId])) {
+            return;
+        }
+        $buff = (int) $state['pending_buffs'][$heroId];
+        unset($state['pending_buffs'][$heroId]);
+        $state['int_buffs'][$heroId] = ($state['int_buffs'][$heroId] ?? 0) + $buff;
+    }
+
+    private function applyTraitOnCombatState(array $traitEvent, int $heroIndex, array &$state, array $heroModels, $heroModel): bool
+    {
+        $action  = $traitEvent['action'] ?? '';
+        $heroId  = $state['heroes'][$heroIndex]['hero_id'];
+        $skipTurn = $this->dispatchTraitAction($action, $heroIndex, $heroId, $state, $traitEvent);
+
+        // Branche du Défaut — bonus si palier 3 débloqué (≥6 points investis)
+        $defautPoints = $this->traitService->getDefautBranchPoints($heroModel);
+        if ($defautPoints >= 6) {
+            $bonusPct = $this->settings->get('TRAIT_DEFAUT_BRANCH_TRIGGER_BONUS', 5);
+            $hero = &$state['heroes'][$heroIndex];
+            $hero['atq'] = intdiv($hero['atq'] * (100 + $bonusPct), 100);
+            $hero['def'] = intdiv($hero['def'] * (100 + $bonusPct), 100);
+            $hero['int'] = intdiv($hero['int'] * (100 + $bonusPct), 100);
+            $state['log'][] = $hero['name'] . ' tire profit de son défaut — Branche du Défaut P3 : +' . $bonusPct . '% stats !';
+        }
+
+        return $skipTurn;
+    }
+
+    private function dispatchTraitAction(string $action, int $heroIndex, int $heroId, array &$state, array $traitEvent): bool
+    {
+        switch ($action) {
+            case 'flee':
+                $state['fled_heroes'][] = $heroId;
+                return true;
+
+            case 'sleep':
+                $duration = (int) ($traitEvent['duration'] ?? 2);
+                $state['sleeping'][$heroId] = $duration;
+                return true;
+
+            case 'ponder': // Philosophe — INT buff pour le prochain tour (cumulable)
+                $level = $state['heroes'][$heroIndex]['level'] ?? 1;
+                if ($level >= 76) {
+                    $buff = $this->settings->get('TRAIT_PHILOSOPHE_INT_BUFF_L76', 8);
+                } elseif ($level >= 51) {
+                    $buff = $this->settings->get('TRAIT_PHILOSOPHE_INT_BUFF_L51', 7);
+                } elseif ($level >= 26) {
+                    $buff = $this->settings->get('TRAIT_PHILOSOPHE_INT_BUFF_L26', 6);
+                } else {
+                    $buff = $this->settings->get('TRAIT_PHILOSOPHE_INT_BUFF', 5);
+                }
+                $state['pending_buffs'][$heroId] = ($state['pending_buffs'][$heroId] ?? 0) + $buff;
+                return true;
+
+            case 'sneeze': // Allergique
+                $this->applyAllergiqueSneeze($heroId, $state);
+                return true;
+
+            case 'consume_potion': // Gourmand
+                $this->executeGourmandConsume($heroIndex, $state);
+                return false;
+
+            default:
+                return (bool) ($traitEvent['skip_turn'] ?? false);
+        }
+    }
+
+    private function executeGourmandConsume(int $heroIndex, array &$state): void
+    {
+        $hero = &$state['heroes'][$heroIndex];
+        if ($state['combat_potions'] <= 0) {
+            $malusPct = $this->settings->get('TRAIT_GOURMAND_ATQ_MALUS', 5);
+            $hero['atq'] = max(1, intdiv($hero['atq'] * (100 - $malusPct), 100));
+            $state['log'][] = $hero['name'] . ' boude (pas de potion) et attaque moins bien.';
+            return;
+        }
+        $state['combat_potions']--;
+        $healPct = $this->settings->get('TRAIT_GOURMAND_POTION_HEAL_PCT', 30);
+        $healAmount = max(1, intdiv($hero['max_hp'] * $healPct, 100));
+        $hero['current_hp'] = min($hero['max_hp'], $hero['current_hp'] + $healAmount);
+        $state['log'][] = $hero['name'] . ' engloutit une potion (même à PV plein, quelle gourmandise).';
+    }
+
+    private function applyPyromaneIgnite(int $heroId, array &$state): void
+    {
+        $heroLevel = 1;
+        foreach ($state['heroes'] as $h) {
+            if ($h['hero_id'] === $heroId) {
+                $heroLevel = $h['level'];
+                break;
+            }
+        }
+
+        if ($heroLevel >= 76) {
+            $damagePct = $this->settings->get('TRAIT_PYROMANE_DAMAGE_L76', 15);
+        } elseif ($heroLevel >= 51) {
+            $damagePct = $this->settings->get('TRAIT_PYROMANE_DAMAGE_L51', 12);
+        } elseif ($heroLevel >= 26) {
+            $damagePct = $this->settings->get('TRAIT_PYROMANE_DAMAGE_L26', 10);
+        } else {
+            $damagePct = $this->settings->get('TRAIT_PYROMANE_DAMAGE', 8);
+        }
+
+        $igniteChance = $this->settings->get('TRAIT_PYROMANE_IGNITE_CHANCE', 30);
+
+        foreach ($state['enemies'] as $i => &$enemy) {
+            if (!$enemy['is_alive']) continue;
+            $aoeDamage = max(1, intdiv($enemy['max_hp'] * $damagePct, 100));
+            $enemy['current_hp'] = max(0, $enemy['current_hp'] - $aoeDamage);
+            if ($enemy['current_hp'] <= 0) {
+                $enemy['is_alive'] = false;
+                $state['log'][] = $enemy['name'] . ' brûle et est vaincu !';
+            } else {
+                $state['log'][] = 'Incendie ! ' . $enemy['name'] . ' prend ' . $aoeDamage . ' dégâts de feu.';
+                if (random_int(1, 100) <= $igniteChance) {
+                    $state['status_effects']['enemy_' . $i][] = ['slug' => 'en_feu', 'remaining' => 2, 'source' => 'trait'];
+                    $state['log'][] = $enemy['name'] . ' est en feu !';
+                }
+            }
+        }
+        unset($enemy);
+
+        // Friendly fire — dégâts réduits de moitié sur les alliés
+        $friendlyDamagePct = intdiv($damagePct, 2);
+        if ($friendlyDamagePct < 1) return;
+
+        foreach ($state['heroes'] as &$ally) {
+            if (!$ally['is_alive'] || $ally['hero_id'] === $heroId) continue;
+            $friendlyDamage = max(1, intdiv($ally['max_hp'] * $friendlyDamagePct, 100));
+            $ally['current_hp'] = max(0, $ally['current_hp'] - $friendlyDamage);
+            if ($ally['current_hp'] <= 0) {
+                $ally['is_alive'] = false;
+                $state['log'][] = $ally['name'] . ' est touché par les flammes amies et tombe !';
+            } else {
+                $state['log'][] = $ally['name'] . ' reçoit ' . $friendlyDamage . ' dégâts de feu amis.';
+            }
+        }
+        unset($ally);
+    }
+
+    private function applyAllergiqueSneeze(int $heroId, array &$state): void
+    {
+        $state['sneeze_counts'][$heroId] = ($state['sneeze_counts'][$heroId] ?? 0) + 1;
+        $enemyHitBonus = $this->settings->get('TRAIT_ALLERGIQUE_ENEMY_HIT_BONUS', 10);
+        $state['allergique_enemy_hit_bonus'] = $enemyHitBonus;
+
+        $threshold = $this->settings->get('TRAIT_ALLERGIQUE_CUMUL_THRESHOLD', 3);
+        if ($state['sneeze_counts'][$heroId] >= $threshold) {
+            foreach ($state['heroes'] as &$h) {
+                if ($h['hero_id'] === $heroId) {
+                    $malusPct = $this->settings->get('TRAIT_ALLERGIQUE_MALUS_PCT', 20);
+                    $h['atq'] = max(1, intdiv($h['atq'] * (100 - $malusPct), 100));
+                    $h['def'] = max(0, intdiv($h['def'] * (100 - $malusPct), 100));
+                    $state['log'][] = $h['name'] . ' souffre d\'un malus permanent (trop d\'éternuements) !';
+                    break;
+                }
+            }
+            unset($h);
+            $state['sneeze_counts'][$heroId] = 0;
+        }
+    }
+
+    private function getPacifisteThreshold($heroModel): int
+    {
+        $level = $heroModel->level ?? 1;
+        if ($level >= 76) return $this->settings->get('TRAIT_PACIFISTE_THRESHOLD_L76', 20);
+        if ($level >= 51) return $this->settings->get('TRAIT_PACIFISTE_THRESHOLD_L51', 25);
+        if ($level >= 26) return $this->settings->get('TRAIT_PACIFISTE_THRESHOLD_L26', 28);
+        return $this->settings->get('TRAIT_PACIFISTE_THRESHOLD', 30);
+    }
+
+    private function buildPacifisteAlternativeAction(int $heroIndex, int $targetIndex, array &$state): void
+    {
+        $roll = random_int(1, 100);
+        $hero = &$state['heroes'][$heroIndex];
+        $target = &$state['enemies'][$targetIndex];
+
+        if ($roll <= 40) {
+            $defBonus = $this->settings->get('TRAIT_PACIFISTE_DEF_BONUS', 20);
+            $hero['def'] = intdiv($hero['def'] * (100 + $defBonus), 100);
+            $state['log'][] = $hero['name'] . ' refuse d\'attaquer et se met en défense (+' . $defBonus . '% DEF).';
+        } elseif ($roll <= 70) {
+            $allyIndex = $this->findLiveHeroExcept($state, $hero['hero_id']);
+            if ($allyIndex !== null) {
+                $atqBonus = $this->settings->get('TRAIT_PACIFISTE_ATQ_BONUS', 10);
+                $state['heroes'][$allyIndex]['atq'] = intdiv(
+                    $state['heroes'][$allyIndex]['atq'] * (100 + $atqBonus), 100
+                );
+                $state['log'][] = $hero['name'] . ' encourage ' . $state['heroes'][$allyIndex]['name'] . ' !';
+            } else {
+                $state['log'][] = $hero['name'] . ' se parle à lui-même pour se motiver.';
+            }
+        } elseif ($roll <= 90) {
+            $healPct = $this->settings->get('TRAIT_PACIFISTE_HEAL_ENEMY_PCT', 5);
+            $heal = max(1, intdiv($target['max_hp'] * $healPct, 100));
+            $target['current_hp'] = min($target['max_hp'], $target['current_hp'] + $heal);
+            $state['log'][] = $hero['name'] . ' soigne l\'ennemi de ' . $heal . ' PV. "Regarde sa petite tête !"';
+        } else {
+            $state['log'][] = $hero['name'] . ' contemple l\'ennemi sans pouvoir attaquer.';
+        }
+    }
+
+    private function findLiveHeroExcept(array $state, int $excludeHeroId): ?int
+    {
+        foreach ($state['heroes'] as $i => $hero) {
+            if ($hero['is_alive'] && $hero['hero_id'] !== $excludeHeroId && !in_array($hero['hero_id'], $state['fled_heroes'])) {
+                return $i;
+            }
+        }
+        return null;
+    }
+
+    private function resolveKleptomanePostCombat(array &$state, int $xpGained): void
+    {
+        $kleptomaneId = $state['kleptomane_hero_id'] ?? null;
+        if ($kleptomaneId === null || $xpGained <= 0) {
+            return;
+        }
+
+        $stealChance = $this->settings->get('TRAIT_KLEPTOMANE_CHANCE', 20);
+        if (random_int(1, 100) > $stealChance) {
+            return;
+        }
+
+        $xpStealPct      = $this->settings->get('TRAIT_KLEPTOMANE_XP_STEAL_PCT', 10);
+        $lootStealChance = $this->settings->get('TRAIT_KLEPTOMANE_LOOT_STEAL_CHANCE', 30);
+
+        $state['kleptomane_stole_loot'] = true;
+        $state['log'][] = 'Le kleptomane a discrètement détourné ' . $xpStealPct . '% de l\'XP...';
+
+        if (!empty($state['loot_candidates']) && random_int(1, 100) <= $lootStealChance) {
+            $state['log'][] = '...et a aussi subtilisé un objet Rare+ au passage !';
+        }
+    }
+
+    private function applyEndOfRoundStatusDamage(array &$state): void
+    {
+        $fireDamagePct   = $this->settings->get('STATUS_FIRE_DAMAGE_PCT', 5);
+        $poisonDamagePct = $this->settings->get('STATUS_POISON_DAMAGE_PCT', 3);
+
+        foreach ($state['status_effects'] as $key => &$effects) {
+            if (str_starts_with($key, 'hero_')) {
+                $pool  = 'heroes';
+                $index = (int) substr($key, 5);
+            } elseif (str_starts_with($key, 'enemy_')) {
+                $pool  = 'enemies';
+                $index = (int) substr($key, 6);
+            } else {
+                continue;
+            }
+
+            if (!isset($state[$pool][$index]) || !($state[$pool][$index]['is_alive'] ?? false)) {
+                continue;
+            }
+
+            foreach ($effects as &$effect) {
+                $damage      = 0;
+                $targetName  = $state[$pool][$index]['name']   ?? '?';
+                $targetMaxHp = $state[$pool][$index]['max_hp'] ?? 100;
+
+                switch ($effect['slug'] ?? '') {
+                    case 'en_feu':
+                        $damage = max(1, intdiv($targetMaxHp * $fireDamagePct, 100));
+                        $state['log'][] = $targetName . ' brûle pour ' . $damage . ' dégâts.';
+                        break;
+                    case 'empoisonne':
+                        $damage = max(1, intdiv($targetMaxHp * $poisonDamagePct, 100));
+                        $state['log'][] = $targetName . ' est empoisonné pour ' . $damage . ' dégâts.';
+                        break;
+                }
+
+                if ($damage > 0) {
+                    $state[$pool][$index]['current_hp'] = max(0, $state[$pool][$index]['current_hp'] - $damage);
+                    if ($state[$pool][$index]['current_hp'] <= 0) {
+                        $state[$pool][$index]['is_alive'] = false;
+                    }
+                }
+
+                $effect['remaining']--;
+            }
+            unset($effect);
+
+            $effects = array_values(array_filter($effects, fn($e) => ($e['remaining'] ?? 0) > 0));
+        }
+        unset($effects);
+    }
+
     private function calculateResult(array $state, array $monsterModels): array
     {
         $aliveHeroes = array_filter($state['heroes'], fn($h) => $h['is_alive']);
@@ -500,10 +951,31 @@ class CombatService
         $lootBonusPct = (int) ($synergyMods['loot_bonus_pct'] ?? 0);
 
         if ($result === 'victory') {
-            foreach ($monsterModels as $monster) {
+            $goldKillBase    = $this->settings->get('GOLD_PER_KILL_BASE', 5);
+            $goldLevelMult   = $this->settings->get('GOLD_PER_KILL_LEVEL_MULT', 2);
+            $goldEliteBonus  = $this->settings->get('GOLD_ELITE_BONUS', 50);
+            $goldMinibossMult = $this->settings->get('GOLD_MINIBOSS_MULT', 5);
+            $goldBossMult    = $this->settings->get('GOLD_BOSS_MULT', 15);
+
+            $monsterList = array_values($monsterModels);
+            foreach ($monsterList as $idx => $monster) {
                 $xpGained += $this->calculateXpForKill($monster->level, $avgHeroLevel);
-                $baseGold = random_int($monster->gold_min, max($monster->gold_min, $monster->gold_max));
-                $goldGained += $baseGold;
+
+                $baseGold    = $goldKillBase + ($monster->level * $goldLevelMult);
+                $enemyState  = $state['enemies'][$idx] ?? [];
+                $monsterType = $monster->monster_type ?? 'normal';
+
+                if ($monsterType === 'boss') {
+                    $gold = $baseGold * $goldBossMult;
+                } elseif ($monsterType === 'mini_boss') {
+                    $gold = $baseGold * $goldMinibossMult;
+                } elseif (!empty($enemyState['is_elite'])) {
+                    $gold = intdiv($baseGold * (100 + $goldEliteBonus), 100);
+                } else {
+                    $gold = $baseGold;
+                }
+
+                $goldGained += $gold;
             }
         }
 

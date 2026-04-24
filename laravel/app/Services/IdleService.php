@@ -209,11 +209,48 @@ class IdleService
                 $gold = 0;
                 $avgHeroLevel = (int) ($heroes->avg('level') ?? 1);
 
+                $goldKillBase     = $this->settings->get('GOLD_PER_KILL_BASE', 5);
+                $goldLevelMult    = $this->settings->get('GOLD_PER_KILL_LEVEL_MULT', 2);
+                $goldEliteBonus   = $this->settings->get('GOLD_ELITE_BONUS', 50);
+                $goldMinibossMult = $this->settings->get('GOLD_MINIBOSS_MULT', 5);
+                $goldBossMult     = $this->settings->get('GOLD_BOSS_MULT', 15);
+                $materialChance   = $this->settings->get('MATERIAL_DROP_CHANCE', 30);
+                $materialEliteBonus = $this->settings->get('MATERIAL_ELITE_BONUS', 100);
+                $materialRareChance = $this->settings->get('MATERIAL_RARE_CHANCE', 5);
+
                 foreach ($monsters as $monster) {
                     $xpBase = $this->settings->get('XP_BASE_PER_KILL', 10)
                         + ($monster->level * $this->settings->get('XP_LEVEL_MULTIPLIER', 2));
                     $xp += $xpBase;
-                    $gold += random_int($monster->gold_min, max($monster->gold_min, $monster->gold_max));
+
+                    // Gold via ECONOMY.md §3.1
+                    $baseGold    = $goldKillBase + ($monster->level * $goldLevelMult);
+                    $monsterType = $monster->monster_type ?? 'normal';
+                    if ($monsterType === 'boss') {
+                        $gold += $baseGold * $goldBossMult;
+                    } elseif ($monsterType === 'mini_boss') {
+                        $gold += $baseGold * $goldMinibossMult;
+                    } elseif ($isEliteEncounter) {
+                        $gold += intdiv($baseGold * (100 + $goldEliteBonus), 100);
+                    } else {
+                        $gold += $baseGold;
+                    }
+
+                    // Matériaux (ECONOMY.md §2.2)
+                    $effectiveMaterialChance = $isEliteEncounter
+                        ? min(100, $materialChance + intdiv($materialChance * $materialEliteBonus, 100))
+                        : $materialChance;
+                    if (random_int(1, 100) <= $effectiveMaterialChance) {
+                        $isRare = random_int(1, 100) <= $materialRareChance;
+                        $slug   = $isRare
+                            ? ($zone->rare_material_slug ?? 'essence_mineure')
+                            : ($zone->material_slug ?? 'ferraille');
+                        DB::table('user_materials')->upsert(
+                            ['user_id' => $user->id, 'material_slug' => $slug, 'quantity' => 1, 'created_at' => $now, 'updated_at' => $now],
+                            ['user_id', 'material_slug'],
+                            ['quantity' => DB::raw('quantity + 1'), 'updated_at' => $now]
+                        );
+                    }
 
                     // Matériaux (1 combat sur 2, ou toujours si élite)
                     $shouldDrop = ($i % 2 === 0) || $isEliteEncounter;
@@ -229,10 +266,9 @@ class IdleService
                     }
                 }
 
-                // Appliquer bonus élite
+                // Appliquer bonus élite (XP seulement, gold déjà calculé par type)
                 if ($isEliteEncounter) {
                     $xp = intdiv($xp * $eliteXpMult, 100);
-                    $gold = intdiv($gold * $eliteGoldMult, 100);
                 }
 
                 // Appliquer efficacité offline
