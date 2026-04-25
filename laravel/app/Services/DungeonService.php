@@ -524,9 +524,12 @@ class DungeonService
             $xpBase     = $this->settings->get('XP_BASE_PER_KILL', 10);
             $xpPerKill  = $xpBase + $monster->level * $this->settings->get('XP_LEVEL_MULTIPLIER', 2);
 
-            // Loot attempt
+            // Loot attempt — boss always drops at least one item
             $lootItems = [];
             $item = $this->loot->rollLoot($zone, $monster, $user);
+            if (!$item && $isBoss) {
+                $item = $this->loot->rollQuestLoot($user, 'rare');
+            }
             if ($item) {
                 $lootItems[] = ['item_id' => $item->id, 'name' => $item->name, 'rarity' => $item->rarity];
             }

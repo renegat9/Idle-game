@@ -5,6 +5,7 @@ import { MonsterPortrait } from '../components/ui/MonsterPortrait'
 import { HeroPortrait } from '../components/ui/HeroPortrait'
 import { GameButton } from '../components/ui/GameButton'
 import { GamePanel } from '../components/ui/GamePanel'
+import { RarityBadge } from '../components/hero/RarityBadge'
 
 type RoomPreview = {
   room_number: number
@@ -20,6 +21,13 @@ type DungeonStatus = {
   dungeon_id?: number; zone_id?: number; status?: string
   current_room?: number; total_rooms?: number; room_preview?: RoomPreview | null
   gold_gained?: number; loot_count?: number; started_at?: string
+}
+
+type LastReward = {
+  gold: number
+  xp_per_hero: number
+  loot_items: { item_id: number; name: string; rarity: string }[]
+  outcome: string
 }
 
 const ROOM_CONFIG: Record<string, { icon: string; color: string; label: string; bg: string; accentBg: string }> = {
@@ -66,6 +74,7 @@ export function DungeonPage() {
   const [loading, setLoading] = useState(true)
   const [advancing, setAdvancing] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
+  const [lastReward, setLastReward] = useState<LastReward | null>(null)
 
   useEffect(() => {
     loadStatus()
@@ -86,6 +95,7 @@ export function DungeonPage() {
 
   async function startDungeon() {
     setMessage(null)
+    setLastReward(null)
     try {
       const { data } = await dungeonApi.start(currentZoneId ?? 1)
       setMessage({ text: data.narrator ?? 'Donjon commencé ! Bonne chance, vous en aurez besoin.', ok: true })
@@ -99,10 +109,32 @@ export function DungeonPage() {
     if (!status?.dungeon_id || advancing) return
     setAdvancing(true)
     setMessage(null)
+    setLastReward(null)
     try {
       const { data } = await dungeonApi.enter(status.dungeon_id)
-      const narration = data.room_result?.narration ?? data.narration ?? data.summary
-      if (narration) setMessage({ text: narration, ok: data.outcome !== 'failed' })
+      // room_result.summary = texte du combat ; data.narrator = commentaire global donjon
+      const roomText = data.room_result?.summary ?? data.room_result?.narration ?? ''
+      const dungeonText = data.narrator ?? ''
+      let text = roomText || dungeonText
+      if (data.dungeon_over && data.outcome === 'completed' && data.unlocked_zone) {
+        text = (text ? text + ' — ' : '') + `🔓 Nouvelle zone débloquée : ${data.unlocked_zone} !`
+      }
+      if (data.dungeon_over && data.outcome === 'boss_defeat') {
+        text = (text ? text + ' — ' : '') + '💀 Le boss résiste. Revenez plus fort !'
+      }
+      if (text) setMessage({ text, ok: data.outcome !== 'failed' && data.outcome !== 'boss_defeat' })
+
+      // Capture combat/boss reward details for display
+      const rr = data.room_result
+      if (rr && rr.outcome === 'victory' && (rr.gold > 0 || rr.xp_per_hero > 0 || rr.loot_items?.length > 0)) {
+        setLastReward({
+          gold: rr.gold ?? 0,
+          xp_per_hero: rr.xp_per_hero ?? 0,
+          loot_items: rr.loot_items ?? [],
+          outcome: rr.outcome,
+        })
+      }
+
       await loadStatus()
     } catch (e: any) {
       setMessage({ text: e.response?.data?.message ?? 'Erreur.', ok: false })
@@ -163,6 +195,55 @@ export function DungeonPage() {
           <p className="narrator-text" style={{ color: message.ok ? '#86efac' : '#fca5a5', margin: 0 }}>
             « {message.text} »
           </p>
+        </div>
+      )}
+
+      {/* Combat rewards panel */}
+      {lastReward && (
+        <div
+          className="anim-slide-in"
+          style={{
+            marginBottom: 16,
+            background: 'linear-gradient(135deg, #051a05, #0a1505)',
+            border: '1px solid #16a34a55',
+            borderRadius: 8,
+            padding: '14px 16px',
+            display: 'flex',
+            gap: 20,
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ fontSize: 11, color: '#4ade80', fontFamily: 'var(--font-title)', textTransform: 'uppercase', letterSpacing: '0.08em', width: '100%', marginBottom: 6 }}>
+            ⚔️ Gains du combat
+          </div>
+          {lastReward.gold > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#0d1a07', border: '1px solid #16a34a33', borderRadius: 6, padding: '6px 12px' }}>
+              <span style={{ fontSize: 16 }}>💰</span>
+              <div>
+                <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-title)' }}>+{lastReward.gold}</div>
+                <div style={{ color: '#6b7280', fontSize: 10 }}>or</div>
+              </div>
+            </div>
+          )}
+          {lastReward.xp_per_hero > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#0d1a07', border: '1px solid #16a34a33', borderRadius: 6, padding: '6px 12px' }}>
+              <span style={{ fontSize: 16 }}>⭐</span>
+              <div>
+                <div style={{ color: '#818cf8', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-title)' }}>+{lastReward.xp_per_hero}</div>
+                <div style={{ color: '#6b7280', fontSize: 10 }}>XP / héros</div>
+              </div>
+            </div>
+          )}
+          {lastReward.loot_items.map((item, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#0d1a07', border: '1px solid #16a34a33', borderRadius: 6, padding: '6px 12px' }}>
+              <span style={{ fontSize: 16 }}>🎁</span>
+              <div>
+                <div style={{ color: '#f9fafb', fontWeight: 600, fontSize: 13 }}>{item.name}</div>
+                <RarityBadge rarity={item.rarity} />
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
