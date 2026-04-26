@@ -139,6 +139,12 @@ class DungeonService
         $roomIndex  = $dungeon->current_room - 1;
         $currentRoom = $rooms[$roomIndex] ?? null;
 
+        // Expose just the type and completion state of every room for the progress bar
+        $roomTypes = array_map(fn($r) => [
+            'type'         => $r['type'],
+            'is_completed' => $r['is_completed'] ?? false,
+        ], $rooms);
+
         return [
             'active'       => true,
             'dungeon_id'   => $dungeon->id,
@@ -147,6 +153,7 @@ class DungeonService
             'current_room' => $dungeon->current_room,
             'total_rooms'  => $dungeon->total_rooms,
             'room_preview' => $currentRoom ? $this->buildRoomPreview($currentRoom) : null,
+            'room_types'   => $roomTypes,
             'gold_gained'  => $dungeon->gold_gained,
             'loot_count'   => count($dungeon->loot_gained ?? []),
             'started_at'   => $dungeon->started_at->toIso8601String(),
@@ -462,7 +469,7 @@ class DungeonService
             'combat'   => $this->resolveCombatRoom($room, $heroes, $zone, $user, false),
             'boss'     => $this->resolveCombatRoom($room, $heroes, $zone, $user, true),
             'treasure' => $this->resolveTreasureRoom($room, $zone, $user),
-            'trap'     => $this->resolveTrapRoom($room, $heroes, $zone),
+            'trap'     => $this->resolveTrapRoom($room, $heroes),
             'rest'     => $this->resolveRestRoom($heroes),
             default    => ['summary' => 'Rien ne se passe. C\'est déjà ça.', 'gold' => 0, 'loot_items' => [], 'heroes_wiped' => false],
         };
@@ -614,13 +621,14 @@ class DungeonService
             'loot_items'   => $lootItems,
             'heroes_wiped' => false,
             'items_found'  => count($lootItems),
+            'outcome'      => 'found',
         ];
     }
 
     /**
      * Resolve a trap room: deal trap_damage_percent% of total team HP, distributed evenly.
      */
-    private function resolveTrapRoom(array $room, $heroes, Zone $zone): array
+    private function resolveTrapRoom(array $room, $heroes): array
     {
         $damagePercent = $room['trap_damage_percent'] ?? self::TRAP_DAMAGE_BASE_PERCENT;
 
@@ -634,6 +642,7 @@ class DungeonService
             'loot_items'     => [],
             'heroes_wiped'   => $allDead,
             'damage_percent' => $damagePercent,
+            'outcome'        => 'triggered',
         ];
     }
 
@@ -657,6 +666,7 @@ class DungeonService
             'loot_items'   => [],
             'heroes_wiped' => false,
             'heal_percent' => self::REST_HEAL_PERCENT,
+            'outcome'      => 'healed',
         ];
     }
 
