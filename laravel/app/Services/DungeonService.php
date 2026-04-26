@@ -314,6 +314,15 @@ class DungeonService
         $maxRooms = $this->settings->get('DUNGEON_ROOMS_MAX', 8);
         $total    = random_int($minRooms, $maxRooms);
 
+        // Build the pool of middle room types to guarantee variety.
+        // Always include at least one rest and one treasure among the middle rooms.
+        $middleCount = $total - 2; // exclude first (combat) and last (boss)
+        $middleTypes = ['rest', 'treasure'];
+        for ($k = count($middleTypes); $k < $middleCount; $k++) {
+            $middleTypes[] = $this->rollRoomType();
+        }
+        shuffle($middleTypes);
+
         $rooms = [];
 
         for ($i = 1; $i <= $total; $i++) {
@@ -324,7 +333,7 @@ class DungeonService
                 $type = 'boss';
                 $difficulty = 'boss';
             } else {
-                $type = $this->rollRoomType();
+                $type = $middleTypes[$i - 2];
                 $difficulty = 'normal';
             }
 

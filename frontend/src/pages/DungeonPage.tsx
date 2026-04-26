@@ -6,6 +6,7 @@ import { HeroPortrait } from '../components/ui/HeroPortrait'
 import { GameButton } from '../components/ui/GameButton'
 import { GamePanel } from '../components/ui/GamePanel'
 import { RarityBadge } from '../components/hero/RarityBadge'
+import type { Zone } from '../types'
 
 type RoomPreview = {
   room_number: number
@@ -71,6 +72,7 @@ export function DungeonPage() {
   const heroes = useGameStore(s => s.heroes)
   const [status, setStatus] = useState<DungeonStatus | null>(null)
   const [currentZoneId, setCurrentZoneId] = useState<number | null>(null)
+  const [currentZoneName, setCurrentZoneName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [advancing, setAdvancing] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
@@ -79,8 +81,15 @@ export function DungeonPage() {
   useEffect(() => {
     loadStatus()
     zoneApi.list().then(r => {
-      const zones = r.data.zones ?? []
-      if (zones.length > 0) setCurrentZoneId(zones[0].id)
+      const zones: Zone[] = r.data.zones ?? []
+      // Use the player's active exploration zone; fall back to the furthest unlocked zone
+      const current = zones.find(z => z.is_current)
+        ?? [...zones].filter(z => z.is_unlocked).sort((a, b) => b.order_index - a.order_index)[0]
+        ?? zones[0]
+      if (current) {
+        setCurrentZoneId(current.id)
+        setCurrentZoneName(current.name)
+      }
     }).catch(() => {})
   }, [])
 
@@ -266,9 +275,14 @@ export function DungeonPage() {
                 <>
                   <div style={{ fontSize: 56, marginBottom: 12 }}>🏚️</div>
                   <div className="game-title" style={{ fontSize: 16, marginBottom: 8 }}>Aucun donjon en cours</div>
-                  <p style={{ color: '#9ca3af', marginBottom: 24, fontSize: 13 }}>
+                  <p style={{ color: '#9ca3af', marginBottom: 8, fontSize: 13 }}>
                     Vos héros s'ennuient profondément.
                   </p>
+                  {currentZoneName && (
+                    <p style={{ color: '#6b7280', marginBottom: 20, fontSize: 12 }}>
+                      Zone : <span style={{ color: '#c4b5fd' }}>{currentZoneName}</span>
+                    </p>
+                  )}
                   <GameButton variant="danger" size="lg" icon="🏚️" onClick={startDungeon}>
                     Entrer dans le Donjon
                   </GameButton>
