@@ -95,7 +95,9 @@ class InventoryController extends Controller
             'vit' => $item->vit,
             'cha' => $item->cha,
             'int' => $item->int,
-            'sell_value' => $item->sell_value,
+            'sell_value'          => $item->sell_value,
+            'durability_current'  => $item->durability_current,
+            'durability_max'      => $item->durability_max,
             'equipped_by_hero_id' => $item->equipped_by_hero_id,
             'is_ai_generated' => $item->is_ai_generated,
             'image_url' => $item->image_url

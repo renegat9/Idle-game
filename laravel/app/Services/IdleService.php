@@ -273,7 +273,8 @@ class IdleService
         $repGained = intdiv($victories * $repPerVictory, 10); // 1 rep tous les 10 combats gagnés environ
 
         // Persister les résultats en transaction
-        DB::transaction(function () use ($user, $heroes, $totalXp, $totalGold, $items, $zone, $victories, $defeats, $now, $exploration, $events, $repGained) {
+        $totalCombats = $victories + $defeats;
+        DB::transaction(function () use ($user, $heroes, $totalXp, $totalGold, $items, $zone, $victories, $defeats, $totalCombats, $now, $exploration, $events, $repGained) {
             $user->gold += $totalGold;
             $user->last_idle_calc_at = $now;
             $user->save();
@@ -290,6 +291,20 @@ class IdleService
                     $hero->talent_points++;
                 }
                 $hero->save();
+
+                // Dégradation des items équipés proportionnelle au nombre de combats
+                // (moitié de la perte en combat actif pour ne pas punir l'offline)
+                $lossPerCombat = (int) $this->settings->get('LOOT_DURABILITY_LOSS_PER_COMBAT', 1);
+                $totalLoss = intdiv($totalCombats * $lossPerCombat, 2);
+                if ($totalLoss > 0) {
+                    foreach ($hero->equippedItems as $item) {
+                        if (($item->durability_max ?? 0) === 999) {
+                            continue; // Indestructible
+                        }
+                        $item->durability_current = max(0, ($item->durability_current ?? 0) - $totalLoss);
+                        $item->save();
+                    }
+                }
             }
 
             // Réputation de zone

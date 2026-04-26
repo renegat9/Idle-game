@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Dungeon;
 use App\Models\Hero;
+use App\Models\Item;
 use App\Models\Monster;
 use App\Models\User;
 use App\Models\Zone;
@@ -529,6 +530,9 @@ class DungeonService
         $roll   = random_int(1, 100);
         $heroesWon = $roll <= $winChance;
 
+        // Degrade equipped items regardless of outcome (combat always wears gear)
+        $this->degradeHeroesEquipment($heroes);
+
         if ($heroesWon) {
             // Gold reward: random between monster gold_min and gold_max
             $gold = random_int($monster->gold_min, max($monster->gold_min, $monster->gold_max));
@@ -634,6 +638,9 @@ class DungeonService
 
         $allDead = $this->applyDamageToHeroes($heroes, $damagePercent);
 
+        // Pièges abîment aussi l'équipement
+        $this->degradeHeroesEquipment($heroes);
+
         $summary = $this->narrator->getComment('trap_triggered');
 
         return [
@@ -697,6 +704,27 @@ class DungeonService
         }
 
         return true;
+    }
+
+    /**
+     * Réduit la durabilité des items équipés de chaque héros.
+     * Les items avec durability_max = 999 (Indestructible) sont ignorés.
+     */
+    private function degradeHeroesEquipment($heroes, int $loss = 1): void
+    {
+        $lossPerCombat = (int) $this->settings->get('LOOT_DURABILITY_LOSS_PER_COMBAT', 1);
+        $actualLoss    = max(1, $lossPerCombat * $loss);
+
+        foreach ($heroes as $hero) {
+            $equippedItems = $hero->equippedItems ?? collect();
+            foreach ($equippedItems as $item) {
+                if (($item->durability_max ?? 0) === 999) {
+                    continue; // Indestructible
+                }
+                $item->durability_current = max(0, ($item->durability_current ?? 0) - $actualLoss);
+                $item->save();
+            }
+        }
     }
 
     /**

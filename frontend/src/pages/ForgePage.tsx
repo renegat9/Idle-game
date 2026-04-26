@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { craftingApi, inventoryApi } from '../api/game'
+import { useAuthStore } from '../store/authStore'
+import { useGameStore } from '../store/gameStore'
 import { RarityBadge } from '../components/hero/RarityBadge'
 import { ItemImage } from '../components/ui/ItemImage'
 import { GameButton } from '../components/ui/GameButton'
@@ -31,16 +33,20 @@ const TIER_CONFIG: Record<string, { label: string; color: string; bg: string }> 
 }
 
 export function ForgePage() {
+  const { updateUser } = useAuthStore()
+  const { setGold } = useGameStore()
   const [materials, setMaterials] = useState<Material[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [items, setItems] = useState<Item[]>([])
+  const [equippedItems, setEquippedItems] = useState<Item[]>([])
   const [enchantments, setEnchantments] = useState<Enchantment[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<'fusion' | 'dismantle' | 'recipes' | 'enchant'>('fusion')
+  const [tab, setTab] = useState<'fusion' | 'dismantle' | 'recipes' | 'enchant' | 'repair'>('fusion')
   const [selectedFusion, setSelectedFusion] = useState<number[]>([])
   const [enchantTarget, setEnchantTarget] = useState<number | null>(null)
   const [result, setResult] = useState<any>(null)
   const [acting, setActing] = useState(false)
+  const [repairing, setRepairing] = useState<number | 'all' | null>(null)
 
   useEffect(() => { loadAll() }, [])
 
@@ -52,6 +58,7 @@ export function ForgePage() {
       setMaterials(craftData.data.materials)
       setRecipes(craftData.data.recipes)
       setItems(invData.data.unequipped)
+      setEquippedItems(invData.data.equipped)
       setEnchantments(enchData.data.enchantments)
     } catch { /* ok */ }
     setLoading(false)
@@ -110,7 +117,42 @@ export function ForgePage() {
     )
   }
 
+  async function doRepair(itemId: number) {
+    setRepairing(itemId)
+    try {
+      const { data } = await inventoryApi.repair(itemId)
+      const patch = (prev: Item[]) => prev.map(i =>
+        i.id === itemId ? { ...i, durability_current: data.durability_current } : i
+      )
+      setItems(patch)
+      setEquippedItems(patch)
+      setGold(data.new_gold)
+      updateUser({ gold: data.new_gold })
+      setResult({ success: true, message: data.message })
+    } catch (e: any) {
+      setResult({ success: false, message: e.response?.data?.message ?? 'Erreur lors de la réparation' })
+    }
+    setRepairing(null)
+  }
+
+  async function doRepairAll() {
+    setRepairing('all')
+    try {
+      const { data } = await inventoryApi.repairAll()
+      setGold(data.new_gold)
+      updateUser({ gold: data.new_gold })
+      setResult({ success: true, message: data.message })
+      await loadAll()
+    } catch (e: any) {
+      setResult({ success: false, message: e.response?.data?.message ?? 'Erreur lors de la réparation' })
+    }
+    setRepairing(null)
+  }
+
   const enchantableItems = items.filter(i => ['rare', 'epique', 'legendaire', 'wtf'].includes(i.rarity))
+  const damagedItems = [...equippedItems, ...items].filter(
+    i => (i.durability_max ?? 0) > 0 && (i.durability_max ?? 0) < 999 && (i.durability_current ?? 0) < (i.durability_max ?? 0)
+  )
 
   if (loading) {
     return (
@@ -140,9 +182,9 @@ export function ForgePage() {
           style={{ marginBottom: 20 }}
           className="anim-slide-in"
         >
-          {result.gerard_comment && (
+          {(result.gerard_comment || result.message) && (
             <p className="flavor-text" style={{ marginBottom: 10 }}>
-              Gérard : « {result.gerard_comment} »
+              Gérard : « {result.gerard_comment ?? result.message} »
             </p>
           )}
           {result.result_item && (
@@ -182,13 +224,13 @@ export function ForgePage() {
         <div>
           {/* Tabs */}
           <div className="game-tabs">
-            {(['fusion', 'dismantle', 'recipes', 'enchant'] as const).map(t => (
+            {(['fusion', 'dismantle', 'recipes', 'enchant', 'repair'] as const).map(t => (
               <button
                 key={t}
-                className={`game-tab${tab === t ? ' active' : ''}`}
+                className={`game-tab${tab === t ? ' active' : ''}${t === 'repair' && damagedItems.length > 0 ? ' game-tab-alert' : ''}`}
                 onClick={() => setTab(t)}
               >
-                {t === 'fusion' ? '🔥 Fusion' : t === 'dismantle' ? '🔨 Démontage' : t === 'recipes' ? '📖 Recettes' : '✨ Enchantement'}
+                {t === 'fusion' ? '🔥 Fusion' : t === 'dismantle' ? '🔨 Démontage' : t === 'recipes' ? '📖 Recettes' : t === 'enchant' ? '✨ Enchantement' : `🔧 Réparation${damagedItems.length > 0 ? ` (${damagedItems.length})` : ''}`}
               </button>
             ))}
           </div>
@@ -330,6 +372,77 @@ export function ForgePage() {
                   </div>
                 </GamePanel>
               ))}
+            </div>
+          )}
+
+          {/* Repair tab */}
+          {tab === 'repair' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <p style={{ color: '#6b7280', fontSize: 12, margin: 0, fontStyle: 'italic' }}>
+                  Coût : (max − actuel) × niveau × 2 or. Gérard fait des prix d'ami.
+                </p>
+                {damagedItems.length > 1 && (
+                  <GameButton variant="secondary" size="sm" icon="🔧" onClick={doRepairAll} loading={repairing === 'all'}>
+                    Tout réparer
+                  </GameButton>
+                )}
+              </div>
+
+              {damagedItems.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#4b5563' }}>
+                  <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+                  <p style={{ margin: 0, fontSize: 13, fontStyle: 'italic' }}>Tous vos objets sont en parfait état.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {damagedItems.map(item => {
+                    const cur = item.durability_current ?? 0
+                    const max = item.durability_max ?? 0
+                    const pct = Math.round((cur / max) * 100)
+                    const barColor = pct <= 20 ? '#ef4444' : pct <= 50 ? '#f97316' : '#22c55e'
+                    const repairCost = (max - cur) * item.item_level * 2
+                    const isEquipped = item.equipped_by_hero_id !== null
+                    return (
+                      <div key={item.id} style={{
+                        background: '#0d1117', border: '1px solid #1f2937',
+                        borderRadius: 8, padding: '10px 12px',
+                        display: 'flex', alignItems: 'center', gap: 12,
+                      }}>
+                        <ItemImage slot={item.slot} rarity={item.rarity} imageUrl={item.image_url} size={40} name={item.name} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <span style={{ color: RARITY_COLORS[item.rarity], fontWeight: 600, fontSize: 13 }}>{item.name}</span>
+                            {isEquipped && (
+                              <span style={{ background: '#1e3a5f', color: '#60a5fa', fontSize: 10, padding: '1px 5px', borderRadius: 3, border: '1px solid #1e40af' }}>
+                                Équipé
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                            <span style={{ color: '#6b7280', fontSize: 11 }}>Niv.{item.item_level} · Durabilité</span>
+                            <span style={{ color: barColor, fontSize: 11, fontWeight: 700 }}>{cur} / {max}</span>
+                          </div>
+                          <div style={{ height: 6, background: '#1f2937', borderRadius: 3, overflow: 'hidden', border: '1px solid #374151' }}>
+                            <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 3, transition: 'width 0.3s' }} />
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                          <span style={{ color: '#fbbf24', fontSize: 12, fontWeight: 600 }}>💰 {repairCost}</span>
+                          <GameButton
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => doRepair(item.id)}
+                            loading={repairing === item.id}
+                          >
+                            🔧 Réparer
+                          </GameButton>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 
