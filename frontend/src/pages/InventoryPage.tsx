@@ -32,6 +32,7 @@ export function InventoryPage() {
   const [selling, setSelling] = useState<number | null>(null)
   const [equipping, setEquipping] = useState<number | null>(null)
   const [unequipping, setUnequipping] = useState<number | null>(null)
+  const [repairing, setRepairing] = useState<number | null>(null)
   const [selectedHero, setSelectedHero] = useState<Record<number, number>>({})
   const [message, setMessage] = useState('')
 
@@ -74,6 +75,25 @@ export function InventoryPage() {
       setMessage(err.response?.data?.message || 'Erreur')
     } finally {
       setUnequipping(null)
+    }
+  }
+
+  const handleRepair = async (item: Item) => {
+    setRepairing(item.id)
+    setMessage('')
+    try {
+      const { data } = await inventoryApi.repair(item.id)
+      const update = (prev: Item[]) => prev.map((i) =>
+        i.id === item.id ? { ...i, durability_current: data.durability_current } : i
+      )
+      setEquipped(update)
+      setUnequipped(update)
+      updateUser({ gold: data.new_gold })
+      setMessage(data.message)
+    } catch (err: any) {
+      setMessage(err.response?.data?.message || 'Erreur lors de la réparation')
+    } finally {
+      setRepairing(null)
     }
   }
 
@@ -166,6 +186,29 @@ export function InventoryPage() {
             </div>
           )}
 
+          {/* Durability bar */}
+          {(() => {
+            const max = item.durability_max ?? 0
+            const cur = item.durability_current ?? 0
+            if (max === 0) return null
+            const isIndestructible = max >= 999
+            const pct = isIndestructible ? 100 : Math.round((cur / max) * 100)
+            const barColor = isIndestructible ? '#818cf8' : pct <= 20 ? '#ef4444' : pct <= 50 ? '#f97316' : '#22c55e'
+            return (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ color: '#4b5563', fontSize: 10, fontFamily: 'var(--font-title)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Durabilité</span>
+                  <span style={{ color: barColor, fontSize: 10, fontWeight: 700 }}>
+                    {isIndestructible ? '∞' : `${cur} / ${max}`}
+                  </span>
+                </div>
+                <div style={{ height: 5, background: '#1f2937', borderRadius: 3, overflow: 'hidden', border: '1px solid #374151' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 3, transition: 'width 0.3s, background 0.3s' }} />
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Actions */}
           {canUnequip && (
             <div style={{ marginTop: 'auto', paddingTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -224,6 +267,17 @@ export function InventoryPage() {
                   Vendre
                 </GameButton>
               </div>
+              {/* Repair button — shown only when damaged and not indestructible */}
+              {(item.durability_max ?? 0) < 999 && (item.durability_current ?? 0) < (item.durability_max ?? 0) && (
+                <GameButton
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleRepair(item)}
+                  loading={repairing === item.id}
+                >
+                  🔧 Réparer
+                </GameButton>
+              )}
             </div>
           )}
         </div>

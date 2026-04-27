@@ -58,6 +58,8 @@ export interface Item {
   cha: number
   int: number
   sell_value: number
+  durability_current: number
+  durability_max: number
   equipped_by_hero_id: number | null
   is_ai_generated: boolean
   image_url: string | null

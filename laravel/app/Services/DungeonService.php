@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Dungeon;
 use App\Models\Hero;
 use App\Models\HeroBuff;
+use App\Models\Item;
 use App\Models\Monster;
 use App\Models\User;
 use App\Models\UserZoneProgress;
@@ -142,6 +143,12 @@ class DungeonService
         $roomIndex  = $dungeon->current_room - 1;
         $currentRoom = $rooms[$roomIndex] ?? null;
 
+        // Expose just the type and completion state of every room for the progress bar
+        $roomTypes = array_map(fn($r) => [
+            'type'         => $r['type'],
+            'is_completed' => $r['is_completed'] ?? false,
+        ], $rooms);
+
         return [
             'active'       => true,
             'dungeon_id'   => $dungeon->id,
@@ -150,6 +157,7 @@ class DungeonService
             'current_room' => $dungeon->current_room,
             'total_rooms'  => $dungeon->total_rooms,
             'room_preview' => $currentRoom ? $this->buildRoomPreview($currentRoom) : null,
+            'room_types'   => $roomTypes,
             'gold_gained'  => $dungeon->gold_gained,
             'loot_count'   => count($dungeon->loot_gained ?? []),
             'started_at'   => $dungeon->started_at->toIso8601String(),
@@ -342,6 +350,15 @@ class DungeonService
         $maxRooms = $this->settings->get('DUNGEON_ROOMS_MAX', 8);
         $total    = random_int($minRooms, $maxRooms);
 
+        // Build the pool of middle room types to guarantee variety.
+        // Always include at least one rest and one treasure among the middle rooms.
+        $middleCount = $total - 2; // exclude first (combat) and last (boss)
+        $middleTypes = ['rest', 'treasure'];
+        for ($k = count($middleTypes); $k < $middleCount; $k++) {
+            $middleTypes[] = $this->rollRoomType();
+        }
+        shuffle($middleTypes);
+
         $rooms = [];
 
         for ($i = 1; $i <= $total; $i++) {
@@ -352,7 +369,7 @@ class DungeonService
                 $type = 'boss';
                 $difficulty = 'boss';
             } else {
-                $type = $this->rollRoomType();
+                $type = $middleTypes[$i - 2];
                 $difficulty = 'normal';
             }
 
@@ -481,7 +498,7 @@ class DungeonService
             'combat'   => $this->resolveCombatRoom($room, $heroes, $zone, $user, false),
             'boss'     => $this->resolveCombatRoom($room, $heroes, $zone, $user, true),
             'treasure' => $this->resolveTreasureRoom($room, $zone, $user),
-            'trap'     => $this->resolveTrapRoom($room, $heroes, $zone),
+            'trap'     => $this->resolveTrapRoom($room, $heroes),
             'rest'     => $this->resolveRestRoom($heroes),
             default    => ['summary' => 'Rien ne se passe. C\'est déjà ça.', 'gold' => 0, 'loot_items' => [], 'heroes_wiped' => false],
         };
@@ -566,6 +583,9 @@ class DungeonService
         $roll   = random_int(1, 100);
         $heroesWon = $roll <= $winChance;
 
+        // Degrade equipped items regardless of outcome (combat always wears gear)
+        $this->degradeHeroesEquipment($heroes);
+
         if ($heroesWon) {
             // Gold reward: random between monster gold_min and gold_max
             $gold = random_int($monster->gold_min, max($monster->gold_min, $monster->gold_max));
@@ -577,9 +597,12 @@ class DungeonService
             $xpBase     = $this->settings->get('XP_BASE_PER_KILL', 10);
             $xpPerKill  = $xpBase + $monster->level * $this->settings->get('XP_LEVEL_MULTIPLIER', 2);
 
-            // Loot attempt
+            // Loot attempt — boss always drops at least one item
             $lootItems = [];
             $item = $this->loot->rollLoot($zone, $monster, $user);
+            if (!$item && $isBoss) {
+                $item = $this->loot->rollQuestLoot($user, 'rare');
+            }
             if ($item) {
                 $lootItems[] = ['item_id' => $item->id, 'name' => $item->name, 'rarity' => $item->rarity];
             }
@@ -655,17 +678,21 @@ class DungeonService
             'loot_items'   => $lootItems,
             'heroes_wiped' => false,
             'items_found'  => count($lootItems),
+            'outcome'      => 'found',
         ];
     }
 
     /**
      * Resolve a trap room: deal trap_damage_percent% of total team HP, distributed evenly.
      */
-    private function resolveTrapRoom(array $room, $heroes, Zone $zone): array
+    private function resolveTrapRoom(array $room, $heroes): array
     {
         $damagePercent = $room['trap_damage_percent'] ?? self::TRAP_DAMAGE_BASE_PERCENT;
 
         $allDead = $this->applyDamageToHeroes($heroes, $damagePercent);
+
+        // Pièges abîment aussi l'équipement
+        $this->degradeHeroesEquipment($heroes);
 
         $summary = $this->narrator->getComment('trap_triggered');
 
@@ -675,6 +702,7 @@ class DungeonService
             'loot_items'     => [],
             'heroes_wiped'   => $allDead,
             'damage_percent' => $damagePercent,
+            'outcome'        => 'triggered',
         ];
     }
 
@@ -698,6 +726,7 @@ class DungeonService
             'loot_items'   => [],
             'heroes_wiped' => false,
             'heal_percent' => self::REST_HEAL_PERCENT,
+            'outcome'      => 'healed',
         ];
     }
 
@@ -728,6 +757,27 @@ class DungeonService
         }
 
         return true;
+    }
+
+    /**
+     * Réduit la durabilité des items équipés de chaque héros.
+     * Les items avec durability_max = 999 (Indestructible) sont ignorés.
+     */
+    private function degradeHeroesEquipment($heroes, int $loss = 1): void
+    {
+        $lossPerCombat = (int) $this->settings->get('LOOT_DURABILITY_LOSS_PER_COMBAT', 1);
+        $actualLoss    = max(1, $lossPerCombat * $loss);
+
+        foreach ($heroes as $hero) {
+            $equippedItems = $hero->equippedItems ?? collect();
+            foreach ($equippedItems as $item) {
+                if (($item->durability_max ?? 0) === 999) {
+                    continue; // Indestructible
+                }
+                $item->durability_current = max(0, ($item->durability_current ?? 0) - $actualLoss);
+                $item->save();
+            }
+        }
     }
 
     /**

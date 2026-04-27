@@ -26,6 +26,10 @@ export const inventoryApi = {
     apiClient.post<{ message: string; gold_earned: number; new_gold_total: number }>('/inventory/sell', { item_id: itemId }),
   unequip: (itemId: number) =>
     apiClient.post<{ message: string }>('/inventory/unequip', { item_id: itemId }),
+  repair: (itemId: number) =>
+    apiClient.post<{ message: string; item_id: number; durability_current: number; durability_max: number; gold_spent: number; new_gold: number }>('/inventory/repair', { item_id: itemId }),
+  repairAll: () =>
+    apiClient.post<{ message: string; item_count: number; gold_spent: number; new_gold: number }>('/inventory/repair-all'),
 }
 
 export const zoneApi = {

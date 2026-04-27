@@ -13,6 +13,7 @@ use App\Http\Controllers\Game\TavernController;
 use App\Http\Controllers\Game\ShopController;
 use App\Http\Controllers\Game\WorldBossController;
 use App\Http\Controllers\Game\DungeonController;
+use App\Http\Controllers\Game\RepairController;
 use App\Http\Controllers\Game\TalentController;
 use App\Http\Controllers\Game\ProfileController;
 use App\Http\Controllers\Game\ReputationController;
@@ -52,6 +53,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/inventory', [InventoryController::class, 'index']);
     Route::post('/inventory/sell', [InventoryController::class, 'sell']);
     Route::post('/inventory/unequip', [InventoryController::class, 'unequip']);
+    Route::post('/inventory/repair', [RepairController::class, 'repair']);
+    Route::post('/inventory/repair-all', [RepairController::class, 'repairAll']);
 
     // Zones
     Route::get('/zones', [ZoneController::class, 'index']);

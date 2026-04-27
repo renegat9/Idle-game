@@ -5,6 +5,8 @@ import { MonsterPortrait } from '../components/ui/MonsterPortrait'
 import { HeroPortrait } from '../components/ui/HeroPortrait'
 import { GameButton } from '../components/ui/GameButton'
 import { GamePanel } from '../components/ui/GamePanel'
+import { RarityBadge } from '../components/hero/RarityBadge'
+import type { Zone } from '../types'
 
 type RoomPreview = {
   room_number: number
@@ -19,7 +21,17 @@ type DungeonStatus = {
   active: boolean; on_cooldown?: boolean; available_at?: string | null
   dungeon_id?: number; zone_id?: number; status?: string
   current_room?: number; total_rooms?: number; room_preview?: RoomPreview | null
+  room_types?: { type: string; is_completed: boolean }[]
   gold_gained?: number; loot_count?: number; started_at?: string
+}
+
+type LastReward = {
+  gold: number
+  xp_per_hero: number
+  loot_items: { item_id: number; name: string; rarity: string }[]
+  outcome: 'victory' | 'found' | 'triggered' | 'healed'
+  damage_percent?: number
+  heal_percent?: number
 }
 
 const ROOM_CONFIG: Record<string, { icon: string; color: string; label: string; bg: string; accentBg: string }> = {
@@ -67,14 +79,15 @@ export function DungeonPage() {
   const [loading, setLoading] = useState(true)
   const [advancing, setAdvancing] = useState(false)
   const [message, setMessage] = useState<{ text: string; ok: boolean } | null>(null)
+  const [lastReward, setLastReward] = useState<LastReward | null>(null)
 
   useEffect(() => {
     loadStatus()
     zoneApi.list().then(r => {
-      const zones: any[] = r.data.zones ?? []
-      // Priorité : zone en cours d'exploration → première zone débloquée → zone 1
+      const zones: Zone[] = r.data.zones ?? []
+      // Priorité : zone en cours d'exploration → dernière zone débloquée → zone 1
       const active = zones.find(z => z.is_current)
-        ?? zones.find(z => z.is_unlocked)
+        ?? [...zones].filter(z => z.is_unlocked).sort((a, b) => b.order_index - a.order_index)[0]
         ?? zones[0]
       if (active) { setCurrentZoneId(active.id); setCurrentZoneName(active.name) }
     }).catch(() => {})
@@ -91,6 +104,7 @@ export function DungeonPage() {
 
   async function startDungeon() {
     setMessage(null)
+    setLastReward(null)
     try {
       const { data } = await dungeonApi.start(currentZoneId ?? 1)
       setMessage({ text: data.narrator ?? 'Donjon commencé ! Bonne chance, vous en aurez besoin.', ok: true })
@@ -104,6 +118,7 @@ export function DungeonPage() {
     if (!status?.dungeon_id || advancing) return
     setAdvancing(true)
     setMessage(null)
+    setLastReward(null)
     try {
       const { data } = await dungeonApi.enter(status.dungeon_id)
       // room_result.summary = texte du combat ; data.narrator = commentaire global donjon
@@ -117,6 +132,21 @@ export function DungeonPage() {
         text = (text ? text + ' — ' : '') + '💀 Le boss résiste. Revenez plus fort !'
       }
       if (text) setMessage({ text, ok: data.outcome !== 'failed' && data.outcome !== 'boss_defeat' })
+
+      // Capture room result details for display (all room types)
+      const rr = data.room_result
+      if (rr?.outcome) {
+        setLastReward({
+          gold: rr.gold ?? 0,
+          xp_per_hero: rr.xp_per_hero ?? 0,
+          loot_items: rr.loot_items ?? [],
+          outcome: rr.outcome,
+          damage_percent: rr.damage_percent,
+          heal_percent: rr.heal_percent,
+        })
+      }
+
+
       await loadStatus()
     } catch (e: any) {
       setMessage({ text: e.response?.data?.message ?? 'Erreur.', ok: false })
@@ -179,6 +209,78 @@ export function DungeonPage() {
           </p>
         </div>
       )}
+
+      {/* Room result panel */}
+      {lastReward && (() => {
+        const isTrap   = lastReward.outcome === 'triggered'
+        const isHeal   = lastReward.outcome === 'healed'
+        const bg    = isTrap ? 'linear-gradient(135deg, #1a0505, #0a0202)' : isHeal ? 'linear-gradient(135deg, #051a12, #020f08)' : 'linear-gradient(135deg, #051a05, #0a1505)'
+        const border = isTrap ? '#7f1d1d55' : isHeal ? '#16534455' : '#16a34a55'
+        const label  = isTrap ? '🪤 Piège déclenché' : isHeal ? '🛏️ Repos' : lastReward.outcome === 'found' ? '💰 Butin trouvé' : '⚔️ Gains du combat'
+        const labelColor = isTrap ? '#f87171' : isHeal ? '#4ade80' : '#4ade80'
+        const chipBg  = isTrap ? '#1a0505' : isHeal ? '#051a12' : '#0d1a07'
+        const chipBorder = isTrap ? '#7f1d1d33' : isHeal ? '#16534433' : '#16a34a33'
+        return (
+          <div
+            className="anim-slide-in"
+            style={{ marginBottom: 16, background: bg, border: `1px solid ${border}`, borderRadius: 8, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}
+          >
+            <div style={{ fontSize: 11, color: labelColor, fontFamily: 'var(--font-title)', textTransform: 'uppercase', letterSpacing: '0.08em', width: '100%', marginBottom: 4 }}>
+              {label}
+            </div>
+            {/* Trap: damage taken */}
+            {isTrap && lastReward.damage_percent != null && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: chipBg, border: `1px solid ${chipBorder}`, borderRadius: 6, padding: '6px 12px' }}>
+                <span style={{ fontSize: 16 }}>💥</span>
+                <div>
+                  <div style={{ color: '#f87171', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-title)' }}>−{lastReward.damage_percent}% PV</div>
+                  <div style={{ color: '#6b7280', fontSize: 10 }}>de l'équipe</div>
+                </div>
+              </div>
+            )}
+            {/* Rest: HP healed */}
+            {isHeal && lastReward.heal_percent != null && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: chipBg, border: `1px solid ${chipBorder}`, borderRadius: 6, padding: '6px 12px' }}>
+                <span style={{ fontSize: 16 }}>❤️</span>
+                <div>
+                  <div style={{ color: '#4ade80', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-title)' }}>+{lastReward.heal_percent}% PV</div>
+                  <div style={{ color: '#6b7280', fontSize: 10 }}>récupérés</div>
+                </div>
+              </div>
+            )}
+            {/* Gold */}
+            {lastReward.gold > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: chipBg, border: `1px solid ${chipBorder}`, borderRadius: 6, padding: '6px 12px' }}>
+                <span style={{ fontSize: 16 }}>💰</span>
+                <div>
+                  <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-title)' }}>+{lastReward.gold}</div>
+                  <div style={{ color: '#6b7280', fontSize: 10 }}>or</div>
+                </div>
+              </div>
+            )}
+            {/* XP */}
+            {lastReward.xp_per_hero > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: chipBg, border: `1px solid ${chipBorder}`, borderRadius: 6, padding: '6px 12px' }}>
+                <span style={{ fontSize: 16 }}>⭐</span>
+                <div>
+                  <div style={{ color: '#818cf8', fontWeight: 700, fontSize: 16, fontFamily: 'var(--font-title)' }}>+{lastReward.xp_per_hero}</div>
+                  <div style={{ color: '#6b7280', fontSize: 10 }}>XP / héros</div>
+                </div>
+              </div>
+            )}
+            {/* Items */}
+            {lastReward.loot_items.map((item, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, background: chipBg, border: `1px solid ${chipBorder}`, borderRadius: 6, padding: '6px 12px' }}>
+                <span style={{ fontSize: 16 }}>🎁</span>
+                <div>
+                  <div style={{ color: '#f9fafb', fontWeight: 600, fontSize: 13 }}>{item.name}</div>
+                  <RarityBadge rarity={item.rarity} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {!status?.active ? (
         /* ── No active dungeon ── */
@@ -257,22 +359,25 @@ export function DungeonPage() {
                 const roomNum = i + 1
                 const done = roomNum < (status.current_room ?? 1)
                 const current = roomNum === status.current_room
-                const isBoss = roomNum === status.total_rooms
+                const roomInfo = status.room_types?.[i]
+                const cfg = roomInfo ? (ROOM_CONFIG[roomInfo.type] ?? ROOM_CONFIG.combat) : ROOM_CONFIG.combat
                 return (
                   <div
                     key={i}
-                    title={`Salle ${roomNum}${isBoss ? ' (Boss)' : ''}`}
+                    title={`Salle ${roomNum} — ${cfg.label}`}
                     style={{
-                      flex: 1, height: 12, borderRadius: 4,
-                      background: done ? '#16a34a' : current ? '#7c3aed' : '#1f2937',
-                      border: `1px solid ${done ? '#22c55e' : current ? '#9f67ff' : '#374151'}`,
-                      boxShadow: current ? '0 0 10px rgba(124,58,237,0.6)' : 'none',
+                      flex: 1, height: 16, borderRadius: 4,
+                      background: done ? '#16a34a33' : current ? cfg.color + '33' : '#1f2937',
+                      border: `1px solid ${done ? '#22c55e55' : current ? cfg.color : '#374151'}`,
+                      boxShadow: current ? `0 0 10px ${cfg.color}66` : 'none',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 8, transition: 'all 0.3s ease',
+                      fontSize: 9, transition: 'all 0.3s ease',
                     }}
                   >
-                    {isBoss && !done && <span style={{ color: current ? 'white' : '#6b7280' }}>💀</span>}
-                    {done && <span style={{ color: '#4ade80' }}>✓</span>}
+                    {done
+                      ? <span style={{ color: '#4ade80' }}>✓</span>
+                      : <span style={{ opacity: current ? 1 : 0.5 }}>{cfg.icon}</span>
+                    }
                   </div>
                 )
               })}
