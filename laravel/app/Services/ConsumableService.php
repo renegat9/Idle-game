@@ -76,9 +76,22 @@ class ConsumableService
                 throw new \RuntimeException('Consommable inconnu.');
             }
 
-            $heroes = $user->heroes()->where('is_active', true)->get();
+            $heroes = $user->heroes()
+                ->where('is_active', true)
+                ->with(['race', 'gameClass', 'equippedItems', 'buffs'])
+                ->get();
             if ($heroes->isEmpty()) {
                 throw new \RuntimeException('Aucun héros actif pour utiliser ce consommable.');
+            }
+
+            // Synchroniser max_hp en DB (peut être périmé si le héros a monté de niveau ou changé d'équipement)
+            foreach ($heroes as $hero) {
+                $trueMaxHp = $hero->computedStats()['max_hp'];
+                if ($hero->max_hp !== $trueMaxHp) {
+                    $hero->max_hp = $trueMaxHp;
+                    $hero->current_hp = min($hero->current_hp, $trueMaxHp);
+                    $hero->save();
+                }
             }
 
             if (in_array($consumable->effect_type, ['heal_hp', 'restore_hp_pct'])) {
@@ -256,6 +269,7 @@ class ConsumableService
     private function healHero(Hero $hero, int $amount): int
     {
         $before = $hero->current_hp;
+        // max_hp est déjà synchronisé au début de use()
         $hero->current_hp = min($hero->current_hp + $amount, $hero->max_hp);
         $hero->save();
         return $hero->current_hp - $before;
