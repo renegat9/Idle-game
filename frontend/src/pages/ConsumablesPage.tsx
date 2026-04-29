@@ -97,7 +97,7 @@ export function ConsumablesPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
           {consumables.map((c) => (
             <div
-              key={c.consumable_slug}
+              key={c.slug}
               className={`game-panel rarity-frame rarity-frame-${c.rarity}`}
             >
               <div style={{ padding: '14px 16px' }}>
@@ -136,8 +136,8 @@ export function ConsumablesPage() {
                   <GameButton
                     variant="secondary"
                     size="sm"
-                    onClick={() => handleUse(c.consumable_slug)}
-                    loading={using === c.consumable_slug}
+                    onClick={() => handleUse(c.slug)}
+                    loading={using === c.slug}
                     disabled={c.quantity <= 0}
                   >
                     Utiliser
