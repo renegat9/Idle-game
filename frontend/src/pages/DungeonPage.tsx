@@ -93,13 +93,13 @@ export function DungeonPage() {
     }).catch(() => {})
   }, [])
 
-  async function loadStatus() {
-    setLoading(true)
+  async function loadStatus(silent = false) {
+    if (!silent) setLoading(true)
     try {
       const { data } = await dungeonApi.status()
       setStatus(data)
     } catch { /* ok */ }
-    setLoading(false)
+    if (!silent) setLoading(false)
   }
 
   async function startDungeon() {
@@ -147,7 +147,7 @@ export function DungeonPage() {
       }
 
 
-      await loadStatus()
+      await loadStatus(true)
     } catch (e: any) {
       setMessage({ text: e.response?.data?.message ?? 'Erreur.', ok: false })
     }
