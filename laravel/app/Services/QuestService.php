@@ -396,13 +396,25 @@ class QuestService
     private function buildStepResponse(Quest $quest, UserQuest $userQuest): array
     {
         $step = $quest->steps->firstWhere('step_index', $userQuest->current_step);
+
+        if (!$step) {
+            \Log::error("Quest step introuvable", [
+                'quest_id'     => $quest->id,
+                'quest_title'  => $quest->title,
+                'current_step' => $userQuest->current_step,
+                'steps_count'  => $quest->steps->count(),
+                'step_indices' => $quest->steps->pluck('step_index')->toArray(),
+            ]);
+            return ['error' => 'Étape introuvable pour cette quête. Elle sera réinitialisée.'];
+        }
+
         return [
             'user_quest_id' => $userQuest->id,
             'quest_id'      => $quest->id,
             'quest_title'   => $quest->title,
             'current_step'  => $userQuest->current_step,
             'total_steps'   => $quest->steps_count,
-            'step'          => $step ? $this->sanitizeStep($step) : null,
+            'step'          => $this->sanitizeStep($step),
         ];
     }
 

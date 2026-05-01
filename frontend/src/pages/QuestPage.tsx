@@ -77,6 +77,14 @@ export function QuestPage() {
     setResult(null)
     try {
       const { data } = await questApi.start(questId)
+      if (data.error) {
+        alert(data.error)
+        return
+      }
+      if (!data.step) {
+        alert('Étape introuvable pour cette quête. Contactez un administrateur.')
+        return
+      }
       setActiveQuest(data)
     } catch (e: any) {
       alert(e.response?.data?.message ?? 'Erreur')
