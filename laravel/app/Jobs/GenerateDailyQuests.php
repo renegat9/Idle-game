@@ -82,17 +82,51 @@ class GenerateDailyQuests implements ShouldQueue
     {
         $rewardGold = $level * $this->getGoldMult();
 
-        DB::table('quests')->insert([
+        $questId = DB::table('quests')->insertGetId([
             'zone_id'         => $zoneId,
             'title'           => $data['title'],
             'description'     => $data['description'],
             'type'            => 'daily',
-            'steps_count'     => count($data['steps'] ?? []) ?: 1,
+            'steps_count'     => 1,
             'reward_gold'     => $rewardGold,
             'reward_xp'       => intdiv($rewardGold, 2),
             'is_ai_generated' => true,
             'created_at'      => now(),
             'updated_at'      => now(),
+        ]);
+
+        $stats = ['atq', 'def', 'vit', 'int', 'cha'];
+        $stat  = $stats[array_rand($stats)];
+        $diff  = max(20, min(45, $level + 15));
+
+        $step = [
+            'narration'        => $data['description'],
+            'narrator_comment' => $data['flavor'] ?? 'Le Narrateur observe. Sans trop s\'impliquer.',
+            'is_final'         => true,
+            'choices'          => [
+                [
+                    'id'      => 'A',
+                    'text'    => 'Relever le défi (test ' . strtoupper($stat) . ')',
+                    'test'    => ['stat' => $stat, 'difficulty' => $diff],
+                    'success' => ['next_step' => null, 'effects' => [], 'narration' => 'Bien joué. Vos héros s\'en sortent avec panache relatif.'],
+                    'failure' => ['next_step' => null, 'effects' => [['type' => 'debuff', 'id' => 'D01', 'target' => 'party']], 'narration' => 'Raté, mais la récompense est là quand même. Le Narrateur est généreux aujourd\'hui.'],
+                ],
+                [
+                    'id'      => 'B',
+                    'text'    => 'Improviser (pas de test)',
+                    'test'    => null,
+                    'success' => ['next_step' => null, 'effects' => [], 'narration' => 'L\'improvisation fonctionne. Personne ne comprend pourquoi.'],
+                    'failure' => null,
+                ],
+            ],
+        ];
+
+        DB::table('quest_steps')->insert([
+            'quest_id'   => $questId,
+            'step_index' => 1,
+            'content'    => json_encode($step, JSON_UNESCAPED_UNICODE),
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 
