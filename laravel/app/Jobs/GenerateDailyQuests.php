@@ -38,6 +38,9 @@ class GenerateDailyQuests implements ShouldQueue
             ->where('date', '<', today()->subDay())
             ->delete();
 
+        // Repair daily quests that exist without steps
+        $this->repairMissingSteps();
+
         // Get all active zones
         $zones = DB::table('zones')
             ->orderBy('order_index')
@@ -128,6 +131,55 @@ class GenerateDailyQuests implements ShouldQueue
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function repairMissingSteps(): void
+    {
+        $broken = DB::table('quests as q')
+            ->leftJoin('quest_steps as qs', 'qs.quest_id', '=', 'q.id')
+            ->where('q.type', 'daily')
+            ->whereNull('qs.id')
+            ->select('q.id', 'q.title', 'q.description')
+            ->get();
+
+        foreach ($broken as $quest) {
+            $stats = ['atq', 'def', 'vit', 'int', 'cha'];
+            $stat  = $stats[array_rand($stats)];
+
+            $step = [
+                'narration'        => $quest->description,
+                'narrator_comment' => 'Le Narrateur observe. Sans trop s\'impliquer.',
+                'is_final'         => true,
+                'choices'          => [
+                    [
+                        'id'      => 'A',
+                        'text'    => 'Relever le défi (test ' . strtoupper($stat) . ')',
+                        'test'    => ['stat' => $stat, 'difficulty' => 30],
+                        'success' => ['next_step' => null, 'effects' => [], 'narration' => 'Réussi. Le Narrateur hoche la tête.'],
+                        'failure' => ['next_step' => null, 'effects' => [['type' => 'debuff', 'id' => 'D01', 'target' => 'party']], 'narration' => 'Raté, mais la récompense est là quand même.'],
+                    ],
+                    [
+                        'id'      => 'B',
+                        'text'    => 'Improviser (pas de test)',
+                        'test'    => null,
+                        'success' => ['next_step' => null, 'effects' => [], 'narration' => 'L\'improvisation fonctionne. Personne ne comprend pourquoi.'],
+                        'failure' => null,
+                    ],
+                ],
+            ];
+
+            DB::table('quest_steps')->insert([
+                'quest_id'   => $quest->id,
+                'step_index' => 1,
+                'content'    => json_encode($step, JSON_UNESCAPED_UNICODE),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if ($broken->count() > 0) {
+            Log::info("GenerateDailyQuests: repaired {$broken->count()} daily quest(s) missing steps.");
+        }
     }
 
     private function getGoldMult(): int
