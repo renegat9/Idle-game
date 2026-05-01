@@ -413,7 +413,8 @@ class QuestService
             if (!empty($c['test'])) {
                 $c['test'] = ['stat' => $c['test']['stat'] ?? null, 'has_test' => true, 'type' => $c['test']['type'] ?? 'stat'];
             }
-            unset($c['success']['effects'], $c['failure']['effects']);
+            if (isset($c['success']['effects'])) unset($c['success']['effects']);
+            if (isset($c['failure']['effects'])) unset($c['failure']['effects']);
             return $c;
         })->toArray();
 
