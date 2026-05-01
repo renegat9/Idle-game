@@ -1303,6 +1303,255 @@ class GeminiService
         ];
     }
 
+    /**
+     * Generate a full zone quest with multi-step narrative, choices, stat tests and effects.
+     * Used by quests:seed-zone command to populate permanent zone quests.
+     * @return array{title: string, description: string, steps: array}
+     */
+    public function generateZoneQuestFull(string $zoneSlug, string $zoneName, int $zoneLevel, int $stepsCount = 3): array
+    {
+        if (!$this->canCall('quest')) {
+            return $this->fallbackZoneQuestFull($zoneSlug, $zoneName, $zoneLevel, $stepsCount);
+        }
+
+        $stepsExample = $this->buildZoneQuestStepsExample($zoneSlug, $stepsCount);
+
+        $prompt = "Tu es le Narrateur sarcastique du jeu 'Le Donjon des Incompétents' (humour absurde style Kaamelott). "
+            . "Génère une quête de zone COMPLÈTE pour '{$zoneName}' (slug: {$zoneSlug}, niveau {$zoneLevel}). "
+            . "Titre accrocheur (max 60 chars), description drôle (max 200 chars), {$stepsCount} étapes narratives. "
+            . "Stats de test autorisées : atq, def, vit, int, cha. Difficultés entre 20 et 50. "
+            . "Effets autorisés : [] (vide), [{\"type\":\"buff\",\"id\":\"B01\",\"target\":\"party\"}], "
+            . "[{\"type\":\"debuff\",\"id\":\"D03\",\"target\":\"leader\"}], [{\"type\":\"gold\",\"amount\":-50}], "
+            . "[{\"type\":\"loot\",\"rarity_min\":\"rare\"}]. IDs buffs B01-B08, debuffs D01-D10. Cibles : party ou leader. "
+            . "Dernière étape : is_final=true, choix A sans test, effets [{\"type\":\"reputation\",\"zone\":\"{$zoneSlug}\",\"amount\":15}]. "
+            . "Réponds UNIQUEMENT avec ce JSON valide, sans texte autour :\n{$stepsExample}";
+
+        try {
+            $raw = $this->callTextApi($prompt, 'quest', 2000);
+            if ($raw !== null) {
+                $parsed = $this->parseZoneQuestFullResponse($raw, $zoneSlug, $stepsCount);
+                if ($parsed !== null) {
+                    return $parsed;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('GeminiService::generateZoneQuestFull failed', ['error' => $e->getMessage()]);
+        }
+
+        return $this->fallbackZoneQuestFull($zoneSlug, $zoneName, $zoneLevel, $stepsCount);
+    }
+
+    private function buildZoneQuestStepsExample(string $zoneSlug, int $stepsCount): string
+    {
+        $steps = [];
+        for ($i = 1; $i <= $stepsCount; $i++) {
+            $isFinal = ($i === $stepsCount);
+            if ($isFinal) {
+                $steps[] = '{"narration":"...","narrator_comment":"...","is_final":true,"choices":['
+                    . '{"id":"A","text":"Conclure","test":null,"success":{"next_step":null,"effects":[{"type":"reputation","zone":"' . $zoneSlug . '","amount":15}],"narration":"..."},"failure":null}'
+                    . ']}';
+            } else {
+                $next = $i + 1;
+                $steps[] = '{"narration":"...","narrator_comment":"...","choices":['
+                    . '{"id":"A","text":"Action 1 (test STAT)","test":{"stat":"int","difficulty":30},"success":{"next_step":' . $next . ',"effects":[],"narration":"..."},"failure":{"next_step":' . $next . ',"effects":[{"type":"debuff","id":"D03","target":"leader"}],"narration":"..."}},'
+                    . '{"id":"B","text":"Action 2 (test STAT)","test":{"stat":"cha","difficulty":25},"success":{"next_step":' . $next . ',"effects":[],"narration":"..."},"failure":{"next_step":' . $next . ',"effects":[],"narration":"..."}}'
+                    . ']}';
+            }
+        }
+
+        return '{"title":"...","description":"...","steps":[' . implode(',', $steps) . ']}';
+    }
+
+    /** @return array{title: string, description: string, steps: array}|null */
+    private function parseZoneQuestFullResponse(string $raw, string $zoneSlug, int $expectedSteps): ?array
+    {
+        $json = $this->extractJson($raw);
+        if ($json === null) {
+            return null;
+        }
+
+        $data = json_decode($json, true);
+        if (!is_array($data) || empty($data['title']) || empty($data['description']) || empty($data['steps'])) {
+            return null;
+        }
+
+        if (!is_array($data['steps']) || count($data['steps']) < 1) {
+            return null;
+        }
+
+        $validStats   = ['atq', 'def', 'vit', 'int', 'cha'];
+        $validTargets = ['party', 'leader', 'attacker'];
+        $steps        = [];
+
+        foreach ($data['steps'] as $idx => $step) {
+            if (!isset($step['narration'], $step['choices']) || !is_array($step['choices'])) {
+                continue;
+            }
+
+            $cleanChoices = [];
+            foreach ($step['choices'] as $choice) {
+                if (!isset($choice['id'], $choice['text'], $choice['success'])) {
+                    continue;
+                }
+
+                // Validate test
+                $test = null;
+                if (!empty($choice['test']) && is_array($choice['test'])) {
+                    $stat = $choice['test']['stat'] ?? '';
+                    $diff = (int) ($choice['test']['difficulty'] ?? 25);
+                    if (in_array($stat, $validStats)) {
+                        $test = ['stat' => $stat, 'difficulty' => max(15, min(60, $diff))];
+                    }
+                }
+
+                // Sanitize effects
+                $sanitizeEffects = function (array $effects) use ($validTargets): array {
+                    $clean = [];
+                    foreach ($effects as $effect) {
+                        if (!isset($effect['type'])) {
+                            continue;
+                        }
+                        if (in_array($effect['type'], ['buff', 'debuff'])) {
+                            $id     = preg_match('/^[BD]\d{2}$/', $effect['id'] ?? '') ? $effect['id'] : 'D01';
+                            $target = in_array($effect['target'] ?? '', $validTargets) ? $effect['target'] : 'party';
+                            $clean[] = ['type' => $effect['type'], 'id' => $id, 'target' => $target];
+                        } elseif ($effect['type'] === 'gold' && isset($effect['amount'])) {
+                            $clean[] = ['type' => 'gold', 'amount' => (int) $effect['amount']];
+                        } elseif ($effect['type'] === 'loot' && isset($effect['rarity_min'])) {
+                            $clean[] = ['type' => 'loot', 'rarity_min' => $effect['rarity_min']];
+                        } elseif ($effect['type'] === 'reputation' && isset($effect['zone'], $effect['amount'])) {
+                            $clean[] = ['type' => 'reputation', 'zone' => $effect['zone'], 'amount' => (int) $effect['amount']];
+                        }
+                    }
+                    return $clean;
+                };
+
+                $success = $choice['success'] ?? null;
+                $failure = $choice['failure'] ?? null;
+
+                if ($success) {
+                    $success['effects'] = $sanitizeEffects($success['effects'] ?? []);
+                }
+                if ($failure) {
+                    $failure['effects'] = $sanitizeEffects($failure['effects'] ?? []);
+                }
+
+                $cleanChoices[] = [
+                    'id'      => mb_substr((string) $choice['id'], 0, 2),
+                    'text'    => mb_substr((string) $choice['text'], 0, 120),
+                    'test'    => $test,
+                    'success' => $success,
+                    'failure' => $failure,
+                ];
+            }
+
+            if (empty($cleanChoices)) {
+                continue;
+            }
+
+            $cleanStep = [
+                'narration'        => mb_substr((string) $step['narration'], 0, 500),
+                'narrator_comment' => mb_substr((string) ($step['narrator_comment'] ?? ''), 0, 300),
+                'choices'          => $cleanChoices,
+            ];
+
+            if (!empty($step['is_final'])) {
+                $cleanStep['is_final'] = true;
+            }
+
+            $steps[] = $cleanStep;
+        }
+
+        if (empty($steps)) {
+            return null;
+        }
+
+        // Force last step to be final
+        $steps[count($steps) - 1]['is_final'] = true;
+
+        return [
+            'title'       => mb_substr((string) $data['title'], 0, 60),
+            'description' => mb_substr((string) $data['description'], 0, 200),
+            'steps'       => $steps,
+        ];
+    }
+
+    /** @return array{title: string, description: string, steps: array} */
+    private function fallbackZoneQuestFull(string $zoneSlug, string $zoneName, int $zoneLevel, int $stepsCount): array
+    {
+        $templates = [
+            [
+                'title'       => "Le Problème Inattendu de {$zoneName}",
+                'description' => "Quelque chose ne va pas à {$zoneName}. Personne ne sait exactement quoi. Vos héros vont devoir s'en occuper, comme d'habitude.",
+            ],
+            [
+                'title'       => "La Situation Délicate à {$zoneName}",
+                'description' => "Un habitant de {$zoneName} a un problème. Ce problème aurait pu être évité. Il ne l'a pas été. Vous voilà.",
+            ],
+            [
+                'title'       => "L'Incident Prévisible de {$zoneName}",
+                'description' => "Tout allait bien à {$zoneName}. Puis quelqu'un a eu une idée. Le résultat est devant vous.",
+            ],
+        ];
+
+        $tpl = $templates[array_rand($templates)];
+
+        $steps = [];
+        $stats = ['atq', 'def', 'vit', 'int', 'cha'];
+
+        for ($i = 1; $i <= $stepsCount; $i++) {
+            $isFinal = ($i === $stepsCount);
+            $next    = $isFinal ? null : $i + 1;
+            $stat1   = $stats[($i - 1) % count($stats)];
+            $stat2   = $stats[$i % count($stats)];
+            $diff    = $zoneLevel + 10;
+
+            if ($isFinal) {
+                $steps[] = [
+                    'narration'        => "La situation est résolue. Vos héros ont géré. D'une façon ou d'une autre.",
+                    'narrator_comment' => "Le Narrateur enregistre cette victoire sans commentaire particulier. Ce qui est en soi un commentaire.",
+                    'is_final'         => true,
+                    'choices'          => [
+                        [
+                            'id'      => 'A',
+                            'text'    => "Accepter la récompense",
+                            'test'    => null,
+                            'success' => ['next_step' => null, 'effects' => [['type' => 'reputation', 'zone' => $zoneSlug, 'amount' => 10]], 'narration' => "Mission accomplie. Le Narrateur prend note."],
+                            'failure' => null,
+                        ],
+                    ],
+                ];
+            } else {
+                $steps[] = [
+                    'narration'        => "Étape {$i} de la quête. La situation évolue de façon prévisiblement imprévisible.",
+                    'narrator_comment' => "Niveau {$zoneLevel}. Étape {$i}. Le Narrateur regarde avec un intérêt poli.",
+                    'choices'          => [
+                        [
+                            'id'      => 'A',
+                            'text'    => "Affronter la situation (test " . strtoupper($stat1) . ")",
+                            'test'    => ['stat' => $stat1, 'difficulty' => $diff],
+                            'success' => ['next_step' => $next, 'effects' => [], 'narration' => "Ça marche. Vos héros avancent."],
+                            'failure' => ['next_step' => $next, 'effects' => [['type' => 'debuff', 'id' => 'D03', 'target' => 'party']], 'narration' => "Ça ne marche pas vraiment. Vos héros avancent quand même."],
+                        ],
+                        [
+                            'id'      => 'B',
+                            'text'    => "Contourner le problème (test " . strtoupper($stat2) . ")",
+                            'test'    => ['stat' => $stat2, 'difficulty' => $diff - 5],
+                            'success' => ['next_step' => $next, 'effects' => [['type' => 'buff', 'id' => 'B01', 'target' => 'party']], 'narration' => "Approche alternative réussie. Élégant."],
+                            'failure' => ['next_step' => $next, 'effects' => [], 'narration' => "L'alternative était moins bonne. On continue."],
+                        ],
+                    ],
+                ];
+            }
+        }
+
+        return [
+            'title'       => $tpl['title'],
+            'description' => $tpl['description'],
+            'steps'       => $steps,
+        ];
+    }
+
     /** @return array{style: string, prompt: string, file_path: string} */
     private function fallbackTavernMusic(string $style): array
     {

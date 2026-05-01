@@ -9,10 +9,14 @@ class QuestSeeder extends Seeder
 {
     public function run(): void
     {
-        $prairieId = DB::table('zones')->where('slug', 'prairie')->value('id');
-        $foretId   = DB::table('zones')->where('slug', 'foret_elfes')->value('id');
-        $minesId   = DB::table('zones')->where('slug', 'mines_nain')->value('id');
-        $maraisId  = DB::table('zones')->where('slug', 'marais_bureaucratie')->value('id');
+        $prairieId   = DB::table('zones')->where('slug', 'prairie')->value('id');
+        $foretId     = DB::table('zones')->where('slug', 'foret_elfes')->value('id');
+        $minesId     = DB::table('zones')->where('slug', 'mines_nain')->value('id');
+        $maraisId    = DB::table('zones')->where('slug', 'marais_bureaucratie')->value('id');
+        $tourId      = DB::table('zones')->where('slug', 'tour_mage_distrait')->value('id');
+        $cimetiereId = DB::table('zones')->where('slug', 'cimetiere_syndique')->value('id');
+        $volcanId    = DB::table('zones')->where('slug', 'volcan_dragon_retraite')->value('id');
+        $capitaleId  = DB::table('zones')->where('slug', 'capitale_incompetents')->value('id');
 
         $quests = [
             // ── Zone 1 — La Prairie des Débutants ──
@@ -110,6 +114,252 @@ class QuestSeeder extends Seeder
                 'is_ai_generated'    => false,
             ],
 
+            // ── Zone 3 — Les Mines du Nain Ivre ──
+            [
+                'zone_id'            => $minesId,
+                'type'               => 'zone',
+                'title'              => 'L\'Effondrement Évitable',
+                'description'        => 'Une galerie de la mine est sur le point de s\'effondrer. Thorin le Nain Ivre assure que ce n\'est pas grave. Il dit ça en se tenant à un pilier qui penche. Vous n\'êtes pas convaincus.',
+                'steps_count'        => 3,
+                'order_index'        => 1,
+                'reward_xp'          => 450,
+                'reward_gold'        => 280,
+                'reward_loot_rarity' => 'commun',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $minesId,
+                'type'               => 'zone',
+                'title'              => 'La Bière de la Discorde',
+                'description'        => 'Deux clans de nains se disputent une barrique de bière légendaire trouvée dans une galerie abandonnée. La situation dégénère. Des pioches sont sorties. Un nain a commencé à rédiger un manifeste.',
+                'steps_count'        => 4,
+                'order_index'        => 2,
+                'reward_xp'          => 650,
+                'reward_gold'        => 400,
+                'reward_loot_rarity' => 'peu_commun',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $minesId,
+                'type'               => 'zone',
+                'title'              => 'Les Cristaux Trop Brillants',
+                'description'        => 'Des cristaux magiques ont poussé en plein dans le chemin principal de la mine. Ils sont magnifiques. Ils aveuglent tous ceux qui passent. Les mineurs ont commencé à travailler avec les yeux fermés, ce qui n\'améliore pas le rendement.',
+                'steps_count'        => 4,
+                'order_index'        => 3,
+                'reward_xp'          => 800,
+                'reward_gold'        => 500,
+                'reward_loot_rarity' => 'rare',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+
+            // ── Zone 4 — Le Marais de la Bureaucratie ──
+            [
+                'zone_id'            => $maraisId,
+                'type'               => 'zone',
+                'title'              => 'Le Cachet Manquant',
+                'description'        => 'Votre laissez-passer pour traverser le marais est incomplet — il manque le cachet du Sous-Secrétariat aux Traversées Non Essentielles. Le bureau est ouvert le mardi de 10h à 10h15, sauf jours fériés, et aujourd\'hui est un mardi très suspect.',
+                'steps_count'        => 4,
+                'order_index'        => 1,
+                'reward_xp'          => 700,
+                'reward_gold'        => 450,
+                'reward_loot_rarity' => 'peu_commun',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $maraisId,
+                'type'               => 'zone',
+                'title'              => 'La Grenouille Syndiquée',
+                'description'        => 'Madame Grenouillette, déléguée syndicale des amphibiens du marais, exige une renégociation des conditions de vie. Elle a des revendications légitimes. Elle a aussi un mégaphone. Et des partisans très enthousiastes.',
+                'steps_count'        => 4,
+                'order_index'        => 2,
+                'reward_xp'          => 950,
+                'reward_gold'        => 600,
+                'reward_loot_rarity' => 'rare',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $maraisId,
+                'type'               => 'zone',
+                'title'              => 'Le Fonctionnaire Fantôme',
+                'description'        => 'Un fantôme hante les bureaux du marais depuis 200 ans. Il continue à tamponner des formulaires qui n\'existent plus pour des gens qui sont morts. Personne n\'ose lui dire d\'arrêter. Il est très efficace. C\'est le problème.',
+                'steps_count'        => 5,
+                'order_index'        => 3,
+                'reward_xp'          => 1200,
+                'reward_gold'        => 750,
+                'reward_loot_rarity' => 'rare',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+
+            // ── Zone 5 — La Tour du Mage Distrait ──
+            [
+                'zone_id'            => $tourId,
+                'type'               => 'zone',
+                'title'              => 'L\'Expérience Ratée de Zardok',
+                'description'        => 'Le Mage Zardok a combiné un sort de lévitation, une potion de feu et un parchemin de convocation sans lire les instructions. La tour est maintenant partiellement en orbite. Les étages supérieurs flottent. Zardok trouve ça "intéressant".',
+                'steps_count'        => 4,
+                'order_index'        => 1,
+                'reward_xp'          => 1000,
+                'reward_gold'        => 650,
+                'reward_loot_rarity' => 'rare',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $tourId,
+                'type'               => 'zone',
+                'title'              => 'Le Familier Ingrat',
+                'description'        => 'Le familier de Zardok — un chat nommé Formule — a absorbé trop de magie ambiante et refuse maintenant d\'obéir. Il lance des sorts au hasard, mange les grimoires importants et a déclaré être le vrai mage de la tour.',
+                'steps_count'        => 4,
+                'order_index'        => 2,
+                'reward_xp'          => 1350,
+                'reward_gold'        => 850,
+                'reward_loot_rarity' => 'rare',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $tourId,
+                'type'               => 'zone',
+                'title'              => 'Le Sort de Duplication Incontrôlée',
+                'description'        => 'Zardok a lancé un sort de duplication en pensant doubler sa réserve de parchemins. Il y a maintenant 47 Zardoks dans la tour. Ils se disputent tous. Le vrai Zardok ne sait plus qui il est. Peut-être que vous non plus.',
+                'steps_count'        => 5,
+                'order_index'        => 3,
+                'reward_xp'          => 1800,
+                'reward_gold'        => 1100,
+                'reward_loot_rarity' => 'epique',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+
+            // ── Zone 6 — Le Cimetière Syndiqué ──
+            [
+                'zone_id'            => $cimetiereId,
+                'type'               => 'zone',
+                'title'              => 'La Grève des Squelettes',
+                'description'        => 'Les squelettes du cimetière se sont mis en grève. Leurs revendications : des repos hebdomadaires respectés, moins d\'aventuriers qui les perturbent, et un meilleur système de reconstitution osseuse. Le piquet de grève est impeccablement organisé.',
+                'steps_count'        => 4,
+                'order_index'        => 1,
+                'reward_xp'          => 1500,
+                'reward_gold'        => 950,
+                'reward_loot_rarity' => 'rare',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $cimetiereId,
+                'type'               => 'zone',
+                'title'              => 'Le Mort-Vivant en CDI',
+                'description'        => 'Un zombie refuse de rester mort car il est en contrat à durée indéterminée avec une compagnie de gardiennage. Son contrat n\'a pas de clause de décès. Son employeur refuse de résilier. Les juristes sont aussi morts. C\'est compliqué.',
+                'steps_count'        => 4,
+                'order_index'        => 2,
+                'reward_xp'          => 1950,
+                'reward_gold'        => 1250,
+                'reward_loot_rarity' => 'epique',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $cimetiereId,
+                'type'               => 'zone',
+                'title'              => 'L\'Inspecteur des Tombes',
+                'description'        => 'Un inspecteur des monuments funèbres est coincé dans le cimetière depuis une semaine. Il est toujours vivant mais note des infractions sur tout : tombes mal alignées, épitaphes illisibles, revenants sans badge. Son carnet est plein.',
+                'steps_count'        => 4,
+                'order_index'        => 3,
+                'reward_xp'          => 2400,
+                'reward_gold'        => 1500,
+                'reward_loot_rarity' => 'epique',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+
+            // ── Zone 7 — Le Volcan du Dragon Retraité ──
+            [
+                'zone_id'            => $volcanId,
+                'type'               => 'zone',
+                'title'              => 'La Pension du Dragon',
+                'description'        => 'Flambert le Dragon Retraité n\'a pas reçu sa pension depuis trois mois. Il est de mauvaise humeur. Il exprime sa mauvaise humeur en grillant les envoyés des impôts. Il vous demande de régler ça. Poliment. Avec sa voix de dragon retraité.',
+                'steps_count'        => 4,
+                'order_index'        => 1,
+                'reward_xp'          => 2200,
+                'reward_gold'        => 1400,
+                'reward_loot_rarity' => 'epique',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $volcanId,
+                'type'               => 'zone',
+                'title'              => 'La Lave dans le Salon',
+                'description'        => 'De la lave s\'écoule dans la grotte principale de Flambert. Il est très contrarié. Il venait de refaire la décoration. Les tapis de peau de yéti sont foutus. Il vous demande de boucher la fissure pendant qu\'il va faire ses courses.',
+                'steps_count'        => 4,
+                'order_index'        => 2,
+                'reward_xp'          => 2800,
+                'reward_gold'        => 1800,
+                'reward_loot_rarity' => 'epique',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $volcanId,
+                'type'               => 'zone',
+                'title'              => 'Les Touristes Inconscients',
+                'description'        => 'Un groupe de touristes a décidé que le volcan actif était "une attraction touristique sous-cotée". Ils prennent des photos. Ils ignorent les panneaux "DANGER". Flambert est à la fois flatté et exaspéré. Vous devez les évacuer avant qu\'il perde patience.',
+                'steps_count'        => 5,
+                'order_index'        => 3,
+                'reward_xp'          => 3500,
+                'reward_gold'        => 2200,
+                'reward_loot_rarity' => 'legendaire',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+
+            // ── Zone 8 — La Capitale des Incompétents ──
+            [
+                'zone_id'            => $capitaleId,
+                'type'               => 'zone',
+                'title'              => 'Le Trésor Royal Inexistant',
+                'description'        => 'Le Roi a commandé une inspection du trésor royal. Le trésor est vide. Pas "presque vide" — vide. Il y a juste une note qui dit "désolé". Personne ne sait depuis combien de temps. Le Roi pense que c\'est une erreur administrative.',
+                'steps_count'        => 4,
+                'order_index'        => 1,
+                'reward_xp'          => 3000,
+                'reward_gold'        => 2000,
+                'reward_loot_rarity' => 'epique',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $capitaleId,
+                'type'               => 'zone',
+                'title'              => 'L\'Élection Présidentielle Calamiteuse',
+                'description'        => 'La Capitale organise une élection pour désigner un Président du Conseil des Incompétents. Il y a 23 candidats. Ils ont tous les mêmes idées. Toutes mauvaises. Vous devez trouver le moins pire avant que la situation dégénère en fête foraine.',
+                'steps_count'        => 5,
+                'order_index'        => 2,
+                'reward_xp'          => 4000,
+                'reward_gold'        => 2600,
+                'reward_loot_rarity' => 'legendaire',
+                'is_repeatable'      => true,
+                'is_ai_generated'    => false,
+            ],
+            [
+                'zone_id'            => $capitaleId,
+                'type'               => 'zone',
+                'title'              => 'Le Complot Amateur',
+                'description'        => 'Quelqu\'un complote contre le Roi. Leur plan est écrit en toutes lettres sur une affiche en ville avec leur nom et adresse. Ils n\'ont pas l\'air de s\'en rendre compte. Le Roi non plus. Vous devez décider quoi faire de cette information.',
+                'steps_count'        => 5,
+                'order_index'        => 3,
+                'reward_xp'          => 5000,
+                'reward_gold'        => 3200,
+                'reward_loot_rarity' => 'legendaire',
+                'is_repeatable'      => false,
+                'is_ai_generated'    => false,
+            ],
+
             // ── Quêtes WTF — Absurdes, épiques, imprévisibles ──
             [
                 'zone_id'            => $prairieId,
@@ -179,6 +429,13 @@ class QuestSeeder extends Seeder
         ];
 
         foreach ($quests as $quest) {
+            $exists = DB::table('quests')
+                ->where('title', $quest['title'])
+                ->where('zone_id', $quest['zone_id'])
+                ->exists();
+            if ($exists) {
+                continue;
+            }
             $quest['created_at'] = now();
             $quest['updated_at'] = now();
             $id = DB::table('quests')->insertGetId($quest);
