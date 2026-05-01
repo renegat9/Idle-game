@@ -59,13 +59,13 @@ class RepairController extends Controller
             $item->save();
 
             DB::table('economy_log')->insert([
-                'user_id'    => $user->id,
-                'event_type' => 'repair',
-                'amount'     => -$cost,
-                'balance'    => $user->gold,
-                'meta'       => json_encode(['item_id' => $item->id, 'item_name' => $item->name]),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'user_id'          => $user->id,
+                'transaction_type' => 'depense',
+                'source'           => 'reparation',
+                'amount'           => $cost,
+                'balance_after'    => $user->gold,
+                'description'      => 'Réparation : ' . $item->name,
+                'occurred_at'      => now(),
             ]);
         });
 
@@ -113,13 +113,13 @@ class RepairController extends Controller
             }
 
             DB::table('economy_log')->insert([
-                'user_id'    => $user->id,
-                'event_type' => 'repair_all',
-                'amount'     => -$totalCost,
-                'balance'    => $user->gold,
-                'meta'       => json_encode(['item_count' => $items->count()]),
-                'created_at' => now(),
-                'updated_at' => now(),
+                'user_id'          => $user->id,
+                'transaction_type' => 'depense',
+                'source'           => 'reparation_all',
+                'amount'           => $totalCost,
+                'balance_after'    => $user->gold,
+                'description'      => 'Réparation de ' . $items->count() . ' objet(s)',
+                'occurred_at'      => now(),
             ]);
         });
 
