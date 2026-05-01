@@ -170,12 +170,25 @@ class Zone4MaraisQuestSeeder extends Seeder
             $steps = $questData['steps'];
             unset($questData['steps']);
 
-            $exists = DB::table('quests')
+            $existing = DB::table('quests')
                 ->where('zone_id', $zoneId)
                 ->where('title', $questData['title'])
-                ->exists();
+                ->first();
 
-            if ($exists) {
+            if ($existing) {
+                // Quest exists but steps may be missing (e.g. previous seeder run failed mid-way)
+                $stepCount = DB::table('quest_steps')->where('quest_id', $existing->id)->count();
+                if ($stepCount === 0) {
+                    foreach ($steps as $index => $step) {
+                        DB::table('quest_steps')->insert([
+                            'quest_id'   => $existing->id,
+                            'step_index' => $index + 1,
+                            'content'    => json_encode($step, JSON_UNESCAPED_UNICODE),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
                 continue;
             }
 

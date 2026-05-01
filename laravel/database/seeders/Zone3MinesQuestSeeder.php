@@ -152,11 +152,24 @@ class Zone3MinesQuestSeeder extends Seeder
             $steps = $questData['steps'];
             unset($questData['steps']);
 
-            $exists = DB::table('quests')
+            $existing = DB::table('quests')
                 ->where('zone_id', $zoneId)
                 ->where('title', $questData['title'])
-                ->exists();
-            if ($exists) {
+                ->first();
+
+            if ($existing) {
+                $stepCount = DB::table('quest_steps')->where('quest_id', $existing->id)->count();
+                if ($stepCount === 0) {
+                    foreach ($steps as $index => $step) {
+                        DB::table('quest_steps')->insert([
+                            'quest_id'   => $existing->id,
+                            'step_index' => $index + 1,
+                            'content'    => json_encode($step, JSON_UNESCAPED_UNICODE),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                }
                 continue;
             }
 
