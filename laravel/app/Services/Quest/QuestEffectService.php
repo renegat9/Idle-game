@@ -395,7 +395,7 @@ class QuestEffectService
 
     private function applyLoot(User $user, string $rarityMin): ?array
     {
-        $item = $this->loot->rollLoot($user, 1, $rarityMin);
+        $item = $this->loot->rollQuestLoot($user, $rarityMin);
         return $item ? ['type' => 'loot', 'item_name' => $item->name, 'rarity' => $item->rarity] : null;
     }
 }
