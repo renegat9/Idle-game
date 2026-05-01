@@ -178,7 +178,7 @@ class TalentService
                 'transaction_type' => 'depense',
                 'source'           => 'talent_reset',
                 'amount'           => $cost,
-                'balance_after'    => $user->gold - $cost,
+                'balance_after'    => max(0, $user->gold - $cost),
                 'description'      => "Réinitialisation des talents de {$hero->name}",
             ]);
         });

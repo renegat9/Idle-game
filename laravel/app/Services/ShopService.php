@@ -135,7 +135,7 @@ class ShopService
                 'transaction_type' => 'depense',
                 'source'           => 'achat_boutique',
                 'amount'           => $shopItem->shop_price,
-                'balance_after'    => $user->gold - $shopItem->shop_price,
+                'balance_after'    => max(0, $user->gold - $shopItem->shop_price),
                 'description'      => 'Acheté : ' . $shopItem->name,
             ]);
 

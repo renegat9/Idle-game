@@ -282,7 +282,7 @@ class TavernController extends Controller
                 'transaction_type' => 'depense',
                 'source'           => 'achat_consommable',
                 'amount'           => $price,
-                'balance_after'    => $user->gold - $price,
+                'balance_after'    => max(0, $user->gold - $price),
                 'description'      => 'Acheté : ' . $consumable->name,
             ]);
         });
