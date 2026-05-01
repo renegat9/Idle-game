@@ -216,7 +216,7 @@ class WorldBossService
 
         $boss = WorldBoss::create([
             'name'             => $definition['name'],
-            'slug'             => $definition['slug'],
+            'slug'             => $definition['slug'] . '-' . now()->format('Ymd'),
             'total_hp'         => $definition['total_hp'],
             'current_hp'       => $definition['total_hp'],
             'status'           => 'active',
