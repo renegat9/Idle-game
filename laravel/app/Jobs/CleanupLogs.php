@@ -47,13 +47,13 @@ class CleanupLogs implements ShouldQueue
 
         // ai_generation_log: archive entries older than 30 days
         $deleted['ai_generation_log'] = DB::table('ai_generation_log')
-            ->where('occurred_at', '<', now()->subDays(30))
+            ->where('created_at', '<', now()->subDays(30))
             ->delete();
 
         // narrator_cache: delete unused entries older than 30 days
         $deleted['narrator_cache'] = DB::table('narrator_cache')
             ->where('usage_count', 0)
-            ->where('occurred_at', '<', now()->subDays(30))
+            ->where('created_at', '<', now()->subDays(30))
             ->delete();
 
         $total = array_sum($deleted);
