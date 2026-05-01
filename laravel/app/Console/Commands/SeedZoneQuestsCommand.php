@@ -74,21 +74,28 @@ class SeedZoneQuestsCommand extends Command
             for ($i = 0; $i < $count; $i++) {
                 $this->line("  Génération quête " . ($i + 1) . "/{$count}...");
 
-                $questData = $gemini->generateZoneQuestFull(
-                    $zone->slug,
-                    $zone->name,
-                    (int) $zone->level_min,
-                    $steps,
-                    $existing + $i
-                );
+                $questData = null;
+                $attempt   = $existing + $i;
+                for ($retry = 0; $retry < 10; $retry++) {
+                    $candidate = $gemini->generateZoneQuestFull(
+                        $zone->slug,
+                        $zone->name,
+                        (int) $zone->level_min,
+                        $steps,
+                        $attempt + $retry
+                    );
+                    $titleExists = DB::table('quests')
+                        ->where('zone_id', $zone->id)
+                        ->where('title', $candidate['title'])
+                        ->exists();
+                    if (!$titleExists) {
+                        $questData = $candidate;
+                        break;
+                    }
+                }
 
-                $exists = DB::table('quests')
-                    ->where('zone_id', $zone->id)
-                    ->where('title', $questData['title'])
-                    ->exists();
-
-                if ($exists) {
-                    $this->line("  → '{$questData['title']}' existe déjà, ignorée.");
+                if (!$questData) {
+                    $this->line("  → Impossible de trouver un titre unique après 10 tentatives, ignorée.");
                     $totalSkipped++;
                     continue;
                 }
