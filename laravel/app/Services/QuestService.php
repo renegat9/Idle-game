@@ -94,8 +94,31 @@ class QuestService
             return $this->buildStepResponse($quest, $existing);
         }
 
-        if ($existing?->status === 'completed' && !$quest->is_repeatable) {
-            return ['error' => 'Cette quête est déjà terminée.'];
+        if ($existing?->status === 'completed') {
+            // Daily quests can be restarted if today's assignment is not yet completed
+            if ($quest->type === 'daily') {
+                $dailyDone = DB::table('user_daily_quests')
+                    ->where('user_id', $user->id)
+                    ->where('quest_id', $quest->id)
+                    ->whereDate('date', today())
+                    ->where('status', 'completed')
+                    ->exists();
+                if ($dailyDone) {
+                    return ['error' => 'Vous avez déjà complété cette quête journalière aujourd\'hui.'];
+                }
+                // Reset user_quests so the quest can be replayed today
+                $existing->update([
+                    'status'       => 'in_progress',
+                    'current_step' => 1,
+                    'step_results' => null,
+                    'started_at'   => now(),
+                    'completed_at' => null,
+                ]);
+                return $this->buildStepResponse($quest, $existing->fresh());
+            }
+            if (!$quest->is_repeatable) {
+                return ['error' => 'Cette quête est déjà terminée.'];
+            }
         }
 
         $userQuest = DB::transaction(function () use ($user, $quest, $existing) {
@@ -183,7 +206,7 @@ class QuestService
         $nextStep = $branch['next_step'] ?? null;
         $isFinal  = ($nextStep === null) || ($step->content['is_final'] ?? false);
 
-        DB::transaction(function () use ($userQuest, $nextStep, $stepResults, $voiceField, $isFinal) {
+        DB::transaction(function () use ($userQuest, $quest, $user, $nextStep, $stepResults, $voiceField, $isFinal) {
             $updates = [
                 'step_results' => $stepResults,
                 $voiceField    => $userQuest->$voiceField + 1,
@@ -193,6 +216,15 @@ class QuestService
                 : ($updates['current_step'] = $nextStep);
 
             $userQuest->update($updates);
+
+            // Mark the daily quest assignment as completed
+            if ($isFinal && $quest->type === 'daily') {
+                DB::table('user_daily_quests')
+                    ->where('user_id', $user->id)
+                    ->where('quest_id', $quest->id)
+                    ->whereDate('date', today())
+                    ->update(['status' => 'completed']);
+            }
         });
 
         $response = [
