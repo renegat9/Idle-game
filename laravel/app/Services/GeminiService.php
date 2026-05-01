@@ -1308,10 +1308,10 @@ class GeminiService
      * Used by quests:seed-zone command to populate permanent zone quests.
      * @return array{title: string, description: string, steps: array}
      */
-    public function generateZoneQuestFull(string $zoneSlug, string $zoneName, int $zoneLevel, int $stepsCount = 3): array
+    public function generateZoneQuestFull(string $zoneSlug, string $zoneName, int $zoneLevel, int $stepsCount = 3, int $attempt = 0): array
     {
         if (!$this->canCall('quest')) {
-            return $this->fallbackZoneQuestFull($zoneSlug, $zoneName, $zoneLevel, $stepsCount);
+            return $this->fallbackZoneQuestFull($zoneSlug, $zoneName, $zoneLevel, $stepsCount, $attempt);
         }
 
         $stepsExample = $this->buildZoneQuestStepsExample($zoneSlug, $stepsCount);
@@ -1338,7 +1338,7 @@ class GeminiService
             Log::warning('GeminiService::generateZoneQuestFull failed', ['error' => $e->getMessage()]);
         }
 
-        return $this->fallbackZoneQuestFull($zoneSlug, $zoneName, $zoneLevel, $stepsCount);
+        return $this->fallbackZoneQuestFull($zoneSlug, $zoneName, $zoneLevel, $stepsCount, $attempt);
     }
 
     private function buildZoneQuestStepsExample(string $zoneSlug, int $stepsCount): string
@@ -1477,7 +1477,7 @@ class GeminiService
     }
 
     /** @return array{title: string, description: string, steps: array} */
-    private function fallbackZoneQuestFull(string $zoneSlug, string $zoneName, int $zoneLevel, int $stepsCount): array
+    private function fallbackZoneQuestFull(string $zoneSlug, string $zoneName, int $zoneLevel, int $stepsCount, int $attempt = 0): array
     {
         $templates = [
             [
@@ -1492,9 +1492,21 @@ class GeminiService
                 'title'       => "L'Incident Prévisible de {$zoneName}",
                 'description' => "Tout allait bien à {$zoneName}. Puis quelqu'un a eu une idée. Le résultat est devant vous.",
             ],
+            [
+                'title'       => "La Complication Habituelle de {$zoneName}",
+                'description' => "Une complication est apparue à {$zoneName}. C'est le genre de complication qu'on aurait pu anticiper. On ne l'a pas fait.",
+            ],
+            [
+                'title'       => "L'Affaire Embarrassante de {$zoneName}",
+                'description' => "Quelqu'un à {$zoneName} a fait une bêtise. Cette bêtise nécessite maintenant l'intervention de votre équipe. Naturellement.",
+            ],
+            [
+                'title'       => "Le Désagrément Chronique de {$zoneName}",
+                'description' => "Ce problème de {$zoneName} revient régulièrement. Personne ne comprend pourquoi. Vos héros non plus, mais ils y vont quand même.",
+            ],
         ];
 
-        $tpl = $templates[array_rand($templates)];
+        $tpl = $templates[$attempt % count($templates)];
 
         $steps = [];
         $stats = ['atq', 'def', 'vit', 'int', 'cha'];

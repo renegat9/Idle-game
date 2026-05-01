@@ -78,7 +78,8 @@ class SeedZoneQuestsCommand extends Command
                     $zone->slug,
                     $zone->name,
                     (int) $zone->level_min,
-                    $steps
+                    $steps,
+                    $existing + $i
                 );
 
                 $exists = DB::table('quests')
