@@ -188,7 +188,7 @@ class Zone4MaraisQuestSeeder extends Seeder
             foreach ($steps as $index => $step) {
                 DB::table('quest_steps')->insert([
                     'quest_id'   => $questId,
-                    'step_order' => $index + 1,
+                    'step_index' => $index + 1,
                     'content'    => json_encode($step, JSON_UNESCAPED_UNICODE),
                     'created_at' => now(),
                     'updated_at' => now(),
