@@ -280,7 +280,14 @@ class CraftingService
 
         return collect(self::ENCHANTMENTS)
             ->filter(fn ($e) => $advancedUnlocked || $e['tier'] === 'base' || $e['tier'] === 'elementaire')
-            ->map(fn ($e, $slug) => array_merge($e, ['slug' => $slug]))
+            ->map(fn ($e, $slug) => array_merge($e, [
+                'slug'      => $slug,
+                'materials' => array_map(
+                    fn ($matSlug, $qty) => ['slug' => $matSlug, 'qty' => $qty],
+                    array_keys($e['materials']),
+                    $e['materials']
+                ),
+            ]))
             ->values()
             ->toArray();
     }
