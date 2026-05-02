@@ -282,6 +282,7 @@ class CraftingService
             ->filter(fn ($e) => $advancedUnlocked || $e['tier'] === 'base' || $e['tier'] === 'elementaire')
             ->map(fn ($e, $slug) => array_merge($e, [
                 'slug'      => $slug,
+                'gold_cost' => $e['gold'],
                 'materials' => array_map(
                     fn ($matSlug, $qty) => ['slug' => $matSlug, 'qty' => $qty],
                     array_keys($e['materials']),
