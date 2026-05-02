@@ -25,9 +25,9 @@ class ProfileController extends Controller
         // Economy history (last 20 transactions)
         $economyLog = DB::table('economy_log')
             ->where('user_id', $user->id)
-            ->orderByDesc('created_at')
+            ->orderByDesc('occurred_at')
             ->limit(20)
-            ->get(['transaction_type', 'source', 'amount', 'balance_after', 'description', 'created_at']);
+            ->get(['transaction_type', 'source', 'amount', 'balance_after', 'description', 'occurred_at']);
 
         // Basic stats counters
         $stats = [
