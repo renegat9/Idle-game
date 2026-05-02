@@ -43,6 +43,14 @@ class GenerateLootImage implements ShouldQueue
 
         $imagePath = $gemini->generateLootImage($this->itemId, $this->slot, $this->rarity);
 
+        // Add to pool so future items of same slot+rarity reuse it for free
+        DB::table('loot_image_pool')->insert([
+            'slot'       => $this->slot,
+            'rarity'     => $this->rarity,
+            'image_url'  => $imagePath,
+            'created_at' => now(),
+        ]);
+
         DB::table('items')
             ->where('id', $this->itemId)
             ->update([
@@ -50,6 +58,6 @@ class GenerateLootImage implements ShouldQueue
                 'is_ai_generated' => 1,
             ]);
 
-        Log::info("GenerateLootImage: item {$this->itemId} → {$imagePath}");
+        Log::info("GenerateLootImage: item {$this->itemId} → {$imagePath} (added to pool)");
     }
 }

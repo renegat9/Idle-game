@@ -196,6 +196,17 @@ class TavernController extends Controller
 
         $hero->load(['race', 'gameClass', 'trait_']);
 
+        // Generate portrait now that the hire is confirmed (lazy — avoids wasting calls on unhired recruits)
+        if (empty($hero->image_path)) {
+            GenerateHeroImage::dispatch(
+                $hero->id,
+                $race->name,
+                $class->slug,
+                $recruit->trait_->slug,
+                'heroes',
+            );
+        }
+
         return response()->json([
             'message'          => "{$hero->name} rejoint l\'équipe. Le Narrateur prend ses paris.",
             'hero_id'          => $hero->id,
@@ -327,7 +338,7 @@ class TavernController extends Controller
                 $legendaryBackstory = $legendary['backstory'];
             }
 
-            $recruit = TavernRecruit::create([
+            TavernRecruit::create([
                 'user_id'             => $userId,
                 'race_id'             => $race->id,
                 'class_id'            => $class->id,
@@ -340,15 +351,7 @@ class TavernController extends Controller
                 'legendary_epithet'   => $legendaryEpithet,
                 'legendary_backstory' => $legendaryBackstory,
             ]);
-
-            // Générer l'image du recrutement en async
-            GenerateHeroImage::dispatch(
-                $recruit->id,
-                $race->name,
-                $class->slug,
-                $trait->slug,
-                'tavern_recruits',
-            );
+            // Image generated lazily on hire to avoid wasting API calls on recruits that expire
         }
     }
 
