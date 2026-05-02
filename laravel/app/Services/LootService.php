@@ -504,12 +504,38 @@ class LootService
 
     private function dispatchImageJob(Item $item): void
     {
-        $minRarity = (int) $this->settings->get('LOOT_AI_GENERATION_MIN_RARITY', 3);
+        $minRarity   = (int) $this->settings->get('LOOT_AI_GENERATION_MIN_RARITY', 3);
         $rarityIndex = array_search($item->rarity, array_keys(self::RARITY_MULTIPLIER));
 
-        if ($rarityIndex !== false && $rarityIndex >= $minRarity - 1) {
-            GenerateLootImage::dispatch($item->id, $item->slot, $item->rarity);
+        if ($rarityIndex === false || $rarityIndex < $minRarity - 1) {
+            return;
         }
+
+        $poolSize  = (int) $this->settings->get('LOOT_IMAGE_POOL_SIZE', 3);
+        $poolCount = DB::table('loot_image_pool')
+            ->where('slot', $item->slot)
+            ->where('rarity', $item->rarity)
+            ->count();
+
+        if ($poolCount >= $poolSize) {
+            // Pool is full — reuse a random existing image, no API call needed
+            $poolImage = DB::table('loot_image_pool')
+                ->where('slot', $item->slot)
+                ->where('rarity', $item->rarity)
+                ->inRandomOrder()
+                ->value('image_url');
+
+            if ($poolImage) {
+                DB::table('items')->where('id', $item->id)->update([
+                    'image_url'       => $poolImage,
+                    'is_ai_generated' => 1,
+                ]);
+            }
+            return;
+        }
+
+        // Pool not yet full — generate a new image and let the job add it to the pool
+        GenerateLootImage::dispatch($item->id, $item->slot, $item->rarity);
     }
 
     /**
